@@ -5,6 +5,25 @@ from typing import Annotated, Literal, Optional, Self
 
 from pydantic import BaseModel, Field, ValidationInfo, field_serializer, field_validator
 
+__all__ = [
+    "TmxElement",
+    "Tmx",
+    "Tu",
+    "Tuv",
+    "Header",
+    "Note",
+    "Prop",
+    "Ude",
+    "Map",
+    "Bpt",
+    "Ept",
+    "It",
+    "Hi",
+    "Sub",
+    "Ph",
+    "Ut",
+]
+
 
 class TmxElement(BaseModel):
     @field_validator(

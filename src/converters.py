@@ -1,9 +1,11 @@
 import xml.etree.ElementTree
+from functools import partial
+from os import PathLike
 from typing import Literal
 
 import lxml.etree
 
-from models import (
+from .models import (
     Bpt,
     Ept,
     Header,
@@ -23,6 +25,13 @@ from models import (
 )
 
 XML = "{http://www.w3.org/XML/1998/namespace}"
+
+__all__ = [
+    "to_element",
+    "from_element",
+    "to_file",
+    "from_file",
+]
 
 
 def from_element(
@@ -210,12 +219,12 @@ def from_element(
 
 
 def to_element(
-    obj: TmxElement, factory: Literal["lxml", "stdlib"] = "lxml"
+    obj: TmxElement, engine: Literal["lxml", "stdlib"] = "lxml"
 ) -> lxml.etree._Element | xml.etree.ElementTree.Element:
     obj.model_validate(obj)
-    if factory == "lxml":
+    if engine == "lxml":
         e = lxml.etree.Element
-    elif factory == "stdlib":
+    elif engine == "stdlib":
         e = xml.etree.ElementTree.Element
 
     element = e(
@@ -245,8 +254,11 @@ def to_element(
         for child in obj.udes:
             element.append(to_element(child))
     if hasattr(obj, "content"):
-        element.append(e("seg"))
-        content = element[-1]
+        if element.tag == ("tuv"):
+            element.append(e("seg"))
+            content = element[-1]
+        else:
+            content = element
         if isinstance(obj.content, str):
             content.text = obj.content
         else:
@@ -261,3 +273,42 @@ def to_element(
                 else:
                     content.append(to_element(child))
     return element
+
+
+def from_file(
+    file: str | bytes | PathLike[str] | PathLike[bytes],
+    engine: Literal["lxml", "stdlib"] = "lxml",
+    encoding: str = "utf-8",
+) -> TmxElement:
+    if engine == "lxml":
+        p = partial(lxml.etree.parse, parser=lxml.etree.XMLParser(encoding=encoding))
+    elif engine == "stdlib":
+        p = xml.etree.ElementTree.parse
+    if not isinstance(file, (str, bytes, PathLike)):
+        raise TypeError
+    with open(file, "r", encoding=encoding) as f:
+        tree = p(f)
+    return from_element(tree.getroot())
+
+
+def to_file(
+    tmx: Tmx,
+    file: str | bytes | PathLike[str] | PathLike[bytes],
+    engine: Literal["lxml", "stdlib"] = "lxml",
+    encoding: str = "utf-8",
+) -> None:
+    if engine == "lxml":
+        t = lxml.etree.ElementTree
+        w = lxml.etree._ElementTree.write
+    elif engine == "stdlib":
+        t = xml.etree.ElementTree.ElementTree
+        w = t.write
+    if not isinstance(file, (str, bytes, PathLike)):
+        raise TypeError
+    tree = t(to_element(tmx))
+    if engine == "lxml":
+        with open(file, "wb") as f:
+            w(tree, f, encoding=encoding, xml_declaration=True)
+    elif engine == "stdlib":
+        with open(file, "w", encoding=encoding) as f:
+            w(tree, f, encoding=encoding, xml_declaration=True)
