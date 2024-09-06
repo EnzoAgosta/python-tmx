@@ -1,4 +1,5 @@
 import xml.etree.ElementTree
+from typing import Literal
 
 import lxml.etree
 
@@ -143,7 +144,7 @@ def from_element(
                 else segment[0]
             )
             return Tuv(
-                segment=segment,
+                content=segment,
                 notes=notes,
                 props=props,
                 lang=element.get(f"{XML}lang"),
@@ -206,3 +207,57 @@ def from_element(
                 content=_content_from_elem(element),
                 x=element.get("x"),
             )
+
+
+def to_element(
+    obj: TmxElement, factory: Literal["lxml", "stdlib"] = "lxml"
+) -> lxml.etree._Element | xml.etree.ElementTree.Element:
+    obj.model_validate(obj)
+    if factory == "lxml":
+        e = lxml.etree.Element
+    elif factory == "stdlib":
+        e = xml.etree.ElementTree.Element
+
+    element = e(
+        obj.__repr_name__().lower(),
+        attrib=obj.model_dump(
+            exclude_none=True,
+        ),
+    )
+    if hasattr(obj, "header"):
+        element.append(to_element(obj.header))
+    if hasattr(obj, "tus"):
+        for child in obj.tus:
+            element.append(to_element(child))
+    if hasattr(obj, "notes"):
+        for child in obj.notes:
+            element.append(to_element(child))
+    if hasattr(obj, "props"):
+        for child in obj.props:
+            element.append(to_element(child))
+    if hasattr(obj, "tuvs"):
+        for child in obj.tuvs:
+            element.append(to_element(child))
+    if hasattr(obj, "maps"):
+        for child in obj.maps:
+            element.append(to_element(child))
+    if hasattr(obj, "udes"):
+        for child in obj.udes:
+            element.append(to_element(child))
+    if hasattr(obj, "content"):
+        element.append(e("seg"))
+        content = element[-1]
+        if isinstance(obj.content, str):
+            content.text = obj.content
+        else:
+            for child in content:
+                if isinstance(child, str):
+                    if len(content):
+                        content[-1].tail = child
+                    elif content.text:
+                        content.text += child
+                    else:
+                        content.text = child
+                else:
+                    content.append(to_element(child))
+    return element
