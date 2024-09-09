@@ -1,4 +1,4 @@
-from .converters import from_element, from_file, to_element, to_file
+from .converters import from_element, from_file
 from .models import (
     Bpt,
     Ept,
@@ -20,9 +20,7 @@ from .models import (
 
 __all__ = [
     "TmxElement",
-    "to_element",
     "from_element",
-    "to_file",
     "from_file",
     "Tmx",
     "Tu",

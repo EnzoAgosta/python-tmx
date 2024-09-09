@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from datetime import datetime
+from os import PathLike
 from typing import Annotated, Literal, Optional, Self
 
+from lxml.etree import Element, ElementTree, _Element, _ElementTree
 from pydantic import BaseModel, Field, ValidationInfo, field_serializer, field_validator
 
 XML = "{http://www.w3.org/XML/1998/namespace}"
@@ -72,18 +74,68 @@ class TmxElement(BaseModel):
     def serialize_int(num: int) -> str:
         return str(num)
 
+    def to_element(self) -> _Element:
+        e = Element(
+            self.__qualname__.lower(), attrib=self.model_dump(exclude_none=True)
+        )
+        e.text = ""
+        for field in self.model_fields_set:
+            match field:
+                case "header":
+                    e.append(self.header.to_element())
+                case "notes":
+                    e.extend([note.to_element() for note in self.notes])
+                case "props":
+                    e.extend([prop.to_element() for prop in self.props])
+                case "udes":
+                    e.extend([ude.to_element() for ude in self.udes])
+                case "maps":
+                    e.extend([map_.to_element() for map_ in self.maps])
+                case "tuvs":
+                    e.extend([tuv.to_element() for tuv in self.tuvs])
+                case "tus":
+                    b = Element("body")
+                    b.text = ""
+                    b.extend([tu.to_element() for tu in self.tus])
+                    e.append(b)
+                case "segment":
+                    s = Element("seg")
+                    s.text = ""
+                    if isinstance(self.segment, str):
+                        s.text = self.segment
+                        e.append(s)
+                    else:
+                        for i in self.segment:
+                            if isinstance(i, str):
+                                if len(e):
+                                    e[-1].text += i
+                                else:
+                                    e.text += i
+                            else:
+                                e.append(i.to_element())
+                case "content":
+                    for i in self.content:
+                        if isinstance(i, str):
+                            if len(e):
+                                e[-1].text += i
+                            else:
+                                e.text += i
+                        else:
+                            e.append(i.to_element())
+        return e
+
 
 class Note(TmxElement):
     content: str = Field(exclude=True)
-    lang: Optional[str] = Field(None, alias=f"{XML}lang")
-    encoding: Optional[str] = Field(None, alias="o-encoding")
+    lang: Optional[str] = Field(None, serialization_alias=f"{XML}lang")
+    encoding: Optional[str] = Field(None, serialization_alias="o-encoding")
 
 
 class Prop(TmxElement):
     content: str = Field(exclude=True)
     type: str
-    lang: Optional[str] = Field(None, alias=f"{XML}lang")
-    encoding: Optional[str] = Field(None, alias="o-encoding")
+    lang: Optional[str] = Field(None, serialization_alias=f"{XML}lang")
+    encoding: Optional[str] = Field(None, serialization_alias="o-encoding")
 
 
 class Map(TmxElement):
@@ -120,11 +172,11 @@ class Header(TmxElement):
     creationtool: str
     creationtoolversion: str
     segtype: Literal["block", "paragraph", "sentence", "phrase"]
-    tmf: Optional[str] = Field(None, alias="o-tmf")
+    tmf: Optional[str] = Field(None, serialization_alias="o-tmf")
     adminlang: str
     srclang: str
     datatype: str
-    encoding: Optional[str] = Field(None, alias="o-encoding")
+    encoding: Optional[str] = Field(None, serialization_alias="o-encoding")
     creationdate: Optional[str | datetime] = None
     creationid: Optional[str] = None
     changedate: Optional[str | datetime] = None
@@ -137,8 +189,8 @@ class Tuv(TmxElement):
     )
     notes: list[Note] = Field(exclude=True, default_factory=list)
     props: list[Prop] = Field(exclude=True, default_factory=list)
-    lang: Optional[str] = Field(None, alias=f"{XML}lang")
-    encoding: Optional[str] = Field(None, alias="o-encoding")
+    lang: Optional[str] = Field(None, serialization_alias=f"{XML}lang")
+    encoding: Optional[str] = Field(None, serialization_alias="o-encoding")
     datatype: Optional[str] = None
     usagecount: Optional[int] = None
     lastusagedate: Optional[str | datetime] = None
@@ -148,7 +200,7 @@ class Tuv(TmxElement):
     creationid: Optional[str] = None
     changedate: Optional[str | datetime] = None
     changeid: Optional[str] = None
-    tmf: Optional[str] = Field(None, alias="o-tmf")
+    tmf: Optional[str] = Field(None, serialization_alias="o-tmf")
 
 
 class Tu(TmxElement):
@@ -156,7 +208,7 @@ class Tu(TmxElement):
     notes: list[Note] = Field(exclude=True, default_factory=list)
     props: list[Prop] = Field(exclude=True, default_factory=list)
     tuid: Optional[str] = None
-    encoding: Optional[str] = Field(None, alias="o-encoding")
+    encoding: Optional[str] = Field(None, serialization_alias="o-encoding")
     datatype: Optional[str] = None
     usagecount: Optional[int] = None
     lastusagedate: Optional[str | datetime] = None
@@ -167,7 +219,7 @@ class Tu(TmxElement):
     changedate: Optional[str | datetime] = None
     segtype: Optional[Literal["block", "paragraph", "sentence", "phrase"]] = None
     changeid: Optional[str] = None
-    tmf: Optional[str] = Field(None, alias="o-tmf")
+    tmf: Optional[str] = Field(None, serialization_alias="o-tmf")
     srclang: Optional[str] = None
 
 
@@ -175,6 +227,14 @@ class Tmx(TmxElement):
     version: str = "1.4"
     header: Header = Field(exclude=True)
     tus: list[Tu] = Field(exclude=True, default_factory=list)
+
+    def to_file(self, file: str | bytes | PathLike, encoding: str = "utf-8") -> None:
+        tree: _ElementTree = ElementTree(self.to_element())
+        tree.write(
+            file,
+            encoding=encoding,
+            xml_declaration=True,
+        )
 
 
 class Sub(TmxElement):
