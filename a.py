@@ -1,3 +1,7 @@
-from src import from_file, to_file
+from src import from_file
+from src.converters import to_file
 
-to_file(from_file("test.tmx"), "new.tmx")
+a = from_file("test.tmx")
+to_file(a, "new.tmx")
+b = from_file("new.tmx")
+print(a == b)

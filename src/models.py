@@ -5,6 +5,7 @@ from typing import Annotated, Literal, Optional, Self
 
 from pydantic import BaseModel, Field, ValidationInfo, field_serializer, field_validator
 
+XML = "{http://www.w3.org/XML/1998/namespace}"
 __all__ = [
     "TmxElement",
     "Tmx",
@@ -74,15 +75,15 @@ class TmxElement(BaseModel):
 
 class Note(TmxElement):
     content: str = Field(exclude=True)
-    lang: Optional[str] = None
-    encoding: Optional[str] = None
+    lang: Optional[str] = Field(None, alias=f"{XML}lang")
+    encoding: Optional[str] = Field(None, alias="o-encoding")
 
 
 class Prop(TmxElement):
     content: str = Field(exclude=True)
     type: str
-    lang: Optional[str] = None
-    encoding: Optional[str] = None
+    lang: Optional[str] = Field(None, alias=f"{XML}lang")
+    encoding: Optional[str] = Field(None, alias="o-encoding")
 
 
 class Map(TmxElement):
@@ -119,11 +120,11 @@ class Header(TmxElement):
     creationtool: str
     creationtoolversion: str
     segtype: Literal["block", "paragraph", "sentence", "phrase"]
-    tmf: str
+    tmf: Optional[str] = Field(None, alias="o-tmf")
     adminlang: str
     srclang: str
     datatype: str
-    encoding: Optional[str] = None
+    encoding: Optional[str] = Field(None, alias="o-encoding")
     creationdate: Optional[str | datetime] = None
     creationid: Optional[str] = None
     changedate: Optional[str | datetime] = None
@@ -136,8 +137,8 @@ class Tuv(TmxElement):
     )
     notes: list[Note] = Field(exclude=True, default_factory=list)
     props: list[Prop] = Field(exclude=True, default_factory=list)
-    lang: str
-    encoding: Optional[str] = None
+    lang: Optional[str] = Field(None, alias=f"{XML}lang")
+    encoding: Optional[str] = Field(None, alias="o-encoding")
     datatype: Optional[str] = None
     usagecount: Optional[int] = None
     lastusagedate: Optional[str | datetime] = None
@@ -147,7 +148,7 @@ class Tuv(TmxElement):
     creationid: Optional[str] = None
     changedate: Optional[str | datetime] = None
     changeid: Optional[str] = None
-    tmf: Optional[str] = None
+    tmf: Optional[str] = Field(None, alias="o-tmf")
 
 
 class Tu(TmxElement):
@@ -155,7 +156,7 @@ class Tu(TmxElement):
     notes: list[Note] = Field(exclude=True, default_factory=list)
     props: list[Prop] = Field(exclude=True, default_factory=list)
     tuid: Optional[str] = None
-    encoding: Optional[str] = None
+    encoding: Optional[str] = Field(None, alias="o-encoding")
     datatype: Optional[str] = None
     usagecount: Optional[int] = None
     lastusagedate: Optional[str | datetime] = None
@@ -166,7 +167,7 @@ class Tu(TmxElement):
     changedate: Optional[str | datetime] = None
     segtype: Optional[Literal["block", "paragraph", "sentence", "phrase"]] = None
     changeid: Optional[str] = None
-    tmf: Optional[str] = None
+    tmf: Optional[str] = Field(None, alias="o-tmf")
     srclang: Optional[str] = None
 
 

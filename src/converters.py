@@ -229,9 +229,7 @@ def to_element(
 
     element = e(
         obj.__repr_name__().lower(),
-        attrib=obj.model_dump(
-            exclude_none=True,
-        ),
+        attrib=obj.model_dump(exclude_none=True, by_alias=True),
     )
     if hasattr(obj, "header"):
         element.append(to_element(obj.header))
@@ -262,7 +260,7 @@ def to_element(
         if isinstance(obj.content, str):
             content.text = obj.content
         else:
-            for child in content:
+            for child in obj.content:
                 if isinstance(child, str):
                     if len(content):
                         content[-1].tail = child
@@ -281,7 +279,10 @@ def from_file(
     encoding: str = "utf-8",
 ) -> TmxElement:
     if engine == "lxml":
-        p = partial(lxml.etree.parse, parser=lxml.etree.XMLParser(encoding=encoding))
+        p = partial(
+            lxml.etree.parse,
+            parser=lxml.etree.XMLParser(encoding=encoding, remove_blank_text=False),
+        )
     elif engine == "stdlib":
         p = xml.etree.ElementTree.parse
     if not isinstance(file, (str, bytes, PathLike)):
