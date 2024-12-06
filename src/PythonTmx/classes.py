@@ -5,16 +5,14 @@ from datetime import datetime
 from typing import Literal
 from warnings import deprecated
 
-from . import logger
 
-
+@dataclass(slots=True)
 class Structural:
-  __slots__ = ()
   pass
 
 
+@dataclass(slots=True)
 class Inline:
-  __slots__ = ()
   pass
 
 
@@ -75,7 +73,7 @@ class Header(Structural):
 
 @dataclass(slots=True)
 class Tuv(Structural):
-  segment: list[Inline] | str = field(default_factory=list)
+  segment: list[Bpt | Ept | It | Hi | Ph | str] = field(default_factory=list)
   encoding: str | None = None
   datatype: str | None = None
   usagecount: str | int | None = None
@@ -99,22 +97,6 @@ class Tuv(Structural):
       self.changedate = datetime.strptime(self.changedate, r"%Y%m%dT%H%M%SZ")
     if isinstance(self.usagecount, str):
       self.usagecount = int(self.usagecount)
-    if len(self.segment):
-      bpt_i = [x.i for x in self.segment if isinstance(x, Bpt)]
-      ept_i = [x.i for x in self.segment if isinstance(x, Ept)]
-    if len(bpt_i) != len(ept_i):
-      logger.warning("Amount of Bpt and Ept elements do not match")
-    set_bpt_i = set(bpt_i)
-    set_ept_i = set(ept_i)
-    if len(set_bpt_i) != len(bpt_i):
-      logger.warning("Duplicate Bpt elements")
-    if len(set_ept_i) != len(ept_i):
-      logger.warning("Duplicate Ept elements")
-    for bpt, ept in zip(set_bpt_i, set_ept_i):
-      if bpt not in set_ept_i:
-        logger.warning(f"Bpt with i={bpt} is missing its corresponding Ept")
-      if ept not in set_bpt_i:
-        logger.warning(f"Ept with i={ept} is missing its corresponding Bpt")
 
 
 @dataclass(slots=True)

@@ -1,9 +1,12 @@
 import xml.etree.ElementTree as ET
-from typing import TypeAlias
+from dataclasses import fields
+from datetime import datetime
+from typing import Literal, TypeAlias, overload
 
 import lxml.etree as et
 
 import PythonTmx.classes as cl
+from PythonTmx.utils import _check_seg
 
 XmlElementLike: TypeAlias = et._Element | ET.Element
 
@@ -161,5 +164,94 @@ def from_element(elem: XmlElementLike) -> cl.Structural | cl.Inline:
       raise ValueError(f"Invalid tag: {str(elem.tag)}")
 
 
-a = from_element(ET.ElementTree(file="a.tmx").getroot())
-b = from_element(et.ElementTree(file="a.tmx").getroot())
+def _set_int_attr(
+  elem: et._Element | ET.Element, attr: str, value: int | str | None
+) -> None:
+  if value is None:
+    return
+  if isinstance(value, int):
+    elem.set(attr, str(value))
+  else:
+    value = int(value)
+    elem.set(attr, str(value))
+
+
+def _set_dt_attr(
+  elem: et._Element | ET.Element, attr: str, value: datetime | str | None
+) -> None:
+  if value is None:
+    return
+  if isinstance(value, datetime):
+    elem.set(attr, value.strftime(r"%Y%m%dT%H%M%SZ"))
+  else:
+    value = datetime.strptime(value, r"%Y%m%dT%H%M%SZ")
+    elem.set(attr, value.strftime(r"%Y%m%dT%H%M%SZ"))
+
+
+@overload
+def to_element(
+  obj: cl.Structural | cl.Inline, engine: Literal["std"]
+) -> ET.Element: ...
+@overload
+def to_element(
+  obj: cl.Structural | cl.Inline, engine: Literal["lxml"]
+) -> et._Element: ...
+def to_element(obj: cl.Structural | cl.Inline, engine: Literal["std", "lxml"]):
+  if engine == "lxml":
+    elem = et.Element(obj.__class__.__name__.lower())
+  elif engine == "std":
+    elem = ET.Element(obj.__class__.__name__.lower())
+  else:
+    raise ValueError(f"Invalid engine: {engine}")
+  for attr in fields(obj):
+    value = getattr(obj, attr.name)
+    if value is None:
+      continue
+    if attr.name in ("x", "i", "usagecount"):
+      _set_int_attr(elem, attr.name, value)
+    elif attr.name in ("changedate", "creationdate", "lastusagedate"):
+      _set_dt_attr(elem, attr.name, value)
+    elif attr.name == "segment":
+      _check_seg(value)
+      if engine == "lxml":
+        seg = et.SubElement(elem, "seg")
+      elif engine == "std":
+        seg = ET.SubElement(elem, "seg")
+      seg.text = ""
+      for item in value:
+        if isinstance(item, cl.Inline):
+          if item.__class__.__name__ not in attr.type:
+            raise TypeError("Invalid item in segment: {item}")
+          seg.append(to_element(item, engine))
+          seg[-1].tail = ""
+        elif isinstance(item, str):
+          if len(seg):
+            seg[-1].tail += item
+          else:
+            seg.text += item
+    elif attr.name == "text":
+      if elem.text is None:
+        elem.text = ""
+      for item in value:
+        if isinstance(item, cl.Inline):
+          if item.__class__.__name__ not in attr.type:
+            raise TypeError("Invalid item in segment: {item}")
+          elem.append(to_element(item, engine))
+          elem[-1].tail = ""
+        elif isinstance(item, str):
+          if len(elem):
+            elem[-1].tail += item
+          else:
+            elem.text += item
+    elif "list" in attr.type:
+      for item in value:
+        elem.append(to_element(item, engine))
+    elif attr.name == "header":
+      elem.append(to_element(value, engine))
+    elif attr.name in ("tmf", "encoding"):
+      elem.set(f"o-{attr.name}", value)
+    elif attr.name == "lang":
+      elem.set("{http://www.w3.org/XML/1998/namespace}lang", value)
+    else:
+      elem.set(attr.name, value)
+  return elem
