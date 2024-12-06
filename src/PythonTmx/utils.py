@@ -1,7 +1,7 @@
 from PythonTmx.classes import Bpt, Ept, Inline
 
 
-def _check_seg(segment: list[Inline | str]) -> None:
+def _check_bpt_ept(segment: list[Inline | str]) -> None:
   bpt_i = [x.i for x in segment if isinstance(x, Bpt)]
   ept_i = [x.i for x in segment if isinstance(x, Ept)]
   if len(bpt_i) != len(ept_i):

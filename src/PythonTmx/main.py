@@ -1,12 +1,14 @@
 import xml.etree.ElementTree as ET
 from dataclasses import fields
 from datetime import datetime
+from os import PathLike
+from pathlib import Path
 from typing import Literal, TypeAlias, overload
 
 import lxml.etree as et
 
 import PythonTmx.classes as cl
-from PythonTmx.utils import _check_seg
+from PythonTmx.utils import _check_bpt_ept
 
 XmlElementLike: TypeAlias = et._Element | ET.Element
 
@@ -140,30 +142,6 @@ def _tmx_from_element(elem: XmlElementLike) -> cl.Tmx:
   )
 
 
-def from_element(elem: XmlElementLike) -> cl.Structural | cl.Inline:
-  match elem.tag:
-    case "header":
-      return _header_from_element(elem)
-    case "tu":
-      return _tu_from_element(elem)
-    case "tuv":
-      return _tuv_from_element(elem)
-    case "tu":
-      return _tu_from_element(elem)
-    case "tmx":
-      return _tmx_from_element(elem)
-    case "map":
-      return _map_from_element(elem)
-    case "ude":
-      return _ude_from_element(elem)
-    case "note":
-      return _note_from_element(elem)
-    case "prop":
-      return _prop_from_element(elem)
-    case _:
-      raise ValueError(f"Invalid tag: {str(elem.tag)}")
-
-
 def _set_int_attr(
   elem: et._Element | ET.Element, attr: str, value: int | str | None
 ) -> None:
@@ -188,21 +166,48 @@ def _set_dt_attr(
     elem.set(attr, value.strftime(r"%Y%m%dT%H%M%SZ"))
 
 
+def _export_inline(
+  elem: et._Element | ET.Element,
+  content: list[cl.Inline | str],
+  xml_engine: Literal["lxml", "std"],
+) -> None:
+  if elem.tag in ("Bpt", "Ept", "It", "Ph", "Ut"):
+    allowed_tags = {"sub"}
+  else:
+    allowed_tags = {"Bpt", "Ept", "It", "Ph", "Hi", "Ut"}
+  for item in content:
+    if isinstance(item, cl.Inline):
+      if item.__class__.__name__ not in allowed_tags:
+        raise TypeError("Invalid item in segment: {item}")
+      elem.append(to_element(item, xml_engine))
+      elem[-1].tail = ""
+    elif isinstance(item, str):
+      if len(elem):
+        elem[-1].tail += item
+      else:
+        elem.text += item
+
+
 @overload
 def to_element(
-  obj: cl.Structural | cl.Inline, engine: Literal["std"]
+  obj: cl.Structural | cl.Inline, xml_engine: Literal["std"]
 ) -> ET.Element: ...
 @overload
 def to_element(
-  obj: cl.Structural | cl.Inline, engine: Literal["lxml"]
+  obj: cl.Structural | cl.Inline, xml_engine: Literal["lxml"]
 ) -> et._Element: ...
-def to_element(obj: cl.Structural | cl.Inline, engine: Literal["std", "lxml"]):
-  if engine == "lxml":
-    elem = et.Element(obj.__class__.__name__.lower())
-  elif engine == "std":
-    elem = ET.Element(obj.__class__.__name__.lower())
-  else:
-    raise ValueError(f"Invalid engine: {engine}")
+def to_element(
+  obj: cl.Structural | cl.Inline, xml_engine: Literal["std", "lxml"] = "lxml"
+):
+  elem: et._Element | ET.Element | None = (
+    et.Element(obj.__class__.__name__.lower())
+    if xml_engine == "lxml"
+    else ET.Element(obj.__class__.__name__.lower())
+    if xml_engine == "std"
+    else None
+  )
+  if elem is None:
+    raise ValueError(f"Invalid xml_engine: {xml_engine}")
   for attr in fields(obj):
     value = getattr(obj, attr.name)
     if value is None:
@@ -212,42 +217,27 @@ def to_element(obj: cl.Structural | cl.Inline, engine: Literal["std", "lxml"]):
     elif attr.name in ("changedate", "creationdate", "lastusagedate"):
       _set_dt_attr(elem, attr.name, value)
     elif attr.name == "segment":
-      _check_seg(value)
-      if engine == "lxml":
-        seg = et.SubElement(elem, "seg")
-      elif engine == "std":
-        seg = ET.SubElement(elem, "seg")
+      _check_bpt_ept(value)
+      seg: et._Element | ET.Element | None = (
+        et.SubElement(elem, "seg")
+        if isinstance(elem, et._Element)
+        else ET.SubElement(elem, "seg")
+        if isinstance(elem, ET.Element)
+        else None
+      )
+      if seg is None:
+        raise ValueError("Invalid xml_engine")
       seg.text = ""
-      for item in value:
-        if isinstance(item, cl.Inline):
-          if item.__class__.__name__ not in attr.type:
-            raise TypeError("Invalid item in segment: {item}")
-          seg.append(to_element(item, engine))
-          seg[-1].tail = ""
-        elif isinstance(item, str):
-          if len(seg):
-            seg[-1].tail += item
-          else:
-            seg.text += item
+      _export_inline(seg, value, xml_engine)
     elif attr.name == "text":
       if elem.text is None:
         elem.text = ""
-      for item in value:
-        if isinstance(item, cl.Inline):
-          if item.__class__.__name__ not in attr.type:
-            raise TypeError("Invalid item in segment: {item}")
-          elem.append(to_element(item, engine))
-          elem[-1].tail = ""
-        elif isinstance(item, str):
-          if len(elem):
-            elem[-1].tail += item
-          else:
-            elem.text += item
+      _export_inline(elem, value, xml_engine)
     elif "list" in attr.type:
       for item in value:
-        elem.append(to_element(item, engine))
+        elem.append(to_element(item, xml_engine))
     elif attr.name == "header":
-      elem.append(to_element(value, engine))
+      elem.append(to_element(value, xml_engine))
     elif attr.name in ("tmf", "encoding"):
       elem.set(f"o-{attr.name}", value)
     elif attr.name == "lang":
@@ -255,3 +245,31 @@ def to_element(obj: cl.Structural | cl.Inline, engine: Literal["std", "lxml"]):
     else:
       elem.set(attr.name, value)
   return elem
+
+
+def read_tmx_file(
+  file: PathLike, xml_engine: Literal["std", "lxml"] = "lxml"
+) -> cl.Tmx:
+  if not isinstance(file, Path):
+    file = Path(file)
+  if not file.exists():
+    raise FileNotFoundError(f"File {file} does not exist")
+  if not file.is_file():
+    raise IsADirectoryError(f"{file} is not a file")
+  if xml_engine == "lxml":
+    tree = (
+      et.parse(source=file)
+      if xml_engine == "lxml"
+      else ET.ElementTree(file=file)
+      if xml_engine == "std"
+      else None
+    )
+    if tree is None:
+      raise ValueError("Invalid xml_engine")
+    root = tree.getroot()
+  return _tmx_from_element(root)
+
+
+et.ElementTree(to_element(read_tmx_file(Path("a.tmx")), "lxml")).write(
+  "b.tmx", xml_declaration=True
+)
