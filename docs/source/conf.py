@@ -18,9 +18,6 @@ release = "0.3"
 
 extensions = ["sphinx.ext.autodoc", "sphinx.ext.napoleon"]
 
-templates_path = ["_templates"]
-exclude_patterns = []
-
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
@@ -29,4 +26,4 @@ html_permalinks_icon = "<span>#</span>"
 html_theme = "pydata_sphinx_theme"
 html_static_path = ["_static"]
 html_sidebars = {"**": ["sidebar-nav-bs", "page-toc"]}
-html_theme_options = {"secondary_sidebar_items": []}
+html_theme_options: dict = {"secondary_sidebar_items": []}
