@@ -10,40 +10,216 @@ import lxml.etree as et
 from attrs import define, field
 
 XmlElement: TypeAlias = et._Element | ET.Element
-TmxElement: TypeAlias = (
-  "Note | Prop | Ude | Map | Bpt | Ept | It | Ph | Hi | Ut | Sub | Ude | Tuv | Tu"
-)
+TmxElement: TypeAlias = "Note | Prop | Ude | Map | Header| Tu| Tuv| Tmx|Bpt | Ept | It | Ph | Hi | Ut | Sub | Ude"
 
 
 @define(kw_only=True)
 class Note:
+  """
+  A <note> element, used to give information about the parent element.
+  Does not necessarily have to be in the same language as the parent element.
+  Can be attached to :class:`Header`, :class:`Tu` and :class:`Tuv`.
+  """
+
   text: str
+  """
+  The text of the note.
+  """
   lang: str | None = None
+  """
+  The language of the note, by default None.
+  """
   encoding: str | None = None
+  """
+  The original encoding of the text, by default None.
+  """
 
   @classmethod
-  def from_element(cls, elem: XmlElement) -> Self:
-    return cls(
-      text=elem.text,  # type: ignore
-      lang=elem.get("{http://www.w3.org/XML/1998/namespace}lang"),
-      encoding=elem.get("o-encoding"),
+  def from_element(
+    cls,
+    elem: XmlElement,
+    *,
+    text: str | None = None,
+    lang: str | None = None,
+    encoding: str | None = None,
+  ) -> Note:
+    """
+    Creates a :class:`Note` Element from a lxml `_Element` or an ElementTree
+    Element.
+    If an argument is provided, it will override the value parsed from the
+    element.
+
+    Parameters
+    ----------
+    elem : :external:class:`lxml.etree._Element` | :external:class:`xml.etree.ElementTree.Element`
+        The Element to parse.
+    text : str | None, optional
+        The text of the Note, by default None
+    lang : str | None, optional
+        The language of the Note, by default None
+    encoding : str | None, optional
+        The original encoding of the Note, by default None
+
+    Returns
+    -------
+    Note
+        A :class:`Note` Object with the attributes of the element.
+
+    Raises
+    ------
+    TypeError
+        If `elem` is not an XmlElement.
+    TypeError
+        If any of the attributes is not a string.
+    ValueError
+        If `text` is not provided and the element does not have text.
+    ValueError
+        If the Element's tag is not 'note'
+
+    Examples
+    --------
+
+    >>> from lxml.etree import Element
+    >>> from PythonTmx.classes import Note
+    >>> elem = Element("note")
+    >>> elem.text = "This is a note"
+    >>> elem.set("o-encoding", "utf-8")
+    >>> note = Note.from_element(elem, lang="en", encoding="utf-16")
+    >>> print(note)
+    Note(text='This is a note', lang='en', encoding='utf-16')
+    """
+    if not isinstance(elem, XmlElement):
+      raise TypeError(f"Expected XmlElement, got {type(elem)}")
+    if elem.tag != "note":
+      raise ValueError(f"Expected <note> element, got {str(elem.tag)}")
+    if text is None:
+      if elem.text is None:
+        raise ValueError("'text' must be provided or the element must have text")
+      text = elem.text
+    if lang is not None and not isinstance(lang, str):
+      raise TypeError(f"Expected str for 'lang', got {type(lang)}")
+    if encoding is not None and not isinstance(encoding, str):
+      raise TypeError(f"Expected str for 'encoding', got {type(encoding)}")
+    return Note(
+      text=text,
+      lang=lang
+      if lang is not None
+      else elem.get("{http://www.w3.org/XML/1998/namespace}lang"),
+      encoding=encoding if encoding is not None else elem.get("o-encoding"),
     )
 
 
 @define(kw_only=True)
 class Prop:
+  """
+  A <prop> Element, used to define the various properties of the parent element
+  (or of the document when <prop> is used in the <header> element).
+  These properties are not defined by the standard.
+  """
+
   text: str
+  """
+  The text of the Prop.
+  """
   type: str
+  """
+  The type of the Prop, by convention start with "x-".
+  """
   lang: str | None = None
+  """
+  The language of the Prop, by default None.
+  """
   encoding: str | None = None
+  """
+  The original encoding of the text, by default None.
+  """
 
   @classmethod
-  def from_element(cls, elem: XmlElement) -> Self:
-    return cls(
-      text=elem.text,  # type: ignore
-      type=elem.get("type"),  # type: ignore
-      lang=elem.get("{http://www.w3.org/XML/1998/namespace}lang"),
-      encoding=elem.get("o-encoding"),
+  def from_element(
+    cls,
+    elem: XmlElement,
+    *,
+    text: str | None = None,
+    type: str | None = None,
+    lang: str | None = None,
+    encoding: str | None = None,
+  ) -> Prop:
+    """
+    Creates a :class:`Prop` Element from a lxml `_Element` or an ElementTree
+    Element.
+    If an argument is provided, it will override the value parsed from the
+    element.
+
+    Parameters
+    ----------
+    elem : :external:class:`lxml.etree._Element` | :external:class:`xml.etree.ElementTree.Element`
+        The element to parse.
+    text : str | None, optional
+        The text of the Prop, by default None
+    type : str | None, optional
+        The type of the Prop, by default None
+        By convention start with "x-".
+    lang : str | None, optional
+        The language of the Prop, by default None
+    encoding : str | None, optional
+        The original encoding of the Prop, by default None
+
+    Returns
+    -------
+    Prop
+        A :class:`Prop` object.
+
+    Raises
+    ------
+    TypeError
+        If `elem` is not an XmlElement.
+    TypeError
+        If any of the attributes is not a string.
+    ValueError
+        If `text` is not provided and the element does not have text.
+    ValueError
+        If `type` is not provided and the element does not have a 'type' attribute.
+    ValueError
+        If the Element's tag is not 'prop'
+
+    Examples
+    --------
+
+    >>> from lxml.etree import Element
+    >>> from PythonTmx.classes import Prop
+    >>> elem = Element("prop")
+    >>> elem.text = "This is a prop"
+    >>> elem.set("type", "x-my-type")
+    >>> elem.set("o-encoding", "utf-8")
+    >>> prop = Prop.from_element(elem, lang="en", encoding="utf-16")
+    >>> print(prop)
+    Prop(text='This is a prop', type='x-my-type', lang='en', encoding='utf-16')
+    """
+    if not isinstance(elem, XmlElement):
+      raise TypeError(f"Expected XmlElement, got {type(elem)}")
+    if elem.tag != "prop":
+      raise ValueError(f"Expected <prop> element, got {str(elem.tag)}")
+    if text is None:
+      if elem.text is None:
+        raise ValueError("'text' must be provided or the element must have text")
+      text = elem.text
+    if type is None:
+      if elem.get("type") is None:
+        raise ValueError(
+          "'type' must be provided or the element must have a 'type' attribute"
+        )
+      type = elem.attrib["type"]
+    if lang is not None and not isinstance(lang, str):
+      raise TypeError(f"Expected str for 'lang', got {type(lang)}")
+    if encoding is not None and not isinstance(encoding, str):
+      raise TypeError(f"Expected str for 'encoding', got {type(encoding)}")
+    return Prop(
+      text=text,
+      type=type,
+      lang=lang
+      if lang is not None
+      else elem.get("{http://www.w3.org/XML/1998/namespace}lang"),
+      encoding=encoding if encoding is not None else elem.get("o-encoding"),
     )
 
 
@@ -55,8 +231,21 @@ class Map:
   subst: str | None = None
 
   @classmethod
-  def from_element(cls, elem: XmlElement) -> Self:
-    return cls(**elem.attrib)
+  def from_element(
+    cls,
+    elem: XmlElement,
+    *,
+    unicode: str | None = None,
+    code: str | None = None,
+    ent: str | None = None,
+    subst: str | None = None,
+  ) -> Self:
+    return cls(
+      unicode=unicode if unicode is not None else elem.get("unicode"),  # type: ignore
+      code=code if code is not None else elem.get("code"),
+      ent=ent if ent is not None else elem.get("ent"),
+      subst=subst if subst is not None else elem.get("subst"),
+    )
 
 
 @define(kw_only=True)
