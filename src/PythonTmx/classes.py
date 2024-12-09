@@ -3,11 +3,11 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from collections.abc import MutableSequence
 from datetime import datetime
-from typing import Iterable, Literal, TypeAlias
+from typing import Iterable, Literal, TypeAlias, overload
 from warnings import deprecated
 
 import lxml.etree as et
-from attrs import define, field
+from attrs import define, field, validate, validators
 
 XmlElement: TypeAlias = et._Element | ET.Element
 TmxElement: TypeAlias = "Note | Prop | Ude | Map | Header| Tu| Tuv| Tmx|Bpt | Ept | It | Ph | Hi | Ut | Sub | Ude"
@@ -71,17 +71,23 @@ class Note:
   Can be attached to :class:`Header`, :class:`Tu` and :class:`Tuv`.
   """
 
-  text: str
+  text: str = field(validator=validators.instance_of(str))
   """
   The text of the note.
   """
-  lang: str | None = None
+  lang: str | None = field(
+    default=None,
+    validator=validators.optional(validators.instance_of(str)),
+  )
   """
   The locale of the text, by default None. Ideally a language code as
   described in the `RFC 3066 <https://www.ietf.org/rfc/rfc3066.txt>`_.
   Unlike the other TMX attributes, the values for lang are not case-sensitive.
   """
-  encoding: str | None = None
+  encoding: str | None = field(
+    default=None,
+    validator=validators.optional(validators.instance_of(str)),
+  )
   """
   The original or preferred code set of the data of the element in case it is to
   be re-encoded in a non-Unicode code set. Ideally one of the `IANA recommended
@@ -165,6 +171,41 @@ class Note:
       encoding=encoding if encoding is not None else elem.get("o-encoding"),
     )
 
+  @overload
+  @classmethod
+  def to_element(cls, note: Note, engine: Literal["std"]) -> ET.Element: ...
+  @overload
+  @classmethod
+  def to_element(cls, note: Note, engine: Literal["lxml"]) -> et._Element: ...
+  @classmethod
+  def to_element(cls, note: Note, engine) -> XmlElement:
+    def to_lxml(note: Note) -> et._Element:
+      elem = et.Element("note")
+      elem.text = note.text
+      if note.lang is not None:
+        elem.set("{http://www.w3.org/XML/1998/namespace}lang", note.lang)
+      if note.encoding is not None:
+        elem.set("o-encoding", note.encoding)
+      return elem
+
+    def to_std(note: Note) -> ET.Element:
+      elem = ET.Element("note")
+      elem.text = note.text
+      if note.lang is not None:
+        elem.set("{http://www.w3.org/XML/1998/namespace}lang", note.lang)
+      if note.encoding is not None:
+        elem.set("o-encoding", note.encoding)
+      return elem
+
+    validate(note)
+    match engine:
+      case "lxml":
+        return to_lxml(note)
+      case "std":
+        return to_std(note)
+      case _:
+        raise ValueError(f"Unknown engine: {engine}")
+
 
 @define(kw_only=True)
 class Prop:
@@ -175,22 +216,26 @@ class Prop:
   Can be attached to :class:`Header`, :class:`Tu` and :class:`Tuv`.
   """
 
-  text: str
+  text: str = field(validator=validators.instance_of(str))
   """
   The text of the Prop.
   """
-  type: str
+  type: str = field(validator=validators.instance_of(str))
   """
   The kind of data the element represents, by convention start with "x-".
   By default None.
   """
-  lang: str | None = None
+  lang: str | None = field(
+    default=None, validator=validators.optional(validators.instance_of(str))
+  )
   """
   The locale of the text. Ideally a language code as described in the
   `RFC 3066 <https://www.ietf.org/rfc/rfc3066.txt>`_.
   Unlike the other TMX attributes, the values for lang are not case-sensitive.
   """
-  encoding: str | None = None
+  encoding: str | None = field(
+    default=None, validator=validators.optional(validators.instance_of(str))
+  )
   """
   encoding : str | None, optional
     The original or preferred code set of the data of the element in case
@@ -288,6 +333,45 @@ class Prop:
       encoding=encoding if encoding is not None else elem.get("o-encoding"),
     )
 
+  @overload
+  @classmethod
+  def to_element(cls, prop: Prop, engine: Literal["std"]) -> ET.Element: ...
+  @overload
+  @classmethod
+  def to_element(cls, prop: Prop, engine: Literal["lxml"]) -> et._Element: ...
+  @classmethod
+  def to_element(cls, prop: Prop, engine) -> XmlElement:
+    def to_lxml(prop: Prop) -> et._Element:
+      elem = et.Element("prop")
+      elem.text = prop.text
+      if prop.lang is not None:
+        elem.set("{http://www.w3.org/XML/1998/namespace}lang", prop.lang)
+      if prop.encoding is not None:
+        elem.set("o-encoding", prop.encoding)
+      if prop.type is not None:
+        elem.set("type", prop.type)
+      return elem
+
+    def to_std(prop: Prop) -> ET.Element:
+      elem = ET.Element("prop")
+      elem.text = prop.text
+      if prop.lang is not None:
+        elem.set("{http://www.w3.org/XML/1998/namespace}lang", prop.lang)
+      if prop.encoding is not None:
+        elem.set("o-encoding", prop.encoding)
+      if prop.type is not None:
+        elem.set("type", prop.type)
+      return elem
+
+    validate(prop)
+    match engine:
+      case "lxml":
+        return to_lxml(prop)
+      case "std":
+        return to_std(prop)
+      case _:
+        raise ValueError(f"Unknown engine: {engine}")
+
 
 @define(kw_only=True)
 class Map:
@@ -297,17 +381,26 @@ class Map:
   :class:`Ude`.
   """
 
-  unicode: str
+  unicode: str = field(validator=validators.instance_of(str))
   """
   The Unicode character value of the element. Must be a valid Unicode value
   (including values in the Private Use areas) in hexadecimal format.
   """
-  code: str | None = None
+  code: str | None = field(
+    default=None,
+    validator=[
+      validators.optional(validators.instance_of(str)),
+      validators.optional(validators.matches_re(r"^#x.*?")),
+    ],
+  )
+
   """
   The code-point value corresponding to the unicode character of a the element.
   Must be a Hexadecimal value prefixed with "#x". By default None.
   """
-  ent: str | None = None
+  ent: str | None = field(
+    default=None, validator=validators.optional(validators.instance_of(str))
+  )
   """
   The entity name of the character defined by the element. Must be text in ASCII.
   By default None.
