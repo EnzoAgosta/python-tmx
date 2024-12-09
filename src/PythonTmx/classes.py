@@ -13,11 +13,61 @@ XmlElement: TypeAlias = et._Element | ET.Element
 TmxElement: TypeAlias = "Note | Prop | Ude | Map | Header| Tu| Tuv| Tmx|Bpt | Ept | It | Ph | Hi | Ut | Sub | Ude"
 
 
+def _parse_inline(elem: XmlElement, mask: Iterable[str]) -> list:
+  """
+  Internal function to parse inline elements. Returns a list of strings and
+  :class:`Bpt`, :class:`Ept`, :class:`It`, :class:`Ph`, :class:`Hi`, :class:`Ut`
+  and :class:`Sub` elements.
+  The returned list will contain firtst the text of the element if it has any,
+  then the object's representation of all children in document order, each
+  followed by their tail text if any.
+
+  Parameters
+  ----------
+  elem : XmlElement
+      The element to parse.
+  mask : Iterable[str]
+      A list of tags that should converted to their corresponding objects.
+      Any element whose tag is not in the mask will be ignored.
+
+  Returns
+  -------
+  list
+      A list of strings and :class:`Bpt`, :class:`Ept`, :class:`It`, :class:`Ph`,
+      :class:`Hi`, :class:`Ut` and :class:`Sub` elements, depending on the
+      `mask` parameter.
+  """
+  result: list = []
+  for e in elem:
+    if elem.text is not None:
+      result.append(elem.text)
+    for e in elem:
+      if str(e.tag) not in mask:
+        continue
+      if e.tag == "bpt":
+        result.append(Bpt.from_element(e))
+      elif e.tag == "ept":
+        result.append(Ept.from_element(e))
+      elif e.tag == "it":
+        result.append(It.from_element(e))
+      elif e.tag == "ph":
+        result.append(Ph.from_element(e))
+      elif e.tag == "hi":
+        result.append(Hi.from_element(e))
+      elif e.tag == "ut":
+        result.append(Ut.from_element(e))
+      elif e.tag == "sub":
+        result.append(Sub.from_element(e))
+      if e.tail is not None:
+        result.append(e.tail)
+  return result
+
+
 @define(kw_only=True)
 class Note:
   """
-  A <note> element, used to give information about the parent element.
-  Does not necessarily have to be in the same language as the parent element.
+  A `<note> <https://www.gala-global.org/tmx-14b#note>`_ element,
+  used to give information about the parent element.
   Can be attached to :class:`Header`, :class:`Tu` and :class:`Tuv`.
   """
 
@@ -27,16 +77,22 @@ class Note:
   """
   lang: str | None = None
   """
-  The language of the note, by default None.
+  The locale of the text, by default None.
+
+  A language code as described in the
+  `RFC 3066 <https://www.ietf.org/rfc/rfc3066.txt>`_.
+  Unlike the other TMX attributes, the values for lang are not case-sensitive.
   """
   encoding: str | None = None
   """
-  The original encoding of the text, by default None.
+  The original or preferred code set of the data of the element in case it is to
+  be re-encoded in a non-Unicode code set, by default None
+
+  One of the `IANA recommended charsets <https://www.iana.org/assignments/character-sets/character-sets.xhtml>`_
   """
 
-  @classmethod
+  @staticmethod
   def from_element(
-    cls,
     elem: XmlElement,
     *,
     text: str | None = None,
@@ -56,25 +112,29 @@ class Note:
     text : str | None, optional
         The text of the Note, by default None
     lang : str | None, optional
-        The language of the Note, by default None
+        The locale of the text, by default None.
+
+        A language code as described in the
+        `RFC 3066 <https://www.ietf.org/rfc/rfc3066.txt>`_.
+        Unlike the other TMX attributes, the values for lang are not case-sensitive.
     encoding : str | None, optional
-        The original encoding of the Note, by default None
+        The original or preferred code set of the data of the element in case
+        it is to be re-encoded in a non-Unicode code set, by default None
+
+        One of the `IANA recommended charsets <https://www.iana.org/assignments/character-sets/character-sets.xhtml>`_
 
     Returns
     -------
     Note
-        A :class:`Note` Object with the attributes of the element.
+        A new :class:`Note` Object with the attributes of the element.
 
     Raises
     ------
     TypeError
-        If `elem` is not an XmlElement.
-    TypeError
-        If any of the attributes is not a string.
+        If `elem` is not an XmlElement, or any of the attributes is not a string.
     ValueError
-        If `text` is not provided and the element does not have text.
-    ValueError
-        If the Element's tag is not 'note'
+        If `text` is not provided and the element does not have text or the
+        element's tag is not 'note'.
 
     Examples
     --------
@@ -112,9 +172,10 @@ class Note:
 @define(kw_only=True)
 class Prop:
   """
-  A <prop> Element, used to define the various properties of the parent element
-  (or of the document when <prop> is used in the <header> element).
+  A `<prop> <https://www.gala-global.org/tmx-14b#prop>` Element,
+  used to define the various properties of the parent element.
   These properties are not defined by the standard.
+  Can be attached to :class:`Header`, :class:`Tu` and :class:`Tuv`.
   """
 
   text: str
@@ -123,20 +184,29 @@ class Prop:
   """
   type: str
   """
-  The type of the Prop, by convention start with "x-".
+  The kind of data the element represents, by convention start with "x-".
+  By default None.
   """
   lang: str | None = None
   """
-  The language of the Prop, by default None.
+  The locale of the text, by default None.
+
+  A language code as described in the
+  `RFC 3066 <https://www.ietf.org/rfc/rfc3066.txt>`_.
+  Unlike the other TMX attributes, the values for lang are not case-sensitive.
+    
   """
   encoding: str | None = None
   """
-  The original encoding of the text, by default None.
+  encoding : str | None, optional
+    The original or preferred code set of the data of the element in case
+    it is to be re-encoded in a non-Unicode code set, by default None
+
+    One of the `IANA recommended charsets <https://www.iana.org/assignments/character-sets/character-sets.xhtml>`_
   """
 
-  @classmethod
+  @staticmethod
   def from_element(
-    cls,
     elem: XmlElement,
     *,
     text: str | None = None,
@@ -153,34 +223,37 @@ class Prop:
     Parameters
     ----------
     elem : :external:class:`lxml.etree._Element` | :external:class:`xml.etree.ElementTree.Element`
-        The element to parse.
+        The Element to parse.
     text : str | None, optional
-        The text of the Prop, by default None
+        The text of the Note, by default None
     type : str | None, optional
-        The type of the Prop, by default None
-        By convention start with "x-".
+        The kind of data the element represents, by convention start with "x-".
+        By default None.
     lang : str | None, optional
-        The language of the Prop, by default None
+        The locale of the text, by default None.
+
+        A language code as described in the
+        `RFC 3066 <https://www.ietf.org/rfc/rfc3066.txt>`_.
+        Unlike the other TMX attributes, the values for lang are not case-sensitive.
     encoding : str | None, optional
-        The original encoding of the Prop, by default None
+        The original or preferred code set of the data of the element in case
+        it is to be re-encoded in a non-Unicode code set, by default None
+
+        One of the `IANA recommended charsets <https://www.iana.org/assignments/character-sets/character-sets.xhtml>`_
 
     Returns
     -------
-    Prop
-        A :class:`Prop` object.
+    Note
+        A new :class:`Note` Object with the attributes of the element.
 
     Raises
     ------
     TypeError
-        If `elem` is not an XmlElement.
-    TypeError
-        If any of the attributes is not a string.
+        If `elem` is not an XmlElement, or any of the attributes is not a string.
     ValueError
-        If `text` is not provided and the element does not have text.
-    ValueError
-        If `type` is not provided and the element does not have a 'type' attribute.
-    ValueError
-        If the Element's tag is not 'prop'
+        If `text` is not provided and the element does not have text,
+        if `type` is not provided and the element does not have a 'type' attribute,
+        or the element's tag is not 'prop'.
 
     Examples
     --------
@@ -225,23 +298,99 @@ class Prop:
 
 @define(kw_only=True)
 class Map:
-  unicode: str
-  code: str | None = None
-  ent: str | None = None
-  subst: str | None = None
+  """
+  The `<map> <https://www.gala-global.org/tmx-14b#map>`_ element, used to specify
+  a user-defined character and some of its properties.
+  Can oly be attached to :class:`Ude`.
+  """
 
-  @classmethod
+  unicode: str
+  """
+  The Unicode character value of the element. Must be a valid Unicode value
+  (including values in the Private Use areas) in hexadecimal format.
+  """
+  code: str | None = None
+  """
+  The code-point value corresponding to the unicode character of a the element.
+  Must be a Hexadecimal value prefixed with "#x".
+  By default None.
+  """
+  ent: str | None = None
+  """
+  The entity name of the character defined by the element.
+  Must be text in ASCII.
+  By default None.
+  """
+  subst: str | None = None
+  """
+  An alternative string for the character defined in the element.
+  Must be text in ASCII. By default None.
+  """
+
+  @staticmethod
   def from_element(
-    cls,
     elem: XmlElement,
     *,
     unicode: str | None = None,
     code: str | None = None,
     ent: str | None = None,
     subst: str | None = None,
-  ) -> Self:
-    return cls(
-      unicode=unicode if unicode is not None else elem.get("unicode"),  # type: ignore
+  ) -> Map:
+    """
+    Create a :class:`Map` from an XmlElement.
+
+    Parameters
+    ----------
+    elem : :external:class:`lxml.etree._Element` | :external:class:`xml.etree.ElementTree.Element`
+        The Element to parse.
+    unicode : str | None, optional
+      The Unicode character value of the element. Must be a valid Unicode value
+      (including values in the Private Use areas) in hexadecimal format.
+    code: str | None = None
+      The code-point value corresponding to the unicode character of a the
+      element. Must be a Hexadecimal value prefixed with "#x".
+      By default None.
+    ent: str | None = None
+      The entity name of the character defined by the element.
+      Must be text in ASCII. By default None.
+    subst: str | None = None
+      An alternative string for the character defined in the element. Must be
+      text in ASCII. By default None.
+
+    Returns
+    -------
+    Map
+        A new :class:`Map` Object with the provided values
+
+    Raises
+    ------
+    TypeError
+        If `elem` is not an XmlElement, or any of the attributes is not a string.
+    ValueError
+        if `unicode` is not provided and the element does not have a 'unicode'
+        attribute, or the element's tag is not 'map'.
+
+    Examples
+    --------
+    >>> from xml.etree.ElementTree import Element
+    >>> from PythonTmx.classes import Map
+    >>> elem = Element("map")
+    >>> elem.set("unicode", "00A0")
+    >>> elem.set("code", "#x00A0")
+    >>> elem.set("ent", "nbsp")
+    >>> elem.set("subst", " ")
+    >>> map = Map.from_element(elem)
+    >>> print(map)
+    Map(unicode='00A0', code='#x00A0', ent='nbsp', subst=' ')
+    """
+    if not isinstance(elem, XmlElement):
+      raise TypeError(f"Expected XmlElement, got {type(elem)}")
+    if unicode is None:
+      if elem.get("unicode") is None:
+        raise ValueError("unicode is required")
+      unicode = elem.attrib["unicode"]
+    return Map(
+      unicode=unicode,
       code=code if code is not None else elem.get("code"),
       ent=ent if ent is not None else elem.get("ent"),
       subst=subst if subst is not None else elem.get("subst"),
@@ -250,37 +399,306 @@ class Map:
 
 @define(kw_only=True)
 class Ude:
-  name: str
-  base: str | None = None
-  maps: MutableSequence[Map] = field(factory=list)
+  """
+  The `<ude> <https://www.gala-global.org/tmx-14b#ude>`_ Element, used to specify
+  a set of user-defined characters and/or, optionally their mapping from
+  Unicode to the user-defined encoding.
+  Can only be attached to :class:`Header`.
+  """
 
-  @classmethod
-  def from_element(cls, elem: XmlElement) -> Self:
-    return cls(
-      **elem.attrib, maps=[Map.from_element(e) for e in elem if e.tag == "map"]
+  name: str
+  """
+  The name of a element. Its value is not defined by the standard
+  """
+  base: str | None = None
+  """
+  The encoding upon which the re-mapping of the element is based.
+  One of the [IANA] `recommended charset <https://www.iana.org/assignments/character-sets/character-sets.xhtml>`_
+  if possible.
+  Required if at least of the :class:`Map` elements has a `code` attribute.
+  """
+  maps: MutableSequence[Map] = field(factory=list)
+  """
+  A MutableSequence of :class:`Map` elements.
+  While any iterable (or even a Generator expression) can technically be used,
+  it is recommended to use a list or some other collection that preserves the
+  order of the elements.
+  At the very least, the container should support the ``append`` method if the
+  :func:`add_map <utils.add_map>` function will be used.
+  """
+
+  @staticmethod
+  def from_element(
+    elem: XmlElement,
+    *,
+    name: str | None = None,
+    base: str | None = None,
+    maps: Iterable[Map] | None = None,
+  ) -> Ude:
+    """
+    Create a :class:`Ude` Element from an XmlElement.
+
+    Parameters
+    ----------
+    elem : XmlElement
+        The Element to parse.
+    name: str
+      The name of a element. Its value is not defined by the standard
+    base: str | None = None
+      The encoding upon which the re-mapping of the element is based.
+      One of the [IANA] `recommended charset <https://www.iana.org/assignments/character-sets/character-sets.xhtml>`_
+      if possible.
+
+      Required if at least of the :class:`Map` elements has a `code` attribute.
+    maps: Iterable[Map], optional
+      An of :class:`Map` elements.
+      While any iterable (or even a generator expression) can be used,
+      the resulting element :attr:`maps` will be a list of :class:`Map` elements.
+
+    Returns
+    -------
+    Ude
+        A new :class:`Ude` Object with the provided values
+
+    Raises
+    ------
+    TypeError
+        If `elem` is not an XmlElement, or any of the attributes is not a string.
+    ValueError
+        If `name` is not provided and the element does not have a 'name' attribute,
+        or the element's tag is not 'ude'.
+    """
+    if not isinstance(elem, XmlElement):
+      raise TypeError(f"Expected XmlElement, got {type(elem)}")
+    if elem.tag != "ude":
+      raise ValueError(f"Expected <ude> element, got {str(elem.tag)}")
+    if name is None:
+      if elem.get("name") is None:
+        raise ValueError(
+          "'name' must be provided or the element must have a 'name' attribute"
+        )
+      name = elem.attrib["name"]
+    if maps is None:
+      maps = [Map.from_element(e) for e in elem if e.tag == "map"]
+    else:
+      for map in maps:
+        if not isinstance(map, Map):
+          raise TypeError(f"Expected Map, got {type(map)}")
+    return Ude(
+      name=name, base=base if base is not None else elem.get("base"), maps=list(maps)
     )
 
 
 @define(kw_only=True)
 class Header:
-  creationtool: str
-  creationtoolversion: str
-  segtype: str
-  tmf: str
-  adminlang: str
-  srclang: str
-  datatype: str
-  encoding: str | None = None
-  creationdate: str | datetime | None = None
-  creationid: str | None = None
-  changedate: str | datetime | None = None
-  changeid: str | None = None
-  props: MutableSequence[Prop] = field(factory=list)
-  notes: MutableSequence[Note] = field(factory=list)
-  udes: MutableSequence[Ude] = field(factory=list)
+  """
+  The `<header> <https://www.gala-global.org/tmx-14b#header>`_ element, used to
+  specify the metadata of the TMX file.
+  Can only be attached to :class:`Tmx`.
+  A :class:`Tmx` can have only one :class:`Header` element.
+  """
 
-  @classmethod
-  def from_element(cls, elem: XmlElement) -> Self:
+  creationtool: str
+  """
+  The tool that created the TMX document.
+  """
+  creationtoolversion: str
+  """
+  the version of the tool that created the TMX document.
+  """
+  segtype: Literal["block", "paragraph", "sentence", "phrase"]
+  """
+  The type of segmentation used in the file.
+  """
+  tmf: str
+  """
+  The format of the translation memory file from which the TMX document or
+  segment thereof have been generated.
+  """
+  adminlang: str
+  """
+  The default language for the administrative and informative elements
+  :class:`Prop` and :class:`Note`.
+  
+  A language code as described in the `RFC 3066 <https://www.ietf.org/rfc/rfc3066.txt>`_.
+  Unlike the other TMX attributes, the values for adminlang are not case-sensitive.
+  """
+  srclang: str
+  """
+  The source language of the file.
+  
+  A language code as described in the `RFC 3066 <https://www.ietf.org/rfc/rfc3066.txt>`_.
+  Unlike the other TMX attributes, the values for srclang are not case-sensitive.
+  """
+  datatype: str
+  """
+  The type of the data contained in the file.
+  """
+  encoding: str | None = None
+  """
+  The original or preferred code set of the data of the element in case it is to
+  be re-encoded in a non-Unicode code set, by default None
+
+  One of the `IANA recommended charsets <https://www.iana.org/assignments/character-sets/character-sets.xhtml>`_
+  """
+  creationdate: str | datetime | None = None
+  """
+  The date and time the file was created, by default None
+  It is recommended to use :external:class:`datetime.datetime` objects
+  instead of raw strings. If a string is provided, it will be parsed as a
+  :external:class:`datetime.datetime` object if it matches the format
+  YYYYMMDDTHHMMSSZ, where T is the date/time separator, Z is the time zone offset,
+  and the date/time is in Coordinated Universal Time (UTC).
+  """
+  creationid: str | None = None
+  """
+  The ID of the user that created the file, by default None
+  """
+  changedate: str | datetime | None = None
+  """
+  The date and time the file was last changed, by default None
+  It is recommended to use :external:class:`datetime.datetime` objects
+  instead of raw strings. If a string is provided, it will be parsed as a
+  :external:class:`datetime.datetime` object if it matches the format
+  YYYYMMDDTHHMMSSZ, where T is the date/time separator, Z is the time zone offset,
+  and the date/time is in Coordinated Universal Time (UTC).
+  """
+  changeid: str | None = None
+  """
+  The ID of the user that last changed the file, by default None
+  """
+  props: MutableSequence[Prop] = field(factory=list)
+  """
+  A MutableSequence of :class:`Prop` elements.
+  While any iterable (or even a Generator expression) can technically be used,
+  it is recommended to use a list or some other collection that preserves the
+  order of the elements.
+  At the very least, the container should support the ``append`` method if the
+  :func:`add_prop <utils.add_prop>` function will be used.
+  """
+  notes: MutableSequence[Note] = field(factory=list)
+  """
+  A MutableSequence of :class:`Note` elements.
+  While any iterable (or even a Generator expression) can technically be used,
+  it is recommended to use a list or some other collection that preserves the
+  order of the elements.
+  At the very least, the container should support the ``append`` method if the
+  :func:`add_note <utils.add_note>` function will be used.
+  """
+  udes: MutableSequence[Ude] = field(factory=list)
+  """
+  A MutableSequence of :class:`Ude` elements.
+  While any iterable (or even a Generator expression) can technically be used,
+  it is recommended to use a list or some other collection that preserves the
+  order of the elements.
+  At the very least, the container should support the ``append`` method if the
+  :func:`add_ude <utils.add_ude>` function will be used.
+  """
+
+  @staticmethod
+  def from_element(
+    elem: XmlElement,
+    *,
+    creationtool: str | None = None,
+    creationtoolversion: str | None = None,
+    segtype: Literal["block", "paragraph", "sentence", "phrase"] | None = None,
+    tmf: str | None = None,
+    adminlang: str | None = None,
+    srclang: str | None = None,
+    datatype: str | None = None,
+    encoding: str | None = None,
+    creationdate: str | datetime | None = None,
+    creationid: str | None = None,
+    changedate: str | datetime | None = None,
+    changeid: str | None = None,
+    props: Iterable[Prop] | None = None,
+    notes: Iterable[Note] | None = None,
+    udes: Iterable[Ude] | None = None,
+  ) -> Header:
+    """
+    Create a :class:`Header` Element from an XmlElement.
+
+    Parameters
+    ----------
+    elem : XmlElement
+        The Element to parse.
+    creationtool : str
+        The tool that created the TMX document.
+    creationtoolversion : str
+        The version of the tool that created the TMX document.
+    segtype : Literal["block", "paragraph", "sentence", "phrase"]
+        The type of segmentation used in the file.
+    tmf : str
+        The format of the translation memory file from which the TMX document or
+        segment thereof have been generated.
+    adminlang : str
+        The default language for the administrative and informative elements
+        :class:`Prop` and :class:`Note`. Must be a language code as described
+        in the `RFC 3066 <https://www.ietf.org/rfc/rfc3066.txt>`_. Unlike the
+        other TMX attributes, the values for adminlang are not case-sensitive.
+    srclang : str
+        The source language of the file. Must be a language code as described
+        in the `RFC 3066 <https://www.ietf.org/rfc/rfc3066.txt>`_. Unlike the
+        other TMX attributes, the values for srclang are not case-sensitive.
+    datatype : str
+        The type of the data contained in the file.
+    encoding : str | None, optional
+        The original or preferred code set of the data of the element in case
+        it is to be re-encoded in a non-Unicode code set. must be one of the
+        `IANA recommended charsets
+        <https://www.iana.org/assignments/character-sets/character-sets.xhtml>`_
+        By default None.
+    creationdate : str | datetime | None, optional
+        The date and time the file was created. It is recommended to use
+        :external:class:`datetime.datetime` objects instead of raw strings.
+        If a string is provided, it will be parsed as a
+        :external:class:`datetime.datetime` object if it matches the format
+        YYYYMMDDTHHMMSSZ, where T is the date/time separator, Z is the time zone
+        offset, and the date/time is in Coordinated Universal Time (UTC).
+        By default None.
+    creationid : str | None, optional
+        The ID of the user that created the file, by default None
+        By default None.
+    changedate : str | datetime | None, optional
+        The date and time the file was last change. It is recommended to use
+        :external:class:`datetime.datetime` objects instead of raw strings.
+        If a string is provided, it will be parsed as a
+        :external:class:`datetime.datetime` object if it matches the format
+        YYYYMMDDTHHMMSSZ, where T is the date/time separator, Z is the time zone
+        offset, and the date/time is in Coordinated Universal Time (UTC).
+        By default None.
+    changeid : str | None, optional
+        The ID of the user that last changed the file, by default None
+        By default None.
+    props : Iterable[Prop] | None, optional
+        A Iterable of :class:`Prop` elements.
+        While any iterable (or even a Generator expression) can technically be
+        used, it is recommended to use a list or some other collection that
+        preserves the order of the elements.
+        At the very least, the container should support the ``append`` method
+        if the :func:`add_prop <utils.add_prop>` function will be used.
+        By default an empty list.
+    notes : Iterable[Note] | None, optional
+        A Iterable of :class:`Note` elements.
+        While any iterable (or even a Generator expression) can technically be
+        used, it is recommended to use a list or some other collection that
+        preserves the order of the elements. At the very least, the container
+        should support the ``append`` method if the
+        :func:`add_note <utils.add_note>` function will be used.
+        By default an empty list.
+    udes : Iterable[Ude] | None, optional
+        A Iterable of :class:`Ude` elements.
+        While any iterable (or even a Generator expression) can technically be
+        used, it is recommended to use a list or some other collection that
+        preserves the order of the elements. At the very least, the container
+        should support the ``append`` method if the
+        :func:`add_ude <utils.add_ude>` function will be used.
+        By default an empty list.
+    """
+    if not isinstance(elem, XmlElement):
+      raise TypeError(f"Expected XmlElement, got {type(elem)}")
+    if elem.tag != "header":
+      raise ValueError(f"Expected <header> element, got {str(elem.tag)}")
     attribs = elem.attrib
     props, notes, udes = [], [], []
     for e in elem:
@@ -290,10 +708,63 @@ class Header:
         notes.append(Note.from_element(e))
       elif e.tag == "ude":
         udes.append(Ude.from_element(e))
-    return cls(
-      encoding=attribs.pop("o-encoding"),
-      tmf=attribs.pop("o-tmf"),
-      **attribs,
+    if creationtool is None:
+      if elem.get("creationtool") is None:
+        raise ValueError(
+          "'creationtool' must be provided or the element must have a 'creationtool' attribute"
+        )
+      creationtool = elem.attrib["creationtool"]
+    if creationtoolversion is None:
+      if elem.get("creationtoolversion") is None:
+        raise ValueError(
+          "'creationtoolversion' must be provided or the element must have a 'creationtoolversion' attribute"
+        )
+      creationtoolversion = elem.attrib["creationtoolversion"]
+    if segtype is None:
+      if elem.get("segtype") is None:
+        raise ValueError(
+          "'segtype' must be provided or the element must have a 'segtype' attribute"
+        )
+      segtype = elem.attrib["segtype"]  # type: ignore # validation should only be forced on export
+    if tmf is None:
+      if elem.get("o-tmf") is None:
+        raise ValueError(
+          "'tmf' must be provided or the element must have a 'tmf' attribute"
+        )
+      tmf = elem.attrib["o-tmf"]
+    if adminlang is None:
+      if elem.get("adminlang") is None:
+        raise ValueError(
+          "'adminlang' must be provided or the element must have a 'adminlang' attribute"
+        )
+      adminlang = elem.attrib["adminlang"]
+    if srclang is None:
+      if elem.get("srclang") is None:
+        raise ValueError(
+          "'srclang' must be provided or the element must have a 'srclang' attribute"
+        )
+      srclang = elem.attrib["srclang"]
+    if datatype is None:
+      if elem.get("datatype") is None:
+        raise ValueError(
+          "'datatype' must be provided or the element must have a 'datatype' attribute"
+        )
+      datatype = elem.attrib["datatype"]
+    return Header(
+      creationtool=creationtool,
+      creationtoolversion=creationtoolversion,
+      segtype=segtype,  # type: ignore # validation should only be forced on export
+      tmf=tmf,
+      adminlang=adminlang,
+      srclang=srclang,
+      datatype=datatype,
+      encoding=encoding if encoding is not None else attribs.get("o-encoding"),
+      creationdate=creationdate
+      if creationdate is not None
+      else attribs.get("creationdate"),
+      creationid=creationid if creationid is not None else attribs.get("creationid"),
+      changedate=changedate if changedate is not None else attribs.get("changedate"),
+      changeid=changeid if changeid is not None else attribs.get("changeid"),
       props=props,
       notes=notes,
       udes=udes,
@@ -310,33 +781,6 @@ class Header:
         self.changedate = datetime.strptime(self.changedate, r"%Y%m%dT%H%M%SZ")
       except (TypeError, ValueError):
         pass
-
-
-def _parse_inline(seg: XmlElement, mask: Iterable[str]) -> list:
-  segment: list = []
-  for e in seg:
-    if seg.text is not None:
-      segment.append(seg.text)
-    for e in seg:
-      if str(e.tag) not in mask:
-        continue
-      if e.tag == "bpt":
-        segment.append(Bpt.from_element(e))
-      elif e.tag == "ept":
-        segment.append(Ept.from_element(e))
-      elif e.tag == "it":
-        segment.append(It.from_element(e))
-      elif e.tag == "ph":
-        segment.append(Ph.from_element(e))
-      elif e.tag == "hi":
-        segment.append(Hi.from_element(e))
-      elif e.tag == "ut":
-        segment.append(Ut.from_element(e))
-      elif e.tag == "sub":
-        segment.append(Sub.from_element(e))
-      if e.tail is not None:
-        segment.append(e.tail)
-  return segment
 
 
 @define(kw_only=True)
