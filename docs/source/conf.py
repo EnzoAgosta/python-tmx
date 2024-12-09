@@ -43,5 +43,4 @@ intersphinx_disabled_reftypes = ["*"]
 
 html_permalinks_icon = "<span>#</span>"
 html_theme = "pydata_sphinx_theme"
-html_sidebars = {"**": ["sidebar-nav-bs", "page-toc"]}
-html_theme_options: dict = {"secondary_sidebar_items": []}
+html_sidebars = {"**": ["page-toc"]}
