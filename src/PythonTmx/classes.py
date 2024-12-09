@@ -3,14 +3,40 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from collections.abc import MutableSequence
 from datetime import datetime
-from typing import Iterable, Literal, TypeAlias, overload
+from typing import Iterable, Literal, TypeAlias
 from warnings import deprecated
 
 import lxml.etree as et
-from attrs import define, field, validate, validators
+from attr import asdict
+from attrs import define, field, validators
 
 XmlElement: TypeAlias = et._Element | ET.Element
 TmxElement: TypeAlias = "Note | Prop | Ude | Map | Header| Tu| Tuv| Tmx|Bpt | Ept | It | Ph | Hi | Ut | Sub | Ude"
+
+
+def fill_attributes(elem: XmlElement, attribs: dict) -> None:
+  for k, v in attribs.items():
+    match k:
+      case "text":
+        elem.text = v
+      case "lang":
+        elem.set("{http://www.w3.org/XML/1998/namespace}lang", v)
+      case "encoding" | "tmf":
+        elem.set(f"o-{k}", v)
+      case "usagecount":
+        elem.set("usagecount", str(v))
+      case "lastusagedate" | "creationdate" | "changedate":
+        elem.set(k, v.strftime("%Y%m%dT%H%M%SZ"))
+      case _:
+        elem.set(k, v)
+
+
+def _only_str(k, v) -> bool:
+  return isinstance(v, str)
+
+
+def _str_and_list(k, v) -> bool:
+  return isinstance(v, str) or isinstance(v, list)
 
 
 def _parse_inline(elem: XmlElement, mask: Iterable[str]) -> list:
@@ -111,7 +137,7 @@ class Note:
 
     Parameters
     ----------
-    elem : :external:class:`lxml.etree._Element` | :external:class:`xml.etree.ElementTree.Element`
+    elem : :external:class:`lxml Element <lxml.etree._Element>` | :external:class:`ElementTree Element <xml.etree.ElementTree.Element>`
         The Element to parse.
     text : str | None, optional
         The text of the Note, by default None
@@ -171,40 +197,26 @@ class Note:
       encoding=encoding if encoding is not None else elem.get("o-encoding"),
     )
 
-  @overload
   @classmethod
-  def to_element(cls, note: Note, engine: Literal["std"]) -> ET.Element: ...
-  @overload
-  @classmethod
-  def to_element(cls, note: Note, engine: Literal["lxml"]) -> et._Element: ...
-  @classmethod
-  def to_element(cls, note: Note, engine) -> XmlElement:
-    def to_lxml(note: Note) -> et._Element:
-      elem = et.Element("note")
-      elem.text = note.text
-      if note.lang is not None:
-        elem.set("{http://www.w3.org/XML/1998/namespace}lang", note.lang)
-      if note.encoding is not None:
-        elem.set("o-encoding", note.encoding)
-      return elem
+  def to_element(cls, note: Note) -> et._Element:
+    """
+    Convert a :class:`Note` to an :external:class:`lxml Element <lxml.etree._Element>`.
 
-    def to_std(note: Note) -> ET.Element:
-      elem = ET.Element("note")
-      elem.text = note.text
-      if note.lang is not None:
-        elem.set("{http://www.w3.org/XML/1998/namespace}lang", note.lang)
-      if note.encoding is not None:
-        elem.set("o-encoding", note.encoding)
-      return elem
+    Parameters
+    ----------
+    note : Note
+        The :class:`Note` to convert.
 
-    validate(note)
-    match engine:
-      case "lxml":
-        return to_lxml(note)
-      case "std":
-        return to_std(note)
-      case _:
-        raise ValueError(f"Unknown engine: {engine}")
+    Returns
+    -------
+    :external:class:`lxml Element <lxml.etree._Element>`
+        The converted :class:`Note` as an :external:class:`lxml Element <lxml.etree._Element>`.
+    """
+
+    attribs = asdict(note, filter=_only_str)
+    elem = et.Element("note")
+    fill_attributes(elem, attribs)
+    return elem
 
 
 @define(kw_only=True)
@@ -333,44 +345,26 @@ class Prop:
       encoding=encoding if encoding is not None else elem.get("o-encoding"),
     )
 
-  @overload
   @classmethod
-  def to_element(cls, prop: Prop, engine: Literal["std"]) -> ET.Element: ...
-  @overload
-  @classmethod
-  def to_element(cls, prop: Prop, engine: Literal["lxml"]) -> et._Element: ...
-  @classmethod
-  def to_element(cls, prop: Prop, engine) -> XmlElement:
-    def to_lxml(prop: Prop) -> et._Element:
-      elem = et.Element("prop")
-      elem.text = prop.text
-      if prop.lang is not None:
-        elem.set("{http://www.w3.org/XML/1998/namespace}lang", prop.lang)
-      if prop.encoding is not None:
-        elem.set("o-encoding", prop.encoding)
-      if prop.type is not None:
-        elem.set("type", prop.type)
-      return elem
+  def to_element(cls, prop: Prop) -> et._Element:
+    """
+    Convert a :class:`Prop` to an :external:class:`lxml Element <lxml.etree._Element>`.
 
-    def to_std(prop: Prop) -> ET.Element:
-      elem = ET.Element("prop")
-      elem.text = prop.text
-      if prop.lang is not None:
-        elem.set("{http://www.w3.org/XML/1998/namespace}lang", prop.lang)
-      if prop.encoding is not None:
-        elem.set("o-encoding", prop.encoding)
-      if prop.type is not None:
-        elem.set("type", prop.type)
-      return elem
+    Parameters
+    ----------
+    prop : Prop
+        The :class:`Prop` to convert.
 
-    validate(prop)
-    match engine:
-      case "lxml":
-        return to_lxml(prop)
-      case "std":
-        return to_std(prop)
-      case _:
-        raise ValueError(f"Unknown engine: {engine}")
+    Returns
+    -------
+    :external:class:`lxml Element <lxml.etree._Element>`
+        The converted :class:`Prop` as an :external:class:`lxml Element <lxml.etree._Element>`.
+    """
+
+    attribs = asdict(prop, filter=_only_str)
+    elem = et.Element("prop")
+    fill_attributes(elem, attribs)
+    return elem
 
 
 @define(kw_only=True)
@@ -388,28 +382,55 @@ class Map:
   """
   code: str | None = field(
     default=None,
-    validator=[
-      validators.optional(validators.instance_of(str)),
-      validators.optional(validators.matches_re(r"^#x.*?")),
-    ],
+    validator=validators.optional(validators.instance_of(str)),
   )
+
+  @code.validator
+  def _code_validator(self, attribute, value):
+    if value is not None:
+      if not value.startswith("#x"):
+        raise ValueError(
+          f"code must be a Hexadecimal value prefixed with '#x'. " f"Got: {value!r}"
+        )
+      try:
+        hex(int(value[2:], 16))
+      except ValueError:
+        raise ValueError(
+          f"code must be a Hexadecimal value prefixed with '#x'. " f"Got: {value!r}"
+        )
 
   """
   The code-point value corresponding to the unicode character of a the element.
   Must be a Hexadecimal value prefixed with "#x". By default None.
   """
   ent: str | None = field(
-    default=None, validator=validators.optional(validators.instance_of(str))
+    default=None,
+    validator=validators.optional(validators.instance_of(str)),
   )
   """
   The entity name of the character defined by the element. Must be text in ASCII.
   By default None.
   """
-  subst: str | None = None
+
+  @ent.validator
+  def _ent_validator(self, attribute, value: str):
+    if value is not None:
+      if not value.isascii():
+        raise ValueError(f"Expected ASCII string, got {value!r}")
+
+  subst: str | None = field(
+    default=None, validator=validators.optional(validators.instance_of(str))
+  )
   """
   An alternative string for the character defined in the element. Must be text
   in ASCII. By default None.
   """
+
+  @subst.validator
+  def _subst_validator(self, attribute, value: str):
+    if value is not None:
+      if not value.isascii():
+        raise ValueError(f"expected ASCII string, got {value!r}")
 
   @staticmethod
   def from_element(
@@ -480,6 +501,27 @@ class Map:
       subst=subst if subst is not None else elem.get("subst"),
     )
 
+  @classmethod
+  def to_element(cls, map: Map) -> et._Element:
+    """
+    Convert a :class:`Note` to an :external:class:`lxml Element <lxml.etree._Element>`.
+
+    Parameters
+    ----------
+    map : Map
+        The :class:`Map` to convert.
+
+    Returns
+    -------
+    :external:class:`lxml Element <lxml.etree._Element>`
+        The converted :class:`Map` as an :external:class:`lxml Element <lxml.etree._Element>`.
+    """
+
+    attribs = asdict(map, filter=_only_str)
+    elem = et.Element("map")
+    fill_attributes(elem, attribs)
+    return elem
+
 
 @define(kw_only=True)
 class Ude:
@@ -490,18 +532,23 @@ class Ude:
   Can only be attached to :class:`Header`.
   """
 
-  name: str
+  name: str = field(validator=validators.instance_of(str))
   """
   The name of a element. Its value is not defined by the standard
   """
-  base: str | None = None
+  base: str | None = field(
+    default=None, validator=validators.optional(validators.instance_of(str))
+  )
   """
   The encoding upon which the re-mapping of the element is based.
   Ideally one of the [IANA] `recommended charset
   <https://www.iana.org/assignments/character-sets/character-sets.xhtml>`_.
   Required if at least of the :class:`Map` elements has a `code` attribute.
   """
-  maps: MutableSequence[Map] = field(factory=list)
+  maps: MutableSequence[Map] = field(
+    factory=list,
+    validator=validators.deep_iterable(member_validator=validators.instance_of(Map)),
+  )
   """
   A MutableSequence of :class:`Map` elements.
   While any iterable (or even a Generator expression) can technically be used,
@@ -585,6 +632,33 @@ class Ude:
     return Ude(
       name=name, base=base if base is not None else elem.get("base"), maps=list(maps)
     )
+
+  @classmethod
+  def to_element(cls, ude: Ude) -> et._Element:
+    """
+    Convert a :class:`Note` to an :external:class:`lxml Element <lxml.etree._Element>`.
+
+    Parameters
+    ----------
+    map : Map
+        The :class:`Map` to convert.
+
+    Returns
+    -------
+    :external:class:`lxml Element <lxml.etree._Element>`
+        The converted :class:`Map` as an :external:class:`lxml Element <lxml.etree._Element>`.
+    """
+
+    attribs = asdict(ude, filter=_str_and_list)
+    elem = et.Element("map")
+    fill_attributes(elem, attribs)
+    for map in ude.maps:
+      if not isinstance(map, Map):
+        raise TypeError(f"Expected Map, got {type(map)}")
+      if map.code is not None and ude.base is None:
+        raise ValueError("base cannot be None if at least 1 map has a code attribute")
+      elem.append(Map.to_element(map))
+    return elem
 
 
 @define(kw_only=True)
