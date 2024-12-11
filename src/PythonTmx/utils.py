@@ -1,4 +1,8 @@
+from __future__ import annotations
+
 from collections.abc import Callable
+from os import PathLike
+from pathlib import Path
 
 import lxml.etree as et
 
@@ -76,11 +80,32 @@ def from_element(
 
 
 def to_element(obj: cl.TmxElement) -> et._Element:
-  global __to_elem_func_dict__
-  e: Callable[..., et._Element] | None = __to_elem_func_dict__.get(
-    obj.__class__.__name__.lower()
-  )
-  if e is None:
+  if not isinstance(obj, cl.TmxElement):
     raise ValueError(f"Unknown element {str(obj.__class__.__name__)}")
-  else:
-    return e(obj)
+  global __to_elem_func_dict__
+  e: Callable[..., et._Element] = __to_elem_func_dict__[obj.__class__.__name__.lower()]
+  return e(obj)
+
+
+def from_file(
+  path: str | bytes | PathLike, ignore_unknown: bool = False
+) -> cl.TmxElement | None:
+  if isinstance(path, bytes):
+    path = str(path)
+  p = Path(path)
+  if not p.exists():
+    raise FileNotFoundError(f"File {p} does not exist")
+  if p.is_dir():
+    raise IsADirectoryError(f"File {p} is a directory")
+  return from_element(et.parse(p).getroot(), ignore_unknown)
+
+
+def to_file(obj: cl.TmxElement, path: str | bytes | PathLike) -> None:
+  if isinstance(path, bytes):
+    path = str(path)
+  p = Path(path)
+  if not p.exists():
+    raise FileNotFoundError(f"File {p} does not exist")
+  if p.is_dir():
+    raise IsADirectoryError(f"File {p} is a directory")
+  et.ElementTree(to_element(obj)).write(p)

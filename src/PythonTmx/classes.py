@@ -11,7 +11,7 @@ from attr import asdict
 from attrs import define, field, validators
 
 XmlElement: TypeAlias = et._Element | ET.Element
-TmxElement: TypeAlias = "Note | Prop | Ude | Map | Header| Tu| Tuv| Tmx|Bpt | Ept | It | Ph | Hi | Ut | Sub | Ude"
+TmxElement: TypeAlias = "Note | Prop | Ude | Map | Header | Tu | Tuv | Tmx| Bpt | Ept | It | Ph | Hi | Ut | Sub | Ude"
 
 __all__ = [
   "Note",
@@ -45,6 +45,81 @@ class SupportsSub:
     datatype: str | None = None,
     content: MutableSequence[str | Bpt | Ept | It | Ph | Hi | Ut] | None = None,
   ) -> None:
+    """
+    Appends a :class:`Sub` to the :attr:`content` (or the :attr:`segment` if
+    used on a :class:`Tuv`) of the object.
+
+    .. note::
+        The :class:`Sub` object that is added is `always` a new object.
+        To add your :class:`Sub` object itself, you need to directly append it
+        using content.append(my_sub).
+
+        .. code-block:: python
+
+            from PythonTmx import Sub, Bpt
+
+            my_bpt = Bpt(content=["text of the bpt"])
+            my_sub = Sub(content=["text of the sub"])
+            my_bpt.add_sub(my_sub)
+            content.append(my_bpt)
+            # The Sub addded by the method is NOT the same as my_sub
+            assert my_sub is not my_bpt.content[0]
+            # The Sub directly appenned to the content is the same as my_sub
+            assert my_sub is my_bpt.content[1]
+
+    If an Iterable of :class:`Sub` objects is passed, a new :class:`Sub`
+    object is created for each element in the iterable and appended to the
+    :attr:`content` attribute of the object.
+
+    If both `sub` and any other parameters are specified, the provided
+    parameters will take precedence over the values from the :class:`Sub` if
+    provided
+
+    If `sub` is an Iterable of :class:`Sub` objects, the provided
+    arguments will be applied to each :class:`Sub` object in the iterable.
+
+    Parameters
+    ----------
+    sub : Sub | Iterable[Sub] | None, optional
+        The sub to add to the object.
+        If None, `text` must be provided.
+        By default, None.
+        For more info see: :class:`Sub`
+    type : str | None, optional
+        The type of the data contained in the element.
+        By default None.
+    datatype : str | None, optional
+        The data type of the element. By default None.
+    content: MutableSequence[str | Bpt | Ept | It | Ph | Hi | Ut] None, optional
+        A MutableSequence of strings, or :class:`Bpt`, :class:`Ept`, :class:`It`,
+        :class:`Ph`, :class:`Hi`, :class:`Ut` elements. While any iterable
+        (or even a Generator expression) can technically be used, the resulting
+        :class:`Sub` :attr:`content <Sub.content>` will be a list.
+
+
+    Raises
+    ------
+    TypeError
+        If 'sub' is not a :class:`Sub` object, if any of the objects in 'sub' is
+        not a :class:`Sub` object (if an Iterable is provided).
+
+    Examples
+    --------
+    .. code-block:: python
+
+        from PythonTmx import Sub, Bpt
+
+        bpt = Bpt(i="1", content="Hello World!")
+        sub = Sub(type="example", content="Hello fro; a Sub!")
+        bpt.add_sub(sub, datatype="text")
+        print(bpt)
+        # Output:
+        # Bpt()
+
+    See also
+    --------
+    :class:`Map`, :class:`Ude`, :class:`Header`, :meth:`add_ude`
+    """
     if isinstance(sub, Iterable):
       for s in sub:
         self.add_sub(s, type=type, datatype=datatype, content=content)
@@ -544,25 +619,24 @@ def _parse_inline(elem: XmlElement, mask: Iterable[str]) -> list:
   if elem.text is not None:
     result.append(elem.text)
   for e in elem:
-    for e in elem:
-      if str(e.tag) not in mask:
-        continue
-      if e.tag == "bpt":
-        result.append(Bpt._from_element(e))
-      elif e.tag == "ept":
-        result.append(Ept._from_element(e))
-      elif e.tag == "it":
-        result.append(It._from_element(e))
-      elif e.tag == "ph":
-        result.append(Ph._from_element(e))
-      elif e.tag == "hi":
-        result.append(Hi._from_element(e))
-      elif e.tag == "ut":
-        result.append(Ut._from_element(e))
-      elif e.tag == "sub":
-        result.append(Sub._from_element(e))
-      if e.tail is not None:
-        result.append(e.tail)
+    if str(e.tag) not in mask:
+      continue
+    if e.tag == "bpt":
+      result.append(Bpt._from_element(e))
+    elif e.tag == "ept":
+      result.append(Ept._from_element(e))
+    elif e.tag == "it":
+      result.append(It._from_element(e))
+    elif e.tag == "ph":
+      result.append(Ph._from_element(e))
+    elif e.tag == "hi":
+      result.append(Hi._from_element(e))
+    elif e.tag == "ut":
+      result.append(Ut._from_element(e))
+    elif e.tag == "sub":
+      result.append(Sub._from_element(e))
+    if e.tail is not None:
+      result.append(e.tail)
   return result
 
 
@@ -1311,11 +1385,9 @@ class Header(SupportsNotesAndProps):
   By default None.
   """
   creationdate: str | datetime | None = field(
-    default=None,
-    validator=validators.optional(
-      validators.or_(validators.instance_of(str), validators.instance_of(datetime))
-    ),
+    default=None, validator=validators.optional(validators.instance_of((str, datetime)))
   )
+
   """
   The date and time the file was created. It is recommended to use
   :external:class:`datetime.datetime` objects instead of raw strings.
@@ -1333,10 +1405,7 @@ class Header(SupportsNotesAndProps):
   The ID of the user that created the file, by default None
   """
   changedate: str | datetime | None = field(
-    default=None,
-    validator=validators.optional(
-      validators.or_(validators.instance_of(str), validators.instance_of(datetime))
-    ),
+    default=None, validator=validators.optional(validators.instance_of((str, datetime)))
   )
   """
   The date and time the file was last changed, by default None
@@ -1811,12 +1880,15 @@ class Bpt(SupportsSub):
   attached to :class:`Tuv`, :class:`Hi`, :class:`Sub`.
   """
 
-  i: int | str
+  i: int | str = field(validator=validators.instance_of((str, int)))
+
   """
   Used to pair the :class:`Bpt` with the corresponding :class:`Ept` element.
   Must be unique for each :class:`Bpt` element within the same parent element.
   """
-  x: int | str | None = None
+  x: int | str | None = field(
+    default=None, validator=validators.optional(validators.instance_of((int, str)))
+  )
   """
   Used to match inline elements :class:`Bpt`, :class:`It`,
   :class:`Ph`, :class:`Hi` and :class:`Ut` elements between the :class:`Tuv`
@@ -1825,11 +1897,26 @@ class Bpt(SupportsSub):
   corresponding :class:`Bpt` element.
   By default None.
   """
-  type: str | None = None
+  type: str | None = field(
+    default=None, validator=validators.optional(validators.instance_of(str))
+  )
+
   """
   The type of the data contained in the element. By default None.
   """
-  content: MutableSequence[str | Sub] = field(factory=list)
+
+  def _content_validator(self, attribute, value):
+    if not isinstance(value, Sub):
+      raise TypeError(
+        f"content must be a collection of Sub and/or str, not {type(value).__name__}"
+      )
+
+  content: MutableSequence[str | Sub] = field(
+    factory=list,
+    validator=validators.deep_iterable(
+      member_validator=[validators.instance_of((str)), _content_validator],
+    ),
+  )
   """
   A MutableSequence of strings, or :class:`Sub` elements. While any iterable
   (or even a Generator expression) can technically be used, it is recommended to
@@ -1961,12 +2048,24 @@ class Ept(SupportsSub):
   :class:`Tuv`, :class:`Hi`, :class:`Sub`.
   """
 
-  i: int | str
+  i: int | str = field(validator=validators.instance_of((str, int)))
   """
   Used to pair the :class:`Bpt` with the corresponding :class:`Ept` element.
   Must be unique for each :class:`Bpt` element within the same parent element.
   """
-  content: MutableSequence[str | Sub] = field(factory=list)
+
+  def _content_validator(self, attribute, value):
+    if not isinstance(value, Sub):
+      raise TypeError(
+        f"content must be a collection of Sub and/or str, not {type(value).__name__}"
+      )
+
+  content: MutableSequence[str | Sub] = field(
+    factory=list,
+    validator=validators.deep_iterable(
+      member_validator=[validators.instance_of((str)), _content_validator],
+    ),
+  )
   """
   A MutableSequence of strings, or :class:`Sub` elements. While any iterable
   (or even a Generator expression) can technically be used, it is recommended to
@@ -2081,7 +2180,9 @@ class Hi(SupportsInlineNoSub):
   :class:`Ut`.
   """
 
-  x: int | str | None = None
+  x: int | str | None = field(
+    default=None, validator=validators.optional(validators.instance_of((str, int)))
+  )
   """
   Used to match inline elements :class:`Bpt`, :class:`It`,
   :class:`Ph`, :class:`Hi` and :class:`Ut` elements between the :class:`Tuv`
@@ -2090,11 +2191,25 @@ class Hi(SupportsInlineNoSub):
   corresponding :class:`Bpt` element.
   By default None.
   """
-  type: str | None = None
+  type: str | None = field(
+    default=None, validator=validators.optional(validators.instance_of(str))
+  )
   """
   The type of the data contained in the element. By default None.
   """
-  content: MutableSequence[str | Bpt | Ept | It | Ph | Hi | Ut] = field(factory=list)
+
+  def _content_validator(self, attribute, value):
+    if not isinstance(value, (Bpt, Ept, It, Ph, Hi, Ut)):
+      raise TypeError(
+        f"content must be a collection of Sub and/or str, not {type(value).__name__}"
+      )
+
+  content: MutableSequence[str | Bpt | Ept | It | Ph | Hi | Ut] = field(
+    factory=list,
+    validator=validators.deep_iterable(
+      member_validator=[validators.instance_of((str)), _content_validator],
+    ),
+  )
   """
   A MutableSequence of strings, or :class:`Bpt`, :class:`Ept`, :class:`It`,
   :class:`Ph`, :class:`Hi`, :class:`Ut` elements. While any iterable
@@ -2233,11 +2348,13 @@ class It(SupportsSub):
   corresponding ending/beginning within the segment.
   """
 
-  pos: Literal["begin", "end"]
+  pos: Literal["begin", "end"] = field(validator=validators.in_(["begin", "end"]))
   """
   The position of the element. Must be "begin" or "end".
   """
-  x: int | str | None = None
+  x: int | str | None = field(
+    default=None, validator=validators.optional(validators.instance_of((str, int)))
+  )
   """
   Used to match inline elements :class:`Bpt`, :class:`It`,
   :class:`Ph`, :class:`Hi` and :class:`Ut` elements between the :class:`Tuv`
@@ -2246,11 +2363,25 @@ class It(SupportsSub):
   corresponding :class:`Bpt` element.
   By default None.
   """
-  type: str | None = None
+  type: str | None = field(
+    default=None, validator=validators.optional(validators.instance_of(str))
+  )
   """
   The type of the data contained in the element. By default None.
   """
-  content: MutableSequence[str | Sub] = field(factory=list)
+
+  def _content_validator(self, attribute, value):
+    if not isinstance(value, Sub):
+      raise TypeError(
+        f"content must be a collection of Sub and/or str, not {type(value).__name__}"
+      )
+
+  content: MutableSequence[str | Sub] = field(
+    factory=list,
+    validator=validators.deep_iterable(
+      member_validator=[validators.instance_of((str)), _content_validator],
+    ),
+  )
   """
   A MutableSequence of strings, or :class:`Sub` elements. While any iterable
   (or even a Generator expression) can technically be used, it is recommended to
@@ -2371,12 +2502,16 @@ class Ph(SupportsSub):
   a sequence of native standalone codes in the segment
   """
 
-  i: int | str | None = None
+  i: int | str | None = field(
+    default=None, validator=validators.optional(validators.instance_of((int, str)))
+  )
   """
   Used to pair the :class:`Bpt` with the corresponding :class:`Ept` element.
   Must be unique for each :class:`Bpt` element within the same parent element.
   """
-  x: int | str | None = None
+  x: int | str | None = field(
+    default=None, validator=validators.optional(validators.instance_of((int, str)))
+  )
   """
   Used to match inline elements :class:`Bpt`, :class:`It`,
   :class:`Ph`, :class:`Hi` and :class:`Ut` elements between the :class:`Tuv`
@@ -2385,11 +2520,25 @@ class Ph(SupportsSub):
   corresponding :class:`Bpt` element.
   By default None.
   """
-  assoc: Literal["p", "f", "b"] | None = None
+  assoc: Literal["p", "f", "b"] | None = field(
+    default=None, validator=validators.optional(validators.in_(["p", "f", "b"]))
+  )
   """
   The association of the element. Must be "p", "f" or "b".
   """
-  content: MutableSequence[str | Sub] = field(factory=list)
+
+  def _content_validator(self, attribute, value):
+    if not isinstance(value, Sub):
+      raise TypeError(
+        f"content must be a collection of Sub and/or str, not {type(value).__name__}"
+      )
+
+  content: MutableSequence[str | Sub] = field(
+    factory=list,
+    validator=validators.deep_iterable(
+      member_validator=[validators.instance_of((str)), _content_validator],
+    ),
+  )
   """
   A MutableSequence of strings, or :class:`Sub` elements. While any iterable
   (or even a Generator expression) can technically be used, it is recommended to
@@ -2500,15 +2649,31 @@ class Ph(SupportsSub):
 
 @define(kw_only=True)
 class Sub(SupportsInlineNoSub):
-  type: str | None = None
+  type: str | None = field(
+    default=None, validator=validators.optional(validators.instance_of(str))
+  )
   """
   The type of the data contained in the element. By default None.
   """
-  datatype: str | None = None
+  datatype: str | None = field(
+    default=None, validator=validators.optional(validators.instance_of(str))
+  )
   """
   The data type of the element. By default None.
   """
-  content: MutableSequence[str | Bpt | Ept | It | Ph | Hi | Ut] = field(factory=list)
+
+  def _content_validator(self, attribute, value):
+    if not isinstance(value, (Bpt, Ept, It, Ph, Hi, Ut)):
+      raise TypeError(
+        f"content must be a collection of Bpt, Ept, It, Ph, Hi, Ut and/or str, not {type(value).__name__}"
+      )
+
+  content: MutableSequence[str | Bpt | Ept | It | Ph | Hi | Ut] = field(
+    factory=list,
+    validator=validators.deep_iterable(
+      member_validator=[validators.instance_of((str)), _content_validator],
+    ),
+  )
   """
   A MutableSequence of strings, or :class:`Bpt`, :class:`Ept`, :class:`It`,
   :class:`Ph`, :class:`Hi`, :class:`Ut` elements. While any iterable
@@ -2643,7 +2808,9 @@ class Ut(SupportsSub):
   element to used instead of Ut.
   """
 
-  x: int | str | None = None
+  x: int | str | None = field(
+    default=None, validator=validators.optional(validators.instance_of((int, str)))
+  )
   """
   Used to match inline elements :class:`Bpt`, :class:`It`,
   :class:`Ph`, :class:`Hi` and :class:`Ut` elements between the :class:`Tuv`
@@ -2652,7 +2819,19 @@ class Ut(SupportsSub):
   corresponding :class:`Bpt` element.
   By default None.
   """
-  content: MutableSequence[str | Sub] = field(factory=list)
+
+  def _content_validator(self, attribute, value):
+    if not isinstance(value, Sub):
+      raise TypeError(
+        f"content must be a collection of Sub or str, not {type(value).__name__}"
+      )
+
+  content: MutableSequence[str | Sub] = field(
+    factory=list,
+    validator=validators.deep_iterable(
+      member_validator=[validators.instance_of((str)), _content_validator],
+    ),
+  )
   """
   A MutableSequence of strings, or :class:`Sub` elements. While any iterable
   (or even a Generator expression) can technically be used, it is recommended to
@@ -2796,19 +2975,13 @@ class Tuv(SupportsNotesAndProps):
   The type of the data contained in the element. By default None.
   """
   usagecount: str | int | None = field(
-    default=None,
-    validator=validators.optional(
-      validators.or_(validators.instance_of(str), validators.instance_of(int))
-    ),
+    default=None, validator=validators.optional(validators.instance_of((str, int)))
   )
   """
   The number of times the element has been used. By default None.
   """
   lastusagedate: str | datetime | None = field(
-    default=None,
-    validator=validators.optional(
-      validators.or_(validators.instance_of(str), validators.instance_of(datetime))
-    ),
+    default=None, validator=validators.optional(validators.instance_of((str, datetime)))
   )
   """
   The date and time the element was last used. It is recommended to use
@@ -2834,10 +3007,7 @@ class Tuv(SupportsNotesAndProps):
   The version of the tool that created the element. By default None.
   """
   creationdate: str | datetime | None = field(
-    default=None,
-    validator=validators.optional(
-      validators.or_(validators.instance_of(str), validators.instance_of(datetime))
-    ),
+    default=None, validator=validators.optional(validators.instance_of((str, datetime)))
   )
   """
   The date and time the element was created. It is recommended to use
@@ -2856,10 +3026,7 @@ class Tuv(SupportsNotesAndProps):
   The ID of the user that created the element, by default None 
   """
   changedate: str | datetime | None = field(
-    default=None,
-    validator=validators.optional(
-      validators.or_(validators.instance_of(str), validators.instance_of(datetime))
-    ),
+    default=None, validator=validators.optional(validators.instance_of((str, datetime)))
   )
   """
   The date and time the element was last changed. It is recommended to use
@@ -3202,10 +3369,7 @@ class Tu(SupportsNotesAndProps):
   The type of the data contained in the element. By default None.
   """
   usagecount: str | int | None = field(
-    default=None,
-    validator=validators.optional(
-      validators.or_(validators.instance_of(str), validators.instance_of(int))
-    ),
+    default=None, validator=validators.optional(validators.instance_of((str, int)))
   )
   """
   The number of times the element has been used. By default None.
@@ -3238,10 +3402,7 @@ class Tu(SupportsNotesAndProps):
   The version of the tool that created the element. By default None.
   """
   creationdate: str | datetime | None = field(
-    default=None,
-    validator=validators.optional(
-      validators.or_(validators.instance_of(str), validators.instance_of(datetime))
-    ),
+    default=None, validator=validators.optional(validators.instance_of((str, datetime)))
   )
   """
   The date and time the element was created. It is recommended to use
@@ -3260,10 +3421,7 @@ class Tu(SupportsNotesAndProps):
   The ID of the user that created the element, by default None
   """
   changedate: str | datetime | None = field(
-    default=None,
-    validator=validators.optional(
-      validators.or_(validators.instance_of(str), validators.instance_of(datetime))
-    ),
+    default=None, validator=validators.optional(validators.instance_of((str, datetime)))
   )
   """
   The date and time the element was last changed. It is recommended to use
