@@ -34,6 +34,195 @@ __all__ = [
 
 
 @define
+class SupportsSub:
+  content: MutableSequence[str | Sub] = field(factory=list)
+
+  def add_sub(
+    self,
+    sub: Sub | Iterable[Sub] | None = None,
+    *,
+    type: str | None = None,
+    datatype: str | None = None,
+    content: MutableSequence[str | Bpt | Ept | It | Ph | Hi | Ut] | None = None,
+  ) -> None:
+    if isinstance(sub, Iterable):
+      for s in sub:
+        self.add_sub(s, type=type, datatype=datatype, content=content)
+      return
+    if sub is None:
+      sub_ = Sub(
+        type=type, datatype=datatype, content=content if content is not None else []
+      )
+    if not isinstance(sub, Sub):
+      raise TypeError("sub must be a Sub object")
+    else:
+      sub_ = Sub(
+        type=type if type is not None else sub.type,
+        datatype=datatype if datatype is not None else sub.datatype,
+        content=content if content is not None else sub.content,
+      )
+    self.content.append(sub_)
+
+
+@define
+class SupportsInlineNoSub:
+  content: MutableSequence[str | Bpt | Ept | It | Ph | Hi | Ut] = field(factory=list)
+
+  def add_bpt(
+    self,
+    bpt: Bpt | Iterable[Bpt] | None = None,
+    *,
+    content: Iterable[str | Sub] | None = None,
+    i: int | str | None = None,
+    x: int | str | None = None,
+    type: str | None = None,
+  ) -> None:
+    if isinstance(bpt, Iterable):
+      for b in bpt:
+        self.add_bpt(b, i=i, x=x, type=type, content=content)
+      return
+    if bpt is None:
+      if i is None:
+        raise ValueError("i must be specified if bpt is None")
+      bpt_ = Bpt(
+        type=type, i=i, x=x, content=list(content) if content is not None else []
+      )
+    if not isinstance(bpt, Bpt):
+      raise TypeError("bpt must be a Bpt object")
+    else:
+      bpt_ = Bpt(
+        type=type if type is not None else bpt.type,
+        i=i if i is not None else bpt.i,
+        x=x if x is not None else bpt.x,
+        content=list(content) if content is not None else bpt.content,
+      )
+    self.content.append(bpt_)
+
+  def add_ept(
+    self,
+    ept: Ept | Iterable[Ept] | None = None,
+    *,
+    content: Iterable[str | Sub] | None = None,
+    i: int | str | None = None,
+  ) -> None:
+    if isinstance(ept, Iterable):
+      for b in ept:
+        self.add_ept(b, i=i, content=content)
+      return
+    if ept is None:
+      if i is None:
+        raise ValueError("i must be specified if ept is None")
+      ept_ = Ept(i=i, content=list(content) if content is not None else [])
+    if not isinstance(ept, Ept):
+      raise TypeError("ept must be a Ept object")
+    else:
+      ept_ = Ept(
+        i=i if i is not None else ept.i,
+        content=list(content) if content is not None else ept.content,
+      )
+    self.content.append(ept_)
+
+  def add_ph(
+    self,
+    ph: Ph | Iterable[Ph] | None = None,
+    *,
+    content: Iterable[str | Sub] | None = None,
+    i: int | str | None = None,
+    x: int | str | None = None,
+    assoc: Literal["p", "f", "b"] | None = None,
+  ) -> None:
+    if isinstance(ph, Iterable):
+      for p in ph:
+        self.add_ph(p, content=content, i=i, x=x, assoc=assoc)
+      return
+    if ph is None:
+      ph_ = Ph(
+        i=i, content=list(content) if content is not None else [], x=x, assoc=assoc
+      )
+    if not isinstance(ph, Ph):
+      raise TypeError("ph must be a Ph object")
+    else:
+      ph_ = Ph(
+        i=i, content=list(content) if content is not None else [], x=x, assoc=assoc
+      )
+    self.content.append(ph_)
+
+  def add_it(
+    self,
+    it: It | Iterable[It] | None = None,
+    *,
+    content: Iterable[str | Sub] | None = None,
+    pos: Literal["begin", "end"] | None = None,
+    x: int | str | None = None,
+    type: str | None = None,
+  ) -> None:
+    if isinstance(it, Iterable):
+      for i in it:
+        self.add_it(content=content, pos=pos, x=x, type=type)
+      return
+    if it is None:
+      if pos is None:
+        raise ValueError("pos must be specified if it is None")
+      it_ = It(
+        pos=pos, x=x, type=type, content=list(content) if content is not None else []
+      )
+    else:
+      it_ = It(
+        pos=pos if pos is not None else it.pos,
+        x=x if x is not None else it.x,
+        type=type if type is not None else it.type,
+        content=list(content) if content is not None else it.content,
+      )
+    self.content.append(it_)
+
+  def add_hi(
+    self,
+    hi: Hi | Iterable[Hi] | None = None,
+    *,
+    type: str | None = None,
+    x: str | int | None = None,
+    content: MutableSequence[str | Bpt | Ept | It | Ph | Hi | Ut] | None = None,
+  ) -> None:
+    if isinstance(hi, Iterable):
+      for h in hi:
+        self.add_hi(h, type=type, x=x, content=content)
+      return
+    if hi is None:
+      hi_ = Hi(type=type, x=x, content=content if content is not None else [])
+    if not isinstance(hi, Hi):
+      raise TypeError("hi must be a Hi object")
+    else:
+      hi_ = Hi(
+        type=type if type is not None else hi.type,
+        x=x if x is not None else hi.x,
+        content=content if content is not None else hi.content,
+      )
+    self.content.append(hi_)
+
+  def add_ut(
+    self,
+    ut: Ut | Iterable[Ut] | None = None,
+    *,
+    x: str | int | None = None,
+    content: MutableSequence[str | Sub] | None = None,
+  ) -> None:
+    if isinstance(ut, Iterable):
+      for u in ut:
+        self.add_ut(u, x=x, content=content)
+      return
+    if ut is None:
+      ut_ = Ut(x=x, content=list(content) if content is not None else [])
+    if not isinstance(ut, Ut):
+      raise TypeError("ut must be a Ut object")
+    else:
+      ut_ = Ut(
+        x=x if x is not None else ut.x,
+        content=list(content) if content is not None else ut.content,
+      )
+    self.content.append(ut_)
+
+
+@define
 class SupportsNotesAndProps:
   notes: MutableSequence[Note] = field(factory=list)
   props: MutableSequence[Prop] = field(factory=list)
@@ -1614,7 +1803,7 @@ class Header(SupportsNotesAndProps):
 
 
 @define(kw_only=True)
-class Bpt:
+class Bpt(SupportsSub):
   """
   The `bpt <https://www.gala-global.org/tmx-14b#bpt>`_ Element, to delimit the
   beginning of a paired sequence of native codes. Each :class:`Bpt` must have a
@@ -1648,6 +1837,9 @@ class Bpt:
   At the very least, the container should support the ``append`` method.
   By default an empty list.
   """
+
+  def add_sub(self, sub=None, *, type=None, datatype=None, content=None):
+    return super().add_sub(sub, type=type, datatype=datatype, content=content)
 
   @staticmethod
   def _from_element(
@@ -1761,7 +1953,7 @@ class Bpt:
 
 
 @define(kw_only=True)
-class Ept:
+class Ept(SupportsSub):
   """
   The `ept <https://www.gala-global.org/tmx-14b#ept>`_ Element, to delimit the
   end of a paired sequence of native codes. Each :class:`Ept` must have a
@@ -1782,6 +1974,9 @@ class Ept:
   At the very least, the container should support the ``append`` method.
   By default an empty list.
   """
+
+  def add_sub(self, sub=None, *, type=None, datatype=None, content=None):
+    return super().add_sub(sub, type=type, datatype=datatype, content=content)
 
   @staticmethod
   def _from_element(
@@ -1877,7 +2072,7 @@ class Ept:
 
 
 @define(kw_only=True)
-class Hi:
+class Hi(SupportsInlineNoSub):
   """
   The `hi <https://www.gala-global.org/tmx-14b#hi>`_ Element, used to delimit
   a section of text that has special meaning, such as a terminological unit, a
@@ -1908,6 +2103,24 @@ class Hi:
   At the very least, the container should support the ``append``.
   By default an empty list.
   """
+
+  def add_bpt(self, bpt=None, *, content=None, i=None, x=None, type=None):
+    return super().add_bpt(bpt, content=content, i=i, x=x, type=type)
+
+  def add_ept(self, ept=None, *, content=None, i=None):
+    return super().add_ept(ept, content=content, i=i)
+
+  def add_hi(self, hi=None, *, type=None, x=None, content=None):
+    return super().add_hi(hi, type=type, x=x, content=content)
+
+  def add_it(self, it=None, *, content=None, pos=None, x=None, type=None):
+    return super().add_it(it, content=content, pos=pos, x=x, type=type)
+
+  def add_ph(self, ph=None, *, content=None, i=None, x=None, assoc=None):
+    return super().add_ph(ph, content=content, i=i, x=x, assoc=assoc)
+
+  def add_ut(self, ut=None, *, x=None, content=None):
+    return super().add_ut(ut, x=x, content=content)
 
   @staticmethod
   def _from_element(
@@ -2013,7 +2226,7 @@ class Hi:
 
 
 @define(kw_only=True)
-class It:
+class It(SupportsSub):
   """
   The `it <https://www.gala-global.org/tmx-14b#it>`_ Element, used to delimit
   a beginning/ending sequence of native codes that does not have its
@@ -2045,6 +2258,9 @@ class It:
   At the very least, the container should support the ``append`` method.
   By default an empty list.
   """
+
+  def add_sub(self, sub=None, *, type=None, datatype=None, content=None):
+    return super().add_sub(sub, type=type, datatype=datatype, content=content)
 
   @staticmethod
   def _from_element(
@@ -2149,7 +2365,7 @@ class It:
 
 
 @define(kw_only=True)
-class Ph:
+class Ph(SupportsSub):
   """
   The `ph <https://www.gala-global.org/tmx-14b#ph>`_ Element, used to delimit
   a sequence of native standalone codes in the segment
@@ -2181,6 +2397,9 @@ class Ph:
   At the very least, the container should support the ``append`` method.
   By default an empty list.
   """
+
+  def add_sub(self, sub=None, *, type=None, datatype=None, content=None):
+    return super().add_sub(sub, type=type, datatype=datatype, content=content)
 
   @staticmethod
   def _from_element(
@@ -2280,7 +2499,7 @@ class Ph:
 
 
 @define(kw_only=True)
-class Sub:
+class Sub(SupportsInlineNoSub):
   type: str | None = None
   """
   The type of the data contained in the element. By default None.
@@ -2298,6 +2517,24 @@ class Sub:
   At the very least, the container should support the ``append``.
   By default an empty list. 
   """
+
+  def add_bpt(self, bpt=None, *, content=None, i=None, x=None, type=None):
+    return super().add_bpt(bpt, content=content, i=i, x=x, type=type)
+
+  def add_ept(self, ept=None, *, content=None, i=None):
+    return super().add_ept(ept, content=content, i=i)
+
+  def add_hi(self, hi=None, *, type=None, x=None, content=None):
+    return super().add_hi(hi, type=type, x=x, content=content)
+
+  def add_it(self, it=None, *, content=None, pos=None, x=None, type=None):
+    return super().add_it(it, content=content, pos=pos, x=x, type=type)
+
+  def add_ph(self, ph=None, *, content=None, i=None, x=None, assoc=None):
+    return super().add_ph(ph, content=content, i=i, x=x, assoc=assoc)
+
+  def add_ut(self, ut=None, *, x=None, content=None):
+    return super().add_ut(ut, x=x, content=content)
 
   @staticmethod
   def _from_element(
@@ -2396,7 +2633,7 @@ class Sub:
   "know with which element to replace it with."
 )
 @define(kw_only=True)
-class Ut:
+class Ut(SupportsSub):
   """
   The `ut <https://www.gala-global.org/tmx-14b#ut>`_ Element, used to delimit
   a sequence of native unknown codes in the segment.
@@ -2423,6 +2660,9 @@ class Ut:
   At the very least, the container should support the ``append``.
   By default an empty list.  
   """
+
+  def add_sub(self, sub=None, *, type=None, datatype=None, content=None):
+    return super().add_sub(sub, type=type, datatype=datatype, content=content)
 
   @staticmethod
   def _from_element(
