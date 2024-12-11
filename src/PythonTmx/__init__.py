@@ -1,35 +1,3 @@
-# ruff: noqa: F401
-from PythonTmx.classes import (
-  Bpt,
-  Ept,
-  Header,
-  Hi,
-  It,
-  Map,
-  Note,
-  Ph,
-  Prop,
-  Sub,
-  Tmx,
-  Tu,
-  Tuv,
-  Ude,
-  Ut,
-)
-from PythonTmx.utils import (
-  add_bpt,
-  add_bpts,
-  add_ept,
-  add_epts,
-  add_hi,
-  add_his,
-  add_it,
-  add_its,
-  add_ph,
-  add_phs,
-  add_sub,
-  add_subs,
-  add_tu,
-  add_tuv,
-  add_tuvs,
-)
+# ruff: noqa: F403
+from PythonTmx.classes import *
+from PythonTmx.utils import *

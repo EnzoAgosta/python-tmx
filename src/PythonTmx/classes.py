@@ -13,6 +13,25 @@ from attrs import define, field, validators
 XmlElement: TypeAlias = et._Element | ET.Element
 TmxElement: TypeAlias = "Note | Prop | Ude | Map | Header| Tu| Tuv| Tmx|Bpt | Ept | It | Ph | Hi | Ut | Sub | Ude"
 
+__all__ = [
+  "Note",
+  "Prop",
+  "Ude",
+  "Map",
+  "Header",
+  "Tu",
+  "Tuv",
+  "Tmx",
+  "Bpt",
+  "Ept",
+  "It",
+  "Ph",
+  "Hi",
+  "Ut",
+  "Sub",
+  "Ude",
+]
+
 
 @define
 class SupportsNotesAndProps:
@@ -32,7 +51,7 @@ class SupportsNotesAndProps:
     attribute of the object.
 
     .. note::
-        The :class:`Note` object that is added is *always* a new object.
+        The :class:`Note` object that is added is `always` a new object.
         To add your :class:`Note` object to the :attr:`notes` attribute,
         you need to directly append it using notes.append(my_note).
 
@@ -56,13 +75,13 @@ class SupportsNotesAndProps:
     object is created for each element in the iterable and appended to the
     :attr:`notes` attribute of the object.
 
-    if *note* is None, both *text* and *type* must be specified.
+    if `note` is None, both `text` and `type` must be specified.
 
-    If both *note* and any other parameters are specified, the provided
+    If both `note` and any other parameters are specified, the provided
     parameters will take precedence over the values from the :class:`Note` if
     provided
 
-    If *note* is an Iterable of :class:`Note` objects, the provided
+    If `note` is an Iterable of :class:`Note` objects, the provided
     arguments will be applied to each :class:`Note` object in the iterable.
 
     Parameters
@@ -74,7 +93,7 @@ class SupportsNotesAndProps:
         For more info see: :class:`Note`
     text : str, optional
         The text of the note.
-        If None, *note* attreter must be provided.
+        If None, `note` attreter must be provided.
         By default, None.
         For more info see: :attr:`text <Note.text>`
     encoding : str, optional
@@ -138,7 +157,7 @@ class SupportsNotesAndProps:
     Appends a :class:`Prop` to the :attr:`props` attribute of the object.
 
     .. note::
-        The :class:`Prop` object that is added is *always* a new object.
+        The :class:`Prop` object that is added is `always` a new object.
         To add your :class:`Prop` object to the :attr:`props` attribute,
         you need to directly append it using notes.append(my_prop).
 
@@ -161,25 +180,25 @@ class SupportsNotesAndProps:
     object is created for each element in the iterable and appended to the
     :attr:`props` attribute of the object.
 
-    if *prop* is None, both *text* and *type* must be specified.
+    if `prop` is None, both `text` and `type` must be specified.
 
-    If both *prop* and any other parameters are specified, the provided
+    If both `prop` and any other parameters are specified, the provided
     parameters will take precedence over the values from the :class:`Prop` if
     provided
 
-    If *prop* is an Iterable of :class:`Prop` objects, the provided
+    If `prop` is an Iterable of :class:`Prop` objects, the provided
     arguments will be applied to each :class:`Prop` object in the iterable.
 
     Parameters
     ----------
     prop : Prop | Iterable[Prop] | None, optional
         The prop to add to the :class:`Prop` object.
-        If None, *text* must be provided.
+        If None, `text` must be provided.
         By default, None.
         For more info see: :class:`Prop`
     text : str, optional
         The text of the prop.
-        If None, *prop* attribute must be provided.
+        If None, `prop` attribute must be provided.
         By default, None.
         For more info see: :attr:`text <Prop.text>`
     type : str, optional
@@ -245,9 +264,13 @@ def _fill_attributes(elem: XmlElement, attribs: dict) -> None:
         elem.set("{http://www.w3.org/XML/1998/namespace}lang", v)
       case "encoding" | "tmf":
         elem.set(f"o-{k}", v)
-      case "usagecount":
-        elem.set("usagecount", str(v))
+      case "i" | "x" | "usagecount":
+        if not isinstance(v, int):
+          v = int(v)
+        elem.set(k, str(v))
       case "lastusagedate" | "creationdate" | "changedate":
+        if not isinstance(v, datetime):
+          v = datetime.fromisoformat(v)
         elem.set(k, v.strftime("%Y%m%dT%H%M%SZ"))
       case _:
         elem.set(k, v)
@@ -257,8 +280,51 @@ def _only_str(k, v) -> bool:
   return isinstance(v, str)
 
 
-def _str_and_list(k, v) -> bool:
-  return isinstance(v, str) or isinstance(v, list)
+def _only_str_int_dt(k, v) -> bool:
+  return isinstance(v, (str, int, datetime))
+
+
+def _to_element_inline(
+  elem: et._Element,
+  content: Iterable[str | Bpt | Ept | It | Ph | Hi | Ut | Sub],
+  mask: Iterable[str],
+) -> None:
+  last: et._Element | None = None
+  for i in content:
+    if isinstance(i, str):
+      if last is None:
+        if elem.text is None:
+          elem.text = ""
+        elem.text += i
+      else:
+        if last.tail is None:
+          last.tail = ""
+        last.tail += i
+    elif isinstance(i, Bpt) and "bpt" in mask:
+      elem.append(Bpt._to_element(i))
+      last = elem[-1]
+    elif isinstance(i, Ept) and "ept" in mask:
+      elem.append(Ept._to_element(i))
+      last = elem[-1]
+    elif isinstance(i, It) and "it" in mask:
+      elem.append(It._to_element(i))
+      last = elem[-1]
+    elif isinstance(i, Ph) and "ph" in mask:
+      elem.append(Ph._to_element(i))
+      last = elem[-1]
+    elif isinstance(i, Hi) and "hi" in mask:
+      elem.append(Hi._to_element(i))
+      last = elem[-1]
+    elif isinstance(i, Ut) and "ut" in mask:
+      elem.append(Ut._to_element(i))
+      last = elem[-1]
+    elif isinstance(i, Sub) and "sub" in mask:
+      elem.append(Sub._to_element(i))
+      last = elem[-1]
+    else:
+      raise TypeError(
+        f"Element of type {type(i)} cannot be children of {str(elem.tag)} elements"
+      )
 
 
 def _parse_inline(elem: XmlElement, mask: Iterable[str]) -> list:
@@ -293,57 +359,22 @@ def _parse_inline(elem: XmlElement, mask: Iterable[str]) -> list:
       if str(e.tag) not in mask:
         continue
       if e.tag == "bpt":
-        result.append(Bpt.from_element(e))
+        result.append(Bpt._from_element(e))
       elif e.tag == "ept":
-        result.append(Ept.from_element(e))
+        result.append(Ept._from_element(e))
       elif e.tag == "it":
-        result.append(It.from_element(e))
+        result.append(It._from_element(e))
       elif e.tag == "ph":
-        result.append(Ph.from_element(e))
+        result.append(Ph._from_element(e))
       elif e.tag == "hi":
-        result.append(Hi.from_element(e))
+        result.append(Hi._from_element(e))
       elif e.tag == "ut":
-        result.append(Ut.from_element(e))
+        result.append(Ut._from_element(e))
       elif e.tag == "sub":
-        result.append(Sub.from_element(e))
+        result.append(Sub._from_element(e))
       if e.tail is not None:
         result.append(e.tail)
   return result
-
-
-def from_element(element: XmlElement, ignore_unkown: bool = False) -> TmxElement:
-  """
-  This the main and recommended way to create TmxElement objects from xml
-  elements, for example when reading from a file.
-
-  It will create any possible TmxElement from the given element based on its tag.
-  If the tag is not recognized, it will raise a ValueError (or silently move to
-  the next if ignore_unknown is True).
-
-  Parameters
-  ----------
-  element : XmlElement
-      The element to create the TmxElement from.
-  ignore_unkown : bool, optional
-      Whether to silently ignore unknown tags. If False, any unknown tag will
-      raise a ValueError. Default is False.
-
-  Returns
-  -------
-  TmxElement
-      Any TmxElement that can be created from the provided xml element.
-  """
-  match element.tag:
-    case "note":
-      return Note._from_element(element)
-    case Prop():
-      return Prop._from_element(element)
-    case Ude():
-      return Ude._from_element(element)
-    case Map():
-      return Map._from_element(element)
-    case _:
-      return Tu()
 
 
 @define(kw_only=True)
@@ -419,7 +450,7 @@ class Note:
     TypeError
         If `elem` is not an XmlElement, or any of the attributes is not a string.
     ValueError
-        If *text* is not provided and the element does not have text or the
+        If `text` is not provided and the element does not have text or the
         element's tag is not 'note'.
 
     Examples
@@ -454,8 +485,8 @@ class Note:
       encoding=encoding if encoding is not None else elem.get("o-encoding"),
     )
 
-  @classmethod
-  def _to_element(cls, note: Note) -> et._Element:
+  @staticmethod
+  def _to_element(note: Note) -> et._Element:
     """
     Convert a :class:`Note` to an :external:class:`lxml Element <lxml.etree._Element>`_.
 
@@ -560,8 +591,8 @@ class Prop:
     TypeError
         If `elem` is not an XmlElement, or any of the attributes is not a string.
     ValueError
-        If *text* is not provided and the element does not have text,
-        if *type* is not provided and the element does not have a 'type' attribute,
+        If `text` is not provided and the element does not have text,
+        if `type` is not provided and the element does not have a 'type' attribute,
         or the element's tag is not 'prop'.
 
     Examples
@@ -909,8 +940,8 @@ class Ude:
         The converted :class:`Map` as an :external:class:`lxml Element <lxml.etree._Element>`_.
     """
 
-    attribs = asdict(self, filter=_str_and_list)
-    elem = et.Element("map")
+    attribs = asdict(self, filter=_only_str_int_dt)
+    elem = et.Element("ude")
     _fill_attributes(elem, attribs)
     for map in self.maps:
       if not isinstance(map, Map):
@@ -930,12 +961,12 @@ class Ude:
     subst: str | None = None,
   ) -> None:
     """
-    Appends a :class:`Map` to the :attr:`maps <ude.maps>` attribute of the current
+    Appends a :class:`Map` to the :attr:`maps <Ude.maps>` attribute of the current
     :class:`Ude`.
 
     .. note::
-        The :class:`Map` object that is added is *always* a new object.
-        To add your :class:`Map` object to the :attr:`maps <ude.maps>` attribute,
+        The :class:`Map` object that is added is `always` a new object.
+        To add your :class:`Map` object to the :attr:`maps <Ude.maps>` attribute,
         you need to directly append it using notes.append(my_map).
 
         .. code-block:: python
@@ -955,15 +986,15 @@ class Ude:
 
     If an Iterable of :class:`Map` objects is passed, a new :class:`Map`
     object is created for each element in the iterable and appended to the
-    :attr:`maps <ude.maps>` attribute of the object.
+    :attr:`maps <Ude.maps>` attribute of the object.
 
-    if *map* is None, *unicode* must be specified.
+    if `map` is None, `unicode` must be specified.
 
-    If both *map* and any other parameters are specified, the provided
+    If both `map` and any other parameters are specified, the provided
     parameters will take precedence over the values from the :class:`Map` if
     provided
 
-    If *map* is an Iterable of :class:`Map` objects, the provided
+    If `map` is an Iterable of :class:`Map` objects, the provided
     arguments will be applied to each :class:`Map` object in the iterable.
 
     Parameters
@@ -1429,7 +1460,7 @@ class Header(SupportsNotesAndProps):
     :class:`Header`.
 
     .. note::
-        The :class:`Ude` object that is added is *always* a new object.
+        The :class:`Ude` object that is added is `always` a new object.
         To add your :class:`Ude` object to the :attr:`udes <Header.udes>` attribute,
         you need to directly append it using notes.append(my_ude).
 
@@ -1460,20 +1491,20 @@ class Header(SupportsNotesAndProps):
     object is created for each element in the iterable and appended to the
     :attr:`maps <Ude.maps>` attribute of the object.
 
-    if *ude* is None, *unicode* must be specified.
+    if `ude` is None, `unicode` must be specified.
 
-    If both *ude* and any other parameters are specified, the provided
+    If both `ude` and any other parameters are specified, the provided
     parameters will take precedence over the values from the :class:`Ude` if
     provided
 
-    If *ude* is an Iterable of :class:`Ude` objects, the provided
+    If `ude` is an Iterable of :class:`Ude` objects, the provided
     arguments will be applied to each :class:`Ude` object in the iterable.
 
     Parameters
     ----------
     ude : Ude | Iterable[Ude] | None, optional
         The ude to add to the :class:`Ude` object.
-        If None, *unicode* must be provided.
+        If None, `unicode` must be provided.
         By default, None.
         For more info see: :class:`Ude`
     name : str, optional
@@ -1562,6 +1593,25 @@ class Header(SupportsNotesAndProps):
   def add_prop(self, prop=None, *, text=None, type=None, lang=None, encoding=None):
     return super().add_prop(prop, text=text, type=type, lang=lang, encoding=encoding)
 
+  @staticmethod
+  def _to_element(header: Header) -> et._Element:
+    attribs = asdict(header, filter=_only_str_int_dt)
+    elem = et.Element("header")
+    _fill_attributes(elem, attribs)
+    for prop in header.props:
+      if not isinstance(prop, Prop):
+        raise TypeError(f"Expected Prop, got {type(prop)}")
+      elem.append(Prop._to_element(prop))
+    for note in header.notes:
+      if not isinstance(note, Note):
+        raise TypeError(f"Expected Note, got {type(note)}")
+      elem.append(Note._to_element(note))
+    for ude in header.udes:
+      if not isinstance(ude, Ude):
+        raise TypeError(f"Expected Ude, got {type(ude)}")
+      elem.append(Ude._to_element(ude))
+    return elem
+
 
 @define(kw_only=True)
 class Bpt:
@@ -1600,7 +1650,7 @@ class Bpt:
   """
 
   @staticmethod
-  def from_element(
+  def _from_element(
     elem: XmlElement,
     *,
     i: int | str | None = None,
@@ -1701,6 +1751,14 @@ class Bpt:
       except (TypeError, ValueError):
         pass
 
+  @staticmethod
+  def _to_element(bpt: Bpt) -> et._Element:
+    attribs = asdict(bpt, filter=_only_str_int_dt)
+    elem = et.Element("bpt")
+    _fill_attributes(elem, attribs)
+    _to_element_inline(elem, bpt.content, ("sub",))
+    return elem
+
 
 @define(kw_only=True)
 class Ept:
@@ -1726,7 +1784,7 @@ class Ept:
   """
 
   @staticmethod
-  def from_element(
+  def _from_element(
     elem: XmlElement,
     *,
     i: int | str | None = None,
@@ -1809,6 +1867,14 @@ class Ept:
       except (TypeError, ValueError):
         pass
 
+  @staticmethod
+  def _to_element(ept: Ept) -> et._Element:
+    attribs = asdict(ept, filter=_only_str_int_dt)
+    elem = et.Element("ept")
+    _fill_attributes(elem, attribs)
+    _to_element_inline(elem, ept.content, ("sub",))
+    return elem
+
 
 @define(kw_only=True)
 class Hi:
@@ -1844,7 +1910,7 @@ class Hi:
   """
 
   @staticmethod
-  def from_element(
+  def _from_element(
     elem: XmlElement,
     *,
     x: int | str | None = None,
@@ -1926,6 +1992,25 @@ class Hi:
       except (TypeError, ValueError):
         pass
 
+  @staticmethod
+  def _to_element(hi: Hi) -> et._Element:
+    attribs = asdict(hi, filter=_only_str_int_dt)
+    elem = et.Element("hi")
+    _fill_attributes(elem, attribs)
+    _to_element_inline(
+      elem,
+      hi.content,
+      (
+        "bpt",
+        "ept",
+        "it",
+        "ph",
+        "hi",
+        "ut",
+      ),
+    )
+    return elem
+
 
 @define(kw_only=True)
 class It:
@@ -1962,7 +2047,7 @@ class It:
   """
 
   @staticmethod
-  def from_element(
+  def _from_element(
     elem: XmlElement,
     *,
     pos: Literal["begin", "end"] | None = None,
@@ -2054,6 +2139,14 @@ class It:
       except (TypeError, ValueError):
         pass
 
+  @staticmethod
+  def _to_element(it: It) -> et._Element:
+    attribs = asdict(it, filter=_only_str_int_dt)
+    elem = et.Element("it")
+    _fill_attributes(elem, attribs)
+    _to_element_inline(elem, it.content, ("sub",))
+    return elem
+
 
 @define(kw_only=True)
 class Ph:
@@ -2090,7 +2183,7 @@ class Ph:
   """
 
   @staticmethod
-  def from_element(
+  def _from_element(
     elem: XmlElement,
     *,
     x: int | str | None = None,
@@ -2177,6 +2270,14 @@ class Ph:
       except (TypeError, ValueError):
         pass
 
+  @staticmethod
+  def _to_element(ph: Ph) -> et._Element:
+    attribs = asdict(ph, filter=_only_str_int_dt)
+    elem = et.Element("ph")
+    _fill_attributes(elem, attribs)
+    _to_element_inline(elem, ph.content, ("sub",))
+    return elem
+
 
 @define(kw_only=True)
 class Sub:
@@ -2199,7 +2300,7 @@ class Sub:
   """
 
   @staticmethod
-  def from_element(
+  def _from_element(
     elem: XmlElement,
     *,
     type: str | None = None,
@@ -2269,6 +2370,25 @@ class Sub:
       content=content,
     )
 
+  @staticmethod
+  def _to_element(sub: Sub) -> et._Element:
+    attribs = asdict(sub, filter=_only_str_int_dt)
+    elem = et.Element("sub")
+    _fill_attributes(elem, attribs)
+    _to_element_inline(
+      elem,
+      sub.content,
+      (
+        "bpt",
+        "ept",
+        "it",
+        "ph",
+        "hi",
+        "ut",
+      ),
+    )
+    return elem
+
 
 @deprecated(
   "The Ut element is deprecated, "
@@ -2305,7 +2425,7 @@ class Ut:
   """
 
   @staticmethod
-  def from_element(
+  def _from_element(
     elem: XmlElement,
     *,
     x: int | str | None = None,
@@ -2381,6 +2501,14 @@ class Ut:
       except (TypeError, ValueError):
         pass
 
+  @staticmethod
+  def _to_element(ut: Ut) -> et._Element:
+    attribs = asdict(ut, filter=_only_str_int_dt)
+    elem = et.Element("ut")
+    _fill_attributes(elem, attribs)
+    _to_element_inline(elem, ut.content, ("sub"))
+    return elem
+
 
 @define(kw_only=True)
 class Tuv(SupportsNotesAndProps):
@@ -2403,6 +2531,12 @@ class Tuv(SupportsNotesAndProps):
   or some other collection that preserves the order of the elements.
   At the very least, the container should support the ``append`` method.
   By default an empty list.
+  """
+  lang: str = field(validator=validators.instance_of(str))
+  """
+  The language of the segment. Ideally a language code as described in the
+  `RFC 3066 <https://www.ietf.org/rfc/rfc3066.txt>`_.
+  Unlike the other TMX attributes, the values for lang are not case-sensitive.
   """
   encoding: str | None = field(
     default=None,
@@ -2544,6 +2678,7 @@ class Tuv(SupportsNotesAndProps):
   def _from_element(
     elem: XmlElement,
     *,
+    lang: str | None = None,
     segment: Iterable[str | Bpt | Ept | It | Ph | Hi | Ut] | None = None,
     encoding: str | None = None,
     datatype: str | None = None,
@@ -2676,6 +2811,12 @@ class Tuv(SupportsNotesAndProps):
       raise TypeError(f"Expected XmlElement, got {type(elem)}")
     if elem.tag != "tuv":
       raise ValueError(f"Expected <tuv> element, got {str(elem.tag)}")
+    if lang is None:
+      if elem.get("{http://www.w3.org/XML/1998/namespace}lang") is None:
+        raise ValueError(
+          "'lang' must be provided or the element must have a 'xml:lang' attribute"
+        )
+      lang = elem.attrib["{http://www.w3.org/XML/1998/namespace}lang"]
     if segment is None:
       if (seg := elem.find("seg")) is None:
         segment = []
@@ -2708,6 +2849,7 @@ class Tuv(SupportsNotesAndProps):
       notes = notes_
     return Tuv(
       segment=segment,
+      lang=lang,
       encoding=encoding if encoding is not None else elem.get("o-encoding"),
       datatype=datatype if datatype is not None else elem.get("datatype"),
       usagecount=usagecount if usagecount is not None else elem.get("usagecount"),
@@ -2730,6 +2872,24 @@ class Tuv(SupportsNotesAndProps):
       props=props,
       notes=notes,
     )
+
+  @staticmethod
+  def _to_element(tuv: Tuv) -> et._Element:
+    attribs = asdict(tuv, filter=_only_str_int_dt)
+    elem = et.Element("tuv")
+    _fill_attributes(elem, attribs)
+    for note in tuv.notes:
+      if not isinstance(note, Note):
+        raise TypeError(f"Expected Note, got {type(note)}")
+      elem.append(Note._to_element(note))
+    for prop in tuv.props:
+      if not isinstance(prop, Prop):
+        raise TypeError(f"Expected Prop, got {type(prop)}")
+      elem.append(Prop._to_element(prop))
+    seg = et.SubElement(elem, "seg")
+    seg.text = ""
+    _to_element_inline(seg, tuv.segment, ("bpt", "ept", "it", "ph", "hi", "ut"))
+    return elem
 
   def __attrs_post_init__(self):
     if self.lastusagedate is not None and not isinstance(self.lastusagedate, datetime):
@@ -3146,6 +3306,25 @@ class Tu(SupportsNotesAndProps):
       tuvs=tuvs,
     )
 
+  @staticmethod
+  def _to_element(tu: Tu) -> et._Element:
+    attribs = asdict(tu, filter=_only_str_int_dt)
+    elem = et.Element("tu")
+    _fill_attributes(elem, attribs)
+    for note in tu.notes:
+      if not isinstance(note, Note):
+        raise TypeError(f"Expected Note, got {type(note)}")
+      elem.append(Note._to_element(note))
+    for prop in tu.props:
+      if not isinstance(prop, Prop):
+        raise TypeError(f"Expected Prop, got {type(prop)}")
+      elem.append(Prop._to_element(prop))
+    for tuv in tu.tuvs:
+      if not isinstance(tuv, Tuv):
+        raise TypeError(f"Expected Tuv, got {type(tuv)}")
+      elem.append(Tuv._to_element(tuv))
+    return elem
+
   def __attrs_post_init__(self):
     if self.lastusagedate is not None and not isinstance(self.lastusagedate, datetime):
       try:
@@ -3193,6 +3372,7 @@ class Tu(SupportsNotesAndProps):
     self,
     tuv: Tuv | Iterable[Tuv] | None = None,
     *,
+    lang: str | None = None,
     segment: Iterable[str | Bpt | Ept | It | Ph | Hi | Ut] | None = None,
     encoding: str | None = None,
     datatype: str | None = None,
@@ -3213,7 +3393,7 @@ class Tu(SupportsNotesAndProps):
     :class:`Tu`.
 
     .. note::
-        The :class:`Tuv` object that is added is *always* a new object.
+        The :class:`Tuv` object that is added is `always` a new object.
         To add your :class:`Tuv` object to the :attr:`tuvs <Tu.tuvs>` attribute,
         you need to directly append it using notes.append(my_tuv).
 
@@ -3236,10 +3416,10 @@ class Tu(SupportsNotesAndProps):
     object is created for each element in the iterable and appended to the
     :attr:`tuvs <Tu.tuvs>` attribute of the object.
 
-    if *tuv* is None, a new tuv will be created with the provided arguments.
-    if *tuv* is not None and any of the arguments are not None, the provided
+    if `tuv` is None, a new tuv will be created with the provided arguments.
+    if `tuv` is not None and any of the arguments are not None, the provided
     arguments will be used to update the new tuv before it is added to the object.
-    The original *tuv* is not modified.
+    The original `tuv` is not modified.
 
     Parameters:
     -----------
@@ -3247,6 +3427,9 @@ class Tu(SupportsNotesAndProps):
         The tuv to add. If None, :attr:`segment` must be provided.
         By default, None.
         For more info see: :class:`Tuv`
+    lang : str | None, optional
+        The language of the tuv, by default None.
+        For more info see: :attr:`lang <Tuv.lang>`
     segment : Iterable[str | Bpt | Ept | It | Ph | Hi | Ut] | None, optional
         The segment of the tuv, by default an empty list.
         For more info see: :attr:`segment <Tuv.segment>`
@@ -3293,7 +3476,7 @@ class Tu(SupportsNotesAndProps):
     Raises:
     -------
     TypeError
-        If *tuv* is not a `Tuv` object or if any of the objects in 'tuv' is
+        If `tuv` is not a `Tuv` object or if any of the objects in 'tuv' is
         not a `Tuv` object (if an Iterable is provided).
 
     Examples:
@@ -3304,12 +3487,13 @@ class Tu(SupportsNotesAndProps):
 
         tuv = Tuv(segment=["This is a segment"])
         tu = Tu()
-        tu.add_tuv(tuv, encoding="utf-8")
+        tu.add_tuv(tuv, lang="en", encoding="utf-8")
         print(tu.tuvs)
         # Output (formatted for readiblity):
         #  [
         #   Tuv(
         #     segment=["This is a segment"],
+        #     lang="en",
         #     encoding="utf-8",
         #     datatype=None,
         #     usagecount=None,
@@ -3333,6 +3517,7 @@ class Tu(SupportsNotesAndProps):
       for t in tuv:
         self.add_tuv(
           t,
+          lang=lang,
           segment=segment,
           encoding=encoding,
           datatype=datatype,
@@ -3350,8 +3535,11 @@ class Tu(SupportsNotesAndProps):
         )
       return
     elif tuv is None:
+      if lang is None:
+        raise ValueError("if 'tuv' is None, 'lang' must be provided")
       tuv_ = Tuv(
         encoding=encoding,
+        lang=lang,
         datatype=datatype,
         usagecount=usagecount,
         lastusagedate=lastusagedate,
@@ -3365,6 +3553,7 @@ class Tu(SupportsNotesAndProps):
       )
     if isinstance(tuv, Tuv):
       tuv_ = Tuv(
+        lang=lang if lang is not None else tuv.lang,
         encoding=encoding if encoding is not None else tuv.encoding,
         datatype=datatype if datatype is not None else tuv.datatype,
         usagecount=usagecount if usagecount is not None else tuv.usagecount,
@@ -3470,7 +3659,7 @@ class Tmx:
     :class:`Tmx`.
 
     .. note::
-        The :class:`Tu` object that is added is *always* a new object.
+        The :class:`Tu` object that is added is `always` a new object.
         To add your :class:`Tu` object to the :attr:`tus <Tmx.tus>` attribute,
         you need to directly append it using notes.append(my_tu).
 
@@ -3493,10 +3682,10 @@ class Tmx:
     object is created for each element in the iterable and appended to the
     :attr:`tus <Tmx.tus>` attribute of the object.
 
-    if *tu* is None, a new tu will be created with the provided arguments.
-    if *tu* is not None and any of the arguments are not None, the provided
+    if `tu` is None, a new tu will be created with the provided arguments.
+    if `tu` is not None and any of the arguments are not None, the provided
     arguments will be used to update the new tu before it is added to the object.
-    The original *tu* is not modified.
+    The original `tu` is not modified.
 
     Parameters:
     -----------
@@ -3559,7 +3748,7 @@ class Tmx:
     Raises:
     -------
     TypeError
-        If *tu* is not a `Tu` object or if any of the objects in 'tu' is
+        If `tu` is not a `Tu` object or if any of the objects in 'tu' is
         not a `Tu` object (if an Iterable is provided).
 
     Examples:
@@ -3685,3 +3874,16 @@ class Tmx:
     tu_.add_prop(props if props is not None else tu.props)
     tu_.add_tuv(tuvs if tuvs is not None else tu.tuvs)
     self.tus.append(tu_)
+
+  @staticmethod
+  def _to_element(tmx: Tmx) -> et._Element:
+    elem = et.Element("tmx", version="1.4")
+    if tmx.header is None:
+      raise TypeError("Cannot export Tmx with an empty header")
+    elem.append(Header._to_element(tmx.header))
+    body = et.SubElement(elem, "body")
+    for tu in tmx.tus:
+      if not isinstance(tu, Tu):
+        raise TypeError(f"Expected Tu, got {type(tu)}")
+      body.append(Tu._to_element(tu))
+    return elem
