@@ -20,19 +20,10 @@ extensions = [
   "sphinx.ext.autodoc",
   "sphinx.ext.napoleon",
   "sphinx.ext.intersphinx",
+  "enum_tools.autoenum",
 ]
 autodoc_type_aliases = {
-  "XmlElement": "lxml.etree._Element | xml.ElementTree.Element",
   "TmxElement": "Note | Prop | Ude | Map | Header | Tu| Tuv | Tmx |Bpt | Ept | It | Ph | Hi | Ut | Sub | Ude",
-  "SupportsNote": "Header | Tu | Tuv",
-  "SupportsProp": "Header | Tu | Tuv",
-  "SupportsBpt": "Tuv | Hi | Sub",
-  "SupportsEpt": "Tuv | Hi | Sub",
-  "SupportsIt": "Tuv | Hi | Sub",
-  "SupportsPh": "Tuv | Hi | Sub",
-  "SupportsHi": "Tuv | Hi | Sub",
-  "SupportsUt": "Tuv | Hi | Sub",
-  "SupportsSub": "Bpt | Ept | It | Ph | Ut",
 }
 
 intersphinx_mapping = {
@@ -48,3 +39,9 @@ intersphinx_disabled_reftypes = ["*"]
 html_permalinks_icon = "<span>#</span>"
 html_theme = "pydata_sphinx_theme"
 html_sidebars = {"**": ["page-toc"]}
+html_theme_options = {
+  "secondary_sidebar_items": ["sidebar-ethical-ads"],
+  "external_links": [
+    {"name": "Tmx Specification", "url": "https://www.gala-global.org/tmx-14b"}
+  ],
+}

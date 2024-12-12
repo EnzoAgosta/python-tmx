@@ -1,16 +1,22 @@
 from __future__ import annotations
 
-import xml.etree.ElementTree as ET
 from collections.abc import MutableSequence
 from datetime import datetime
-from typing import Iterable, Literal, TypeAlias
+from enum import Enum
+from typing import (
+  Iterable,
+  Literal,
+  Protocol,
+  TypeAlias,
+  TypeVar,
+  overload,
+)
 from warnings import deprecated
 
 import lxml.etree as et
 from attr import asdict
 from attrs import define, field, validators
 
-XmlElement: TypeAlias = et._Element | ET.Element
 TmxElement: TypeAlias = "Note | Prop | Ude | Map | Header | Tu | Tuv | Tmx| Bpt | Ept | It | Ph | Hi | Ut | Sub | Ude"
 
 __all__ = [
@@ -31,6 +37,48 @@ __all__ = [
   "Sub",
   "Ude",
 ]
+
+T = TypeVar("T")
+
+
+def _ascii_validator(self, attribute, value: str):
+  if value is not None:
+    if not value.isascii():
+      raise ValueError(f"Expected ASCII string, got {value!r}")
+
+
+class SEGTYPE(Enum):
+  block = "block"
+  paragraph = "paragraph"
+  sentence = "sentence"
+  phrase = "phrase"
+
+
+class POS(Enum):
+  begin = "begin"
+  end = "end"
+
+
+class ASSOC(Enum):
+  p = "p"
+  f = "f"
+  b = "b"
+
+
+class XmlElementLike(Protocol):
+  tag: str | bytes | bytearray | et.QName
+  text: str | None
+  tail: str | None
+
+  @overload
+  def get(self, key: str | bytes | bytearray | et.QName) -> str | None: ...
+  @overload
+  def get(self, key: str | bytes | bytearray | et.QName, default: T) -> str | T: ...
+  def set(self, key: str, value: str) -> None: ...
+
+  def find(self, path, namespaces=None): ...
+
+  def __iter__(self): ...
 
 
 @define
@@ -519,25 +567,37 @@ class SupportsNotesAndProps:
     self.props.append(prop_)
 
 
-def _fill_attributes(elem: XmlElement, attribs: dict) -> None:
+def _fill_attributes(elem: XmlElementLike, attribs: dict) -> None:
   for k, v in attribs.items():
     match k:
       case "text":
         elem.text = v
+        continue
       case "lang":
-        elem.set("{http://www.w3.org/XML/1998/namespace}lang", v)
+        k = "{http://www.w3.org/XML/1998/namespace}lang"
       case "encoding" | "tmf":
-        elem.set(f"o-{k}", v)
+        k = f"o-{k}"
       case "i" | "x" | "usagecount":
         if not isinstance(v, int):
-          v = int(v)
-        elem.set(k, str(v))
+          v = str(int(v))
       case "lastusagedate" | "creationdate" | "changedate":
         if not isinstance(v, datetime):
-          v = datetime.fromisoformat(v)
-        elem.set(k, v.strftime("%Y%m%dT%H%M%SZ"))
-      case _:
+          v = datetime.fromisoformat(v).strftime("%Y%m%dT%H%M%SZ")
+      case "segtype":
+        if v not in SEGTYPE:
+          raise ValueError(f"Invalid segtype {v}")
         elem.set(k, v)
+      case "pos":
+        if v not in POS:
+          raise ValueError(f"Invalid pos {v}")
+        elem.set(k, v)
+      case "assoc":
+        if v not in ASSOC:
+          raise ValueError(f"Invalid assoc {v}")
+        elem.set(k, v)
+      case _:
+        pass
+    elem.set(k, v)
 
 
 def _only_str(k, v) -> bool:
@@ -591,7 +651,7 @@ def _to_element_inline(
       )
 
 
-def _parse_inline(elem: XmlElement, mask: Iterable[str]) -> list:
+def _parse_inline(elem: XmlElementLike, mask: Iterable[str]) -> list:
   """
   Internal function to parse inline elements. Returns a list of strings and
   :class:`Bpt`, :class:`Ept`, :class:`It`, :class:`Ph`, :class:`Hi`, :class:`Ut`
@@ -674,72 +734,46 @@ class Note:
 
   @staticmethod
   def _from_element(
-    elem: XmlElement,
+    elem: XmlElementLike,
     *,
     text: str | None = None,
     lang: str | None = None,
     encoding: str | None = None,
   ) -> Note:
     """
-    Creates a :class:`Note` Element from a lxml `_Element` or an ElementTree
-    Element.
+    Creates a :class:`Note` Element from a lxml `_Element` or an
+    :external:class:`ElementTree Element <xml.etree.ElementTree.Element>`.
     If an argument is provided, it will override the value parsed from the
     element.
 
     Parameters
     ----------
-    elem : :external:class:`lxml Element <lxml.etree._Element>`_ | :external:class:`ElementTree Element <xml.etree.ElementTree.Element>`_
+    elem : :external:class:`lxml Element <lxml.etree._Element>` | :external:class:`ElementTree Element <xml.etree.ElementTree.Element>`
         The Element to parse.
     text : str | None, optional
-        The text of the Note, by default None
-    lang : str | None, optional
-        The locale of the text. Ideally a language code as described in the
-        `RFC 3066 <https://www.ietf.org/rfc/rfc3066.txt>`_.
-        Unlike the other TMX attributes, the values for lang are not case-sensitive.
-    encoding : str | None, optional
-        The original or preferred code set of the data of the element in case
-        it is to be re-encoded in a non-Unicode code set. Ideally one of the
-        `IANA recommended charsets
-        <https://www.iana.org/assignments/character-sets/character-sets.xhtml>`_.
+        The text content of the Note. If not provided, it will be parsed
+        from the Element.
+        If the Element has no text content, this parameter must be provided.
         By default None.
-
-    Returns
-    -------
-    Note
-        A new :class:`Note` Object with the attributes of the element.
+    lang : str | None, optional
+        See :attr:`lang <Note.lang>`.
+        By default None.
+    encoding : str | None, optional
+        See :attr:`encoding <Note.encoding>`.
+        By default None.
 
     Raises
     ------
-    TypeError
-        If `elem` is not an XmlElement, or any of the attributes is not a string.
     ValueError
-        If `text` is not provided and the element does not have text or the
-        element's tag is not 'note'.
-
-    Examples
-    --------
-
-    >>> from lxml.etree import Element
-    >>> from PythonTmx.classes import Note
-    >>> elem = Element("note")
-    >>> elem.text = "This is a note"
-    >>> elem.set("o-encoding", "utf-8")
-    >>> note = Note.from_element(elem, lang="en", encoding="utf-16")
-    >>> print(note)
-    Note(text='This is a note', lang='en', encoding='utf-16')
+        If the Element's tag is not a 'note' element, or if 'text' is not provided
+        and the Element does not have text.
     """
-    if not isinstance(elem, XmlElement):
-      raise TypeError(f"Expected XmlElement, got {type(elem)}")
     if elem.tag != "note":
-      raise ValueError(f"Expected <note> element, got {str(elem.tag)}")
+      raise ValueError(f"Expected <note> element, got <{str(elem.tag)}>")
     if text is None:
       if elem.text is None:
         raise ValueError("'text' must be provided or the element must have text")
       text = elem.text
-    if lang is not None and not isinstance(lang, str):
-      raise TypeError(f"Expected str for 'lang', got {type(lang)}")
-    if encoding is not None and not isinstance(encoding, str):
-      raise TypeError(f"Expected str for 'encoding', got {type(encoding)}")
     return Note(
       text=text,
       lang=lang
@@ -773,19 +807,21 @@ class Note:
 @define(kw_only=True)
 class Prop:
   """
-  A `prop <https://www.gala-global.org/tmx-14b#prop>`_ Element,
-  used to define the various properties of the parent element.
-  These properties are not defined by the standard.
-  Can be attached to :class:`Header`, :class:`Tu` and :class:`Tuv`.
+  Corresponds to the `prop <https://www.gala-global.org/tmx-14b#prop>`_ element.
+  Props are used to define various properties of their parent elements. As long
+  as it is a string, its text value can be anything you want.
+  Can be attached to :class:`Header`, :class:`Tu` and :class:`Tuv` elements.
   """
 
   text: str = field(validator=validators.instance_of(str))
   """
-  The text of the Prop.
+  The text of the Prop. No restrictions on the value except that it must be a
+  string.
   """
   type: str = field(validator=validators.instance_of(str))
   """
-  The kind of data the element represents, by convention start with "x-".
+  The kind of data the element represents, by convention start with "x-", like
+  "x-domain" to indicate the domain of the text for example, but not required.
   By default None.
   """
   lang: str | None = field(
@@ -793,26 +829,36 @@ class Prop:
     validator=validators.optional(validators.instance_of(str)),
   )
   """
-  The locale of the text. Ideally a language code as described in the
+  The locale of the text. Must be a language code as described in the
   `RFC 3066 <https://www.ietf.org/rfc/rfc3066.txt>`_.
-  Unlike the other TMX attributes, the values for lang are not case-sensitive.
+  PythonTmx only enforces that this value be a str. If you need to enforce that
+  this value is a valid language code, you can use the
+  `langcodes <https://pypi.org/project/langcodes/>`_ package.
+  By default None.
   """
   encoding: str | None = field(
     default=None,
     validator=validators.optional(validators.instance_of(str)),
   )
   """
-  encoding : str | None, optional
-    The original or preferred code set of the data of the element in case
-    it is to be re-encoded in a non-Unicode code set. Ideally one of the
-    `IANA recommended charsets
-    <https://www.iana.org/assignments/character-sets/character-sets.xhtml>`_.
-    By default None.
+  `TMX files are always in Unicode
+  <https://www.gala-global.org/tmx-14b#Intro_Enc:~:text=1.2.-,Character%20Encoding,-TMX%20files%20are>`_,
+  However, they can contain content that was encoded in a non-Unicode code set.
+  This attribute can be used to specify that encoding both for information
+  purposes and for CAT Tools to re-encode it when using the Tmx file.
+
+  .. note::
+      This attribute is not used by PythonTmx in any way.
+
+  Ideally one of the
+  `IANA recommended charsets
+  <https://www.iana.org/assignments/character-sets/character-sets.xhtml>`_.
+  By default None.
   """
 
   @staticmethod
   def _from_element(
-    elem: XmlElement,
+    elem: XmlElementLike,
     *,
     text: str | None = None,
     type: str | None = None,
@@ -820,71 +866,60 @@ class Prop:
     encoding: str | None = None,
   ) -> Prop:
     """
-    Creates a :class:`Prop` Element from a lxml `_Element` or an ElementTree
-    Element.
-    If an argument is provided, it will override the value parsed from the
-    element.
+    Not meant to be used directly, use :func:`from_element` instead.
+
+    Converts a Xml Element or to :class:`Prop` object.
+    Any parameter provided to the function will override the value parsed from
+    the element.
+
+
 
     Parameters
     ----------
-    elem : :external:class:`lxml.etree._Element` | :external:class:`xml.etree.ElementTree.Element`
-        The Element to parse.
+    elem : :class:`XmlElementLike`
+        The xml Element to parse. Can be either an lxml element or an ElementTree element.
     text : str | None, optional
-        The text of the Note, by default None
+        The text of the Prop. Parsed from the actual text of the xml element.
+        If the Element has a "text" attribute, it will be ignored.
+        If the Element has no text, this parameter must be provided.
+        By default None.
     type : str | None, optional
-        The kind of data the element represents, by convention start with "x-".
+        See :attr:`Prop.type <PythonTmx.classes.Prop.type>`.
         By default None.
     lang : str | None, optional
-        The locale of the text. Ideally a language code as described in the
-        `RFC 3066 <https://www.ietf.org/rfc/rfc3066.txt>`_. Unlike the other
-        TMX attributes, the values for lang are not case-sensitive.
+        See :attr:`Prop.lang <PythonTmx.classes.Prop.lang>`.
+        By default None.
     encoding : str | None, optional
-        The original or preferred code set of the data of the element in case
-        it is to be re-encoded in a non-Unicode code set. Ideally one of the
-        `IANA recommended charsets
-        <https://www.iana.org/assignments/character-sets/character-sets.xhtml>`_
+        See :attr:`Prop.encoding <PythonTmx.classes.Prop.encoding>`.
+        By default None.
 
     Returns
     -------
-    Note
-        A new :class:`Note` Object with the attributes of the element.
+    Prop
+        A new :class:`prop` Object with its attribute values set to either the
+        provided values or the values parsed from the element.
 
     Raises
     ------
     TypeError
-        If `elem` is not an XmlElement, or any of the attributes is not a string.
+        If `elem` is not an XmlElementLike, or any of the attributes is not a string.
     ValueError
         If `text` is not provided and the element does not have text,
         if `type` is not provided and the element does not have a 'type' attribute,
         or the element's tag is not 'prop'.
-
-    Examples
-    --------
-
-    >>> from lxml.etree import Element
-    >>> from PythonTmx.classes import Prop
-    >>> elem = Element("prop")
-    >>> elem.text = "This is a prop"
-    >>> elem.set("type", "x-my-type")
-    >>> elem.set("o-encoding", "utf-8")
-    >>> prop = Prop.from_element(elem, lang="en", encoding="utf-16")
-    >>> print(prop)
-    Prop(text='This is a prop', type='x-my-type', lang='en', encoding='utf-16')
     """
-    if not isinstance(elem, XmlElement):
-      raise TypeError(f"Expected XmlElement, got {type(elem)}")
     if elem.tag != "prop":
-      raise ValueError(f"Expected <prop> element, got {str(elem.tag)}")
+      raise ValueError(f"Expected <prop> element, got <{str(elem.tag)}>")
     if text is None:
       if elem.text is None:
         raise ValueError("'text' must be provided or the element must have text")
       text = elem.text
     if type is None:
-      if elem.get("type") is None:
+      if (type_ := elem.get("type")) is None:
         raise ValueError(
           "'type' must be provided or the element must have a 'type' attribute"
         )
-      type = elem.attrib["type"]
+      type = type_
     if lang is not None and not isinstance(lang, str):
       raise TypeError(f"Expected str for 'lang', got {type(lang)}")
     if encoding is not None and not isinstance(encoding, str):
@@ -898,8 +933,8 @@ class Prop:
       encoding=encoding if encoding is not None else elem.get("o-encoding"),
     )
 
-  @classmethod
-  def _to_element(cls, prop: Prop) -> et._Element:
+  @staticmethod
+  def _to_element(prop: Prop) -> et._Element:
     """
     Convert a :class:`Prop` to an :external:class:`lxml Element <lxml.etree._Element>`_.
 
@@ -958,37 +993,25 @@ class Map:
   """
   ent: str | None = field(
     default=None,
-    validator=validators.optional(validators.instance_of(str)),
+    validator=validators.optional([validators.instance_of(str), _ascii_validator]),
   )
   """
   The entity name of the character defined by the element. Must be text in ASCII.
   By default None.
   """
 
-  @ent.validator
-  def _ent_validator(self, attribute, value: str):
-    if value is not None:
-      if not value.isascii():
-        raise ValueError(f"Expected ASCII string, got {value!r}")
-
   subst: str | None = field(
     default=None,
-    validator=validators.optional(validators.instance_of(str)),
+    validator=validators.optional([validators.instance_of(str), _ascii_validator]),
   )
   """
   An alternative string for the character defined in the element. Must be text
   in ASCII. By default None.
   """
 
-  @subst.validator
-  def _subst_validator(self, attribute, value: str):
-    if value is not None:
-      if not value.isascii():
-        raise ValueError(f"expected ASCII string, got {value!r}")
-
   @staticmethod
   def _from_element(
-    elem: XmlElement,
+    elem: XmlElementLike,
     *,
     unicode: str | None = None,
     code: str | None = None,
@@ -1024,7 +1047,7 @@ class Map:
     Raises
     ------
     TypeError
-        If `elem` is not an XmlElement, or any of the attributes is not a string.
+        If `elem` is not an XmlElementLike, or any of the attributes is not a string.
     ValueError
         if `unicode` is not provided and the element does not have a 'unicode'
         attribute, or the element's tag is not 'map'.
@@ -1042,12 +1065,10 @@ class Map:
     >>> print(map)
     Map(unicode='00A0', code='#x00A0', ent='nbsp', subst=' ')
     """
-    if not isinstance(elem, XmlElement):
-      raise TypeError(f"Expected XmlElement, got {type(elem)}")
     if unicode is None:
-      if elem.get("unicode") is None:
+      if (unicode_ := elem.get("unicode")) is None:
         raise ValueError("unicode is required")
-      unicode = elem.attrib["unicode"]
+      unicode = unicode_
     return Map(
       unicode=unicode,
       code=code if code is not None else elem.get("code"),
@@ -1055,8 +1076,8 @@ class Map:
       subst=subst if subst is not None else elem.get("subst"),
     )
 
-  @classmethod
-  def _to_element(cls, map: Map) -> et._Element:
+  @staticmethod
+  def _to_element(map: Map) -> et._Element:
     """
     Convert a :class:`Note` to an :external:class:`lxml Element <lxml.etree._Element>`_.
 
@@ -1070,7 +1091,6 @@ class Map:
     :external:class:`lxml Element <lxml.etree._Element>`_
         The converted :class:`Map` as an :external:class:`lxml Element <lxml.etree._Element>`_.
     """
-
     attribs = asdict(map, filter=_only_str)
     elem = et.Element("map")
     _fill_attributes(elem, attribs)
@@ -1115,7 +1135,7 @@ class Ude:
 
   @staticmethod
   def _from_element(
-    elem: XmlElement,
+    elem: XmlElementLike,
     *,
     name: str | None = None,
     base: str | None = None,
@@ -1150,7 +1170,7 @@ class Ude:
     Raises
     ------
     TypeError
-        If `elem` is not an XmlElement, or any of the attributes is not a string.
+        If `elem` is not an XmlElementLike, or any of the attributes is not a string.
     ValueError
         If `name` is not provided and the element does not have a 'name' attribute,
         or the element's tag is not 'ude'.
@@ -1168,16 +1188,14 @@ class Ude:
     >>> print(ude)
     Ude(name='ude-name', base='ude-base', maps=[Map(unicode='#xF8FF', code='#xF0', ent=None, subst=None)])
     """
-    if not isinstance(elem, XmlElement):
-      raise TypeError(f"Expected XmlElement, got {type(elem)}")
     if elem.tag != "ude":
-      raise ValueError(f"Expected <ude> element, got {str(elem.tag)}")
+      raise ValueError(f"Expected <ude> element, got <{str(elem.tag)}>")
     if name is None:
-      if elem.get("name") is None:
+      if (name_ := elem.get("name")) is None:
         raise ValueError(
           "'name' must be provided or the element must have a 'name' attribute"
         )
-      name = elem.attrib["name"]
+      name = name_
     if maps is None:
       maps = [Map._from_element(e) for e in elem if e.tag == "map"]
     else:
@@ -1188,7 +1206,8 @@ class Ude:
       name=name, base=base if base is not None else elem.get("base"), maps=list(maps)
     )
 
-  def _to_element(self) -> et._Element:
+  @staticmethod
+  def _to_element(ude: Ude) -> et._Element:
     """
     Convert a :class:`Note` to an :external:class:`lxml Element <lxml.etree._Element>`_.
 
@@ -1203,13 +1222,13 @@ class Ude:
         The converted :class:`Map` as an :external:class:`lxml Element <lxml.etree._Element>`_.
     """
 
-    attribs = asdict(self, filter=_only_str_int_dt)
+    attribs = asdict(ude, filter=_only_str_int_dt)
     elem = et.Element("ude")
     _fill_attributes(elem, attribs)
-    for map in self.maps:
+    for map in ude.maps:
       if not isinstance(map, Map):
         raise TypeError(f"Expected Map, got {type(map)}")
-      if map.code is not None and self.base is None:
+      if map.code is not None and ude.base is None:
         raise ValueError("base cannot be None if at least 1 map has a code attribute")
       elem.append(Map._to_element(map))
     return elem
@@ -1346,9 +1365,7 @@ class Header(SupportsNotesAndProps):
   """
   the version of the tool that created the TMX document.
   """
-  segtype: Literal["block", "paragraph", "sentence", "phrase"] = field(
-    validator=validators.in_(("block", "paragraph", "sentence", "phrase"))
-  )
+  segtype: SEGTYPE = field(validator=validators.instance_of(SEGTYPE))
   """
   The type of segmentation used in the file.
   """
@@ -1455,11 +1472,11 @@ class Header(SupportsNotesAndProps):
 
   @staticmethod
   def _from_element(
-    elem: XmlElement,
+    elem: XmlElementLike,
     *,
     creationtool: str | None = None,
     creationtoolversion: str | None = None,
-    segtype: Literal["block", "paragraph", "sentence", "phrase"] | None = None,
+    segtype: SEGTYPE | None = None,
     tmf: str | None = None,
     adminlang: str | None = None,
     srclang: str | None = None,
@@ -1555,7 +1572,7 @@ class Header(SupportsNotesAndProps):
     Raises
     ------
     TypeError
-        If `elem` is not an XmlElement, or any of the attributes is not a string.
+        If `elem` is not an XmlElementLike, or any of the attributes is not a string.
     ValueError
         If any of the attributes is not provided and the element does not have
         all of the required attributes, or the element's tag is not 'header'.
@@ -1589,11 +1606,8 @@ class Header(SupportsNotesAndProps):
     >>> print(header)
     Header(creationtool='tool', creationtoolversion='1.0', segtype='block', tmf='tmx', adminlang='en', srclang='en', datatype='text', encoding=None, creationdate='20240101T000000Z', creationid='user', changedate='20240101T000000Z', changeid='user', props=[Prop(text='prop-text', type='x-prop-type', lang=None, encoding=None)], notes=[Note(text='note-text', lang='en', encoding=None)], udes=[Ude(name='ude-name', base='ude-base', maps=[Map(unicode='#xF8FF', code='#xF0', ent=None, subst=None)])])
     """
-    if not isinstance(elem, XmlElement):
-      raise TypeError(f"Expected XmlElement, got {type(elem)}")
     if elem.tag != "header":
-      raise ValueError(f"Expected <header> element, got {str(elem.tag)}")
-    attribs = elem.attrib
+      raise ValueError(f"Expected <header> element, got <{str(elem.tag)}>")
     if props is None:
       props = [Prop._from_element(e) for e in elem if e.tag == "prop"]
     else:
@@ -1622,62 +1636,66 @@ class Header(SupportsNotesAndProps):
         udes_.append(ude)
       udes = udes_
     if creationtool is None:
-      if elem.get("creationtool") is None:
+      if (creationtool_ := elem.get("creationtool")) is None:
         raise ValueError(
           "'creationtool' must be provided or the element must have a 'creationtool' attribute"
         )
-      creationtool = elem.attrib["creationtool"]
+      creationtool = creationtool_
     if creationtoolversion is None:
-      if elem.get("creationtoolversion") is None:
+      if (creationtoolversion_ := elem.get("creationtoolversion")) is None:
         raise ValueError(
           "'creationtoolversion' must be provided or the element must have a 'creationtoolversion' attribute"
         )
-      creationtoolversion = elem.attrib["creationtoolversion"]
+      creationtoolversion = creationtoolversion_
     if segtype is None:
-      if elem.get("segtype") is None:
+      if (segtype_ := elem.get("segtype")) is None:
         raise ValueError(
           "'segtype' must be provided or the element must have a 'segtype' attribute"
         )
-      segtype = elem.attrib["segtype"]  # type: ignore
+      if segtype_ not in SEGTYPE:
+        raise ValueError(
+          f"'segtype' must be one of 'block', 'paragraph', 'sentence', 'phrase', got '{segtype_}'"
+        )
+      segtype = SEGTYPE(segtype_)
     if tmf is None:
-      if elem.get("o-tmf") is None:
+      if (tmf_ := elem.get("o-tmf")) is None:
         raise ValueError(
           "'tmf' must be provided or the element must have a 'tmf' attribute"
         )
-      tmf = elem.attrib["o-tmf"]
+      tmf = tmf_
     if adminlang is None:
-      if elem.get("adminlang") is None:
+      if (adminlang_ := elem.get("adminlang")) is None:
         raise ValueError(
           "'adminlang' must be provided or the element must have a 'adminlang' attribute"
         )
-      adminlang = elem.attrib["adminlang"]
+      adminlang = adminlang_
     if srclang is None:
-      if elem.get("srclang") is None:
+      if (srclang_ := elem.get("srclang")) is None:
         raise ValueError(
           "'srclang' must be provided or the element must have a 'srclang' attribute"
         )
-      srclang = elem.attrib["srclang"]
+      srclang = srclang_
     if datatype is None:
-      if elem.get("datatype") is None:
+      if (datatype_ := elem.get("datatype")) is None:
         raise ValueError(
           "'datatype' must be provided or the element must have a 'datatype' attribute"
         )
-      datatype = elem.attrib["datatype"]
+      datatype = datatype_
     return Header(
       creationtool=creationtool,
       creationtoolversion=creationtoolversion,
-      segtype=segtype,  # type: ignore
+      segtype=segtype,
       tmf=tmf,
       adminlang=adminlang,
       srclang=srclang,
       datatype=datatype,
-      encoding=encoding if encoding is not None else attribs.get("o-encoding"),
+      encoding=encoding if encoding is not None else elem.get("o-encoding"),
       creationdate=creationdate
       if creationdate is not None
-      else attribs.get("creationdate"),
-      creationid=creationid if creationid is not None else attribs.get("creationid"),
-      changedate=changedate if changedate is not None else attribs.get("changedate"),
-      changeid=changeid if changeid is not None else attribs.get("changeid"),
+      else elem.get("creationdate"),
+      creationid=creationid if creationid is not None else elem.get("creationid"),
+      changedate=changedate if changedate is not None else elem.get("changedate"),
+      changeid=changeid if changeid is not None else elem.get("changeid"),
       props=props,
       notes=notes,
       udes=udes,
@@ -1930,7 +1948,7 @@ class Bpt(SupportsSub):
 
   @staticmethod
   def _from_element(
-    elem: XmlElement,
+    elem: XmlElementLike,
     *,
     i: int | str | None = None,
     x: int | str | None = None,
@@ -1971,7 +1989,7 @@ class Bpt(SupportsSub):
     Raises
     ------
     TypeError
-        If `elem` is not an XmlElement, or any of the attributes is not a string.
+        If `elem` is not an XmlElementLike, or any of the attributes is not a string.
     ValueError
         If any of the attributes is not provided and the element does not have
         all of the required attributes, or the element's tag is not 'bpt'.
@@ -1992,16 +2010,14 @@ class Bpt(SupportsSub):
     >>> print(bpt)
     Bpt(i=1, x=1, type='x-my-type', content=['bpt-text', Sub(type='x-my-type', datatype=None, content=['sub-text'])])
     """
-    if not isinstance(elem, XmlElement):
-      raise TypeError(f"Expected XmlElement, got {type(elem)}")
     if elem.tag != "bpt":
-      raise ValueError(f"Expected <bpt> element, got {str(elem.tag)}")
+      raise ValueError(f"Expected <bpt> element, got <{str(elem.tag)}>")
     if i is None:
-      if elem.get("i") is None:
+      if (i_ := elem.get("i")) is None:
         raise ValueError(
           "'i' must be provided or the element must have a 'i' attribute"
         )
-      i = elem.attrib["i"]
+      i = i_
     if content is None:
       content = _parse_inline(elem, mask=("sub",))
     else:
@@ -2079,7 +2095,7 @@ class Ept(SupportsSub):
 
   @staticmethod
   def _from_element(
-    elem: XmlElement,
+    elem: XmlElementLike,
     *,
     i: int | str | None = None,
     content: Iterable[str | Sub] | None = None,
@@ -2111,7 +2127,7 @@ class Ept(SupportsSub):
     Raises
     ------
     TypeError
-        If `elem` is not an XmlElement, or any of the attributes is not a string.
+        If `elem` is not an XmlElementLike, or any of the attributes is not a string.
     ValueError
         If any of the attributes is not provided and the element does not have
         all of the required attributes, or the element's tag is not 'ept'.
@@ -2130,16 +2146,14 @@ class Ept(SupportsSub):
     >>> print(ept)
     Ept(i=1, content=['ept-text', Sub(type='x-my-type', datatype=None, content=['sub-text'])])
     """
-    if not isinstance(elem, XmlElement):
-      raise TypeError(f"Expected XmlElement, got {type(elem)}")
     if elem.tag != "ept":
-      raise ValueError(f"Expected <ept> element, got {str(elem.tag)}")
+      raise ValueError(f"Expected <ept> element, got <{str(elem.tag)}>")
     if i is None:
-      if elem.get("i") is None:
+      if (i_ := elem.get("i")) is None:
         raise ValueError(
           "'i' must be provided or the element must have a 'i' attribute"
         )
-      i = elem.attrib["i"]
+      i = i_
     if content is None:
       content = _parse_inline(elem, mask=("sub",))
     else:
@@ -2239,7 +2253,7 @@ class Hi(SupportsInlineNoSub):
 
   @staticmethod
   def _from_element(
-    elem: XmlElement,
+    elem: XmlElementLike,
     *,
     x: int | str | None = None,
     type: str | None = None,
@@ -2276,7 +2290,7 @@ class Hi(SupportsInlineNoSub):
     Raises
     ------
     TypeError
-        If `elem` is not an XmlElement, or any of the attributes is not a string.
+        If `elem` is not an XmlElementLike, or any of the attributes is not a string.
     ValueError
         If any of the attributes is not provided and the element does not have
         all of the required attributes, or the element's tag is not 'hi'.
@@ -2294,10 +2308,8 @@ class Hi(SupportsInlineNoSub):
     >>> print(hi)
     Hi(x=1, type='x-my-type', content=['hi-text'])
     """
-    if not isinstance(elem, XmlElement):
-      raise TypeError(f"Expected XmlElement, got {type(elem)}")
     if elem.tag != "hi":
-      raise ValueError(f"Expected <hi> element, got {str(elem.tag)}")
+      raise ValueError(f"Expected <hi> element, got <{str(elem.tag)}>")
     if content is None:
       content = _parse_inline(elem, mask=("bpt", "ept", "it", "ph", "hi", "ut"))
     else:
@@ -2395,7 +2407,7 @@ class It(SupportsSub):
 
   @staticmethod
   def _from_element(
-    elem: XmlElement,
+    elem: XmlElementLike,
     *,
     pos: Literal["begin", "end"] | None = None,
     x: int | str | None = None,
@@ -2434,7 +2446,7 @@ class It(SupportsSub):
     Raises
     ------
     TypeError
-        If `elem` is not an XmlElement, or any of the attributes is not a string.
+        If `elem` is not an XmlElementLike, or any of the attributes is not a string.
     ValueError
         If any of the attributes is not provided and the element does not have
         all of the required attributes, or the element's tag is not 'it'.
@@ -2453,10 +2465,8 @@ class It(SupportsSub):
     >>> print(it)
     It(pos='begin', x=1, type='x-my-type', content=['it-text'])
     """
-    if not isinstance(elem, XmlElement):
-      raise TypeError(f"Expected XmlElement, got {type(elem)}")
     if elem.tag != "it":
-      raise ValueError(f"Expected <it> element, got {str(elem.tag)}")
+      raise ValueError(f"Expected <it> element, got <{str(elem.tag)}>")
     if pos is None:
       if elem.get("pos") is None:
         raise ValueError(
@@ -2552,7 +2562,7 @@ class Ph(SupportsSub):
 
   @staticmethod
   def _from_element(
-    elem: XmlElement,
+    elem: XmlElementLike,
     *,
     x: int | str | None = None,
     assoc: Literal["p", "f", "b"] | None = None,
@@ -2589,7 +2599,7 @@ class Ph(SupportsSub):
     Raises
     ------
     TypeError
-        If `elem` is not an XmlElement, or any of the attributes is not a string.
+        If `elem` is not an XmlElementLike, or any of the attributes is not a string.
     ValueError
         If any of the attributes is not provided and the element does not have
         all of the required attributes, or the element's tag is not 'ph'.
@@ -2607,10 +2617,8 @@ class Ph(SupportsSub):
     >>> print(ph)
     Ph(i=None, x=1, assoc='p', content=['ph-text'])
     """
-    if not isinstance(elem, XmlElement):
-      raise TypeError(f"Expected XmlElement, got {type(elem)}")
     if elem.tag != "ph":
-      raise ValueError(f"Expected <ph> element, got {str(elem.tag)}")
+      raise ValueError(f"Expected <ph> element, got <{str(elem.tag)}>")
     if content is None:
       content = _parse_inline(elem, mask=("sub",))
     else:
@@ -2703,7 +2711,7 @@ class Sub(SupportsInlineNoSub):
 
   @staticmethod
   def _from_element(
-    elem: XmlElement,
+    elem: XmlElementLike,
     *,
     type: str | None = None,
     datatype: str | None = None,
@@ -2736,7 +2744,7 @@ class Sub(SupportsInlineNoSub):
     Raises
     ------
     TypeError
-        If `elem` is not an XmlElement, or any of the attributes is not a string.
+        If `elem` is not an XmlElementLike, or any of the attributes is not a string.
     ValueError
         If the element's tag is not 'sub'.
 
@@ -2753,10 +2761,8 @@ class Sub(SupportsInlineNoSub):
     >>> print(sub)
     Sub(type='x-my-type', datatype='x-my-type', content=['sub-text'])
     """
-    if not isinstance(elem, XmlElement):
-      raise TypeError(f"Expected XmlElement, got {type(elem)}")
     if elem.tag != "sub":
-      raise ValueError(f"Expected <sub> element, got {str(elem.tag)}")
+      raise ValueError(f"Expected <sub> element, got <{str(elem.tag)}>")
     if content is None:
       content = _parse_inline(elem, mask=("bpt", "ept", "it", "ph", "hi", "ut"))
     else:
@@ -2845,7 +2851,7 @@ class Ut(SupportsSub):
 
   @staticmethod
   def _from_element(
-    elem: XmlElement,
+    elem: XmlElementLike,
     *,
     x: int | str | None = None,
     content: Iterable[str | Sub] | None = None,
@@ -2878,7 +2884,7 @@ class Ut(SupportsSub):
     Raises
     ------
     TypeError
-        If `elem` is not an XmlElement, or any of the attributes is not a string.
+        If `elem` is not an XmlElementLike, or any of the attributes is not a string.
     ValueError
         If any of the attributes is not provided and the element does not have
         all of the required attributes, or the element's tag is not 'ut'.
@@ -2895,10 +2901,8 @@ class Ut(SupportsSub):
     >>> print(ut)
     Ut(x=1, content=['ut-text'])
     """
-    if not isinstance(elem, XmlElement):
-      raise TypeError(f"Expected XmlElement, got {type(elem)}")
     if elem.tag != "ut":
-      raise ValueError(f"Expected <ut> element, got {str(elem.tag)}")
+      raise ValueError(f"Expected <ut> element, got <{str(elem.tag)}>")
     if content is None:
       content = _parse_inline(elem, mask=("sub",))
     else:
@@ -3083,7 +3087,7 @@ class Tuv(SupportsNotesAndProps):
 
   @staticmethod
   def _from_element(
-    elem: XmlElement,
+    elem: XmlElementLike,
     *,
     lang: str | None = None,
     segment: Iterable[str | Bpt | Ept | It | Ph | Hi | Ut] | None = None,
@@ -3176,7 +3180,7 @@ class Tuv(SupportsNotesAndProps):
     Raises
     ------
     TypeError
-        If `elem` is not an XmlElement, or if 'segment' contains an element that
+        If `elem` is not an XmlElementLike, or if 'segment' contains an element that
         is not a :class:`Bpt`, :class:`Ept`, :class:`It`, :class:`Ph`, :class:`Hi`
         or :class:`Ut`.
     ValueError
@@ -3214,16 +3218,14 @@ class Tuv(SupportsNotesAndProps):
     >>> print(tuv)
     Tuv(segment=['seg-text', Bpt(i=1, x=None, type=None, content=[]), 'in-between bpt and ept', Ept(i=1, content=[]), 'after ept', 'seg-text', Bpt(i=1, x=None, type=None, content=[]), 'in-between bpt and ept', Ept(i=1, content=[]), 'after ept'], encoding='utf-8', datatype='x-my-type', usagecount=10, lastusagedate=datetime.datetime(2024, 1, 1, 0, 0), creationtool='tool', creationtoolversion='1.0', creationdate=datetime.datetime(2024, 1, 1, 0, 0), creationid='user', changedate=datetime.datetime(2024, 1, 1, 0, 0), changeid='user', tmf='tmx', notes=[Note(text='note-text', lang=None, encoding=None)], props=[Prop(text='prop-text', type='x-prop-type', lang=None, encoding=None)])
     """
-    if not isinstance(elem, XmlElement):
-      raise TypeError(f"Expected XmlElement, got {type(elem)}")
     if elem.tag != "tuv":
-      raise ValueError(f"Expected <tuv> element, got {str(elem.tag)}")
+      raise ValueError(f"Expected <tuv> element, got <{str(elem.tag)}>")
     if lang is None:
-      if elem.get("{http://www.w3.org/XML/1998/namespace}lang") is None:
+      if (lang_ := elem.get("{http://www.w3.org/XML/1998/namespace}lang")) is None:
         raise ValueError(
           "'lang' must be provided or the element must have a 'xml:lang' attribute"
         )
-      lang = elem.attrib["{http://www.w3.org/XML/1998/namespace}lang"]
+      lang = lang_
     if segment is None:
       if (seg := elem.find("seg")) is None:
         segment = []
@@ -3496,7 +3498,7 @@ class Tu(SupportsNotesAndProps):
 
   @staticmethod
   def _from_element(
-    elem: XmlElement,
+    elem: XmlElementLike,
     *,
     tuid: str | None = None,
     encoding: str | None = None,
@@ -3601,7 +3603,7 @@ class Tu(SupportsNotesAndProps):
     Raises
     ------
     TypeError
-        If `elem` is not an XmlElement, or any of the attributes is not a string.
+        If `elem` is not an XmlElementLike, or any of the attributes is not a string.
     ValueError
         If the element's tag is not 'tu'.
 
@@ -3645,11 +3647,8 @@ class Tu(SupportsNotesAndProps):
     >>> print(tu)
     Tu(tuid='tuid', encoding='utf-8', datatype='x-my-type', usagecount=10, lastusagedate=datetime.datetime(2024, 1, 1, 0, 0), creationtool='tool', creationtoolversion='1.0', creationdate=datetime.datetime(2024, 1, 1, 0, 0), creationid='user', changedate=datetime.datetime(2024, 1, 1, 0, 0), segtype=None, changeid='user', tmf=None, srclang=None, tuvs=[Tuv(segment=['seg-text', Bpt(i=1, x=1, type='x-my-type', content=['bpt-text'])], encoding='utf-8', datatype='x-my-type', usagecount=10, lastusagedate=datetime.datetime(2024, 1, 1, 0, 0), creationtool='tool', creationtoolversion='1.0', creationdate=datetime.datetime(2024, 1, 1, 0, 0), creationid='user', changedate=datetime.datetime(2024, 1, 1, 0, 0), changeid='user', tmf='tmx', notes=[], props=[])], notes=[Note(text='note-text', lang='en', encoding=None)], props=[Prop(text='prop-text', type='x-prop-type', lang=None, encoding=None)])
     """
-    if not isinstance(elem, XmlElement):
-      raise TypeError(f"Expected XmlElement, got {type(elem)}")
     if elem.tag != "tu":
-      raise ValueError(f"Expected <tu> element, got {str(elem.tag)}")
-    attribs = elem.attrib
+      raise ValueError(f"Expected <tu> element, got <{str(elem.tag)}>")
     if props is None:
       props = [Prop._from_element(e) for e in elem if e.tag == "prop"]
     else:
@@ -3678,27 +3677,27 @@ class Tu(SupportsNotesAndProps):
         tuvs_.append(tuv)
       tuvs = tuvs_
     return Tu(
-      tuid=tuid if tuid is not None else attribs.get("tuid"),
-      encoding=encoding if encoding is not None else attribs.get("o-encoding"),
-      datatype=datatype if datatype is not None else attribs.get("datatype"),
-      usagecount=usagecount if usagecount is not None else attribs.get("usagecount"),
+      tuid=tuid if tuid is not None else elem.get("tuid"),
+      encoding=encoding if encoding is not None else elem.get("o-encoding"),
+      datatype=datatype if datatype is not None else elem.get("datatype"),
+      usagecount=usagecount if usagecount is not None else elem.get("usagecount"),
       lastusagedate=lastusagedate
       if lastusagedate is not None
-      else attribs.get("lastusagedate"),
+      else elem.get("lastusagedate"),
       creationtool=creationtool
       if creationtool is not None
-      else attribs.get("creationtool"),
+      else elem.get("creationtool"),
       creationtoolversion=creationtoolversion
       if creationtoolversion is not None
-      else attribs.get("creationtoolversion"),
+      else elem.get("creationtoolversion"),
       creationdate=creationdate
       if creationdate is not None
-      else attribs.get("creationdate"),
-      creationid=creationid if creationid is not None else attribs.get("creationid"),
-      changedate=changedate if changedate is not None else attribs.get("changedate"),
-      changeid=changeid if changeid is not None else attribs.get("changeid"),
-      tmf=tmf if tmf is not None else attribs.get("o-tmf"),
-      srclang=srclang if srclang is not None else attribs.get("srclang"),
+      else elem.get("creationdate"),
+      creationid=creationid if creationid is not None else elem.get("creationid"),
+      changedate=changedate if changedate is not None else elem.get("changedate"),
+      changeid=changeid if changeid is not None else elem.get("changeid"),
+      tmf=tmf if tmf is not None else elem.get("o-tmf"),
+      srclang=srclang if srclang is not None else elem.get("srclang"),
       props=props,
       notes=notes,
       tuvs=tuvs,
@@ -4005,12 +4004,13 @@ class Tmx:
 
   @staticmethod
   def _from_element(
-    elem: XmlElement, *, header: Header | None = None, tus: Iterable[Tu] | None = None
+    elem: XmlElementLike,
+    *,
+    header: Header | None = None,
+    tus: Iterable[Tu] | None = None,
   ) -> Tmx:
-    if not isinstance(elem, XmlElement):
-      raise TypeError(f"Expected XmlElement, got {type(elem)}")
     if elem.tag != "tmx":
-      raise ValueError(f"Expected <tmx> element, got {str(elem.tag)}")
+      raise ValueError(f"Expected <tmx> element, got <{str(elem.tag)}>")
     if header is None:
       if (header_elem := elem.find("header")) is not None:
         header = Header._from_element(header_elem)
