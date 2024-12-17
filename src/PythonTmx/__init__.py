@@ -15,4 +15,4 @@ from PythonTmx.classes import (
   Ude,
   Ut,
 )
-from PythonTmx.utils import from_element, to_element
+from PythonTmx.utils import from_element

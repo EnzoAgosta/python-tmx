@@ -1,23 +1,22 @@
 from __future__ import annotations
 
-from collections.abc import MutableSequence
+from collections.abc import Callable, MutableSequence
 from datetime import datetime
 from enum import Enum
 from typing import (
+  Any,
   Iterable,
   Literal,
   Protocol,
-  TypeAlias,
   TypeVar,
-  overload,
+  Union,
+  runtime_checkable,
 )
 from warnings import deprecated
 
-import lxml.etree as et
+import xml.etree.ElementTree as et
 from attr import asdict
 from attrs import define, field, validators
-
-TmxElement: TypeAlias = "Note | Prop | Ude | Map | Header | Tu | Tuv | Tmx| Bpt | Ept | It | Ph | Hi | Ut | Sub | Ude"
 
 __all__ = [
   "Note",
@@ -42,9 +41,25 @@ T = TypeVar("T")
 
 
 def _ascii_validator(self, attribute, value: str):
-  if value is not None:
-    if not value.isascii():
-      raise ValueError(f"Expected ASCII string, got {value!r}")
+  if not isinstance(value, str):
+    raise TypeError(f"Expected str, got {type(value)}")
+  if not value.isascii():
+    raise ValueError(f"Expected ASCII string, got {value!r}")
+
+
+def _hex_validator(self, attribute, value):
+  if not isinstance(value, str):
+    raise TypeError(f"Expected str, got {type(value)}")
+  if not value.startswith("#x"):
+    raise ValueError(
+      f"code must be a Hexadecimal value prefixed with '#x'. " f"Got: {value!r}"
+    )
+  try:
+    hex(int(value[2:], 16))
+  except ValueError:
+    raise ValueError(
+      f"code must be a Hexadecimal value prefixed with '#x'. " f"Got: {value!r}"
+    )
 
 
 class SEGTYPE(Enum):
@@ -65,20 +80,20 @@ class ASSOC(Enum):
   b = "b"
 
 
+@runtime_checkable
 class XmlElementLike(Protocol):
-  tag: str | bytes | bytearray | et.QName
-  text: str | None
-  tail: str | None
+  tag: Any
+  text: Any | None
+  tail: Any | None
 
-  @overload
-  def get(self, key: str | bytes | bytearray | et.QName) -> str | None: ...
-  @overload
-  def get(self, key: str | bytes | bytearray | et.QName, default: T) -> str | T: ...
-  def set(self, key: str, value: str) -> None: ...
-
+  def get(self, key, default=None): ...
+  def set(self, key, value) -> None: ...
   def find(self, path, namespaces=None): ...
-
-  def __iter__(self): ...
+  def append(self, other) -> None: ...
+  def __getitem__(self, index): ...
+  def __setitem__(self, index, element): ...
+  def __delitem__(self, index): ...
+  def iter(self, tag=None): ...
 
 
 @define
@@ -578,11 +593,11 @@ def _fill_attributes(elem: XmlElementLike, attribs: dict) -> None:
       case "encoding" | "tmf":
         k = f"o-{k}"
       case "i" | "x" | "usagecount":
-        if not isinstance(v, int):
-          v = str(int(v))
+        v = str(int(v))
       case "lastusagedate" | "creationdate" | "changedate":
         if not isinstance(v, datetime):
-          v = datetime.fromisoformat(v).strftime("%Y%m%dT%H%M%SZ")
+          v = datetime.fromisoformat(v)
+        v = v.strftime("%Y%m%dT%H%M%SZ")
       case "segtype":
         if v not in SEGTYPE:
           raise ValueError(f"Invalid segtype {v}")
@@ -609,41 +624,42 @@ def _only_str_int_dt(k, v) -> bool:
 
 
 def _to_element_inline(
-  elem: et._Element,
+  elem: XmlElementLike,
+  constructor: Callable[..., XmlElementLike],
   content: Iterable[str | Bpt | Ept | It | Ph | Hi | Ut | Sub],
   mask: Iterable[str],
 ) -> None:
-  last: et._Element | None = None
+  last: XmlElementLike | None = None
   for i in content:
     if isinstance(i, str):
       if last is None:
         if elem.text is None:
           elem.text = ""
-        elem.text += i
+        elem.text = str(elem.text) + i
       else:
         if last.tail is None:
           last.tail = ""
         last.tail += i
     elif isinstance(i, Bpt) and "bpt" in mask:
-      elem.append(Bpt._to_element(i))
+      elem.append(Bpt._to_element(i, constructor))
       last = elem[-1]
     elif isinstance(i, Ept) and "ept" in mask:
-      elem.append(Ept._to_element(i))
+      elem.append(Ept._to_element(i, constructor))
       last = elem[-1]
     elif isinstance(i, It) and "it" in mask:
-      elem.append(It._to_element(i))
+      elem.append(It._to_element(i, constructor))
       last = elem[-1]
     elif isinstance(i, Ph) and "ph" in mask:
-      elem.append(Ph._to_element(i))
+      elem.append(Ph._to_element(i, constructor))
       last = elem[-1]
     elif isinstance(i, Hi) and "hi" in mask:
-      elem.append(Hi._to_element(i))
+      elem.append(Hi._to_element(i, constructor))
       last = elem[-1]
     elif isinstance(i, Ut) and "ut" in mask:
-      elem.append(Ut._to_element(i))
+      elem.append(Ut._to_element(i, constructor))
       last = elem[-1]
     elif isinstance(i, Sub) and "sub" in mask:
-      elem.append(Sub._to_element(i))
+      elem.append(Sub._to_element(i, constructor))
       last = elem[-1]
     else:
       raise TypeError(
@@ -662,7 +678,7 @@ def _parse_inline(elem: XmlElementLike, mask: Iterable[str]) -> list:
 
   Parameters
   ----------
-  elem : :external:class:`lxml.etree._Element` | :external:class:`xml.etree.ElementTree.Element`
+  elem : :external:class:`lxml.etree.Element` | :external:class:`xml.etree.ElementTree.Element`
       The element to parse.
   mask : Iterable[str]
       A list of tags that should converted to their corresponding objects.
@@ -678,7 +694,9 @@ def _parse_inline(elem: XmlElementLike, mask: Iterable[str]) -> list:
   result: list = []
   if elem.text is not None:
     result.append(elem.text)
-  for e in elem:
+  for e in elem.iter():
+    if e is elem:
+      continue
     if str(e.tag) not in mask:
       continue
     if e.tag == "bpt":
@@ -741,14 +759,14 @@ class Note:
     encoding: str | None = None,
   ) -> Note:
     """
-    Creates a :class:`Note` Element from a lxml `_Element` or an
+    Creates a :class:`Note` Element from a lxml `Element` or an
     :external:class:`ElementTree Element <xml.etree.ElementTree.Element>`.
     If an argument is provided, it will override the value parsed from the
     element.
 
     Parameters
     ----------
-    elem : :external:class:`lxml Element <lxml.etree._Element>` | :external:class:`ElementTree Element <xml.etree.ElementTree.Element>`
+    elem : :external:class:`lxml Element <lxml.etree.Element>` | :external:class:`ElementTree Element <xml.etree.ElementTree.Element>`
         The Element to parse.
     text : str | None, optional
         The text content of the Note. If not provided, it will be parsed
@@ -783,25 +801,42 @@ class Note:
     )
 
   @staticmethod
-  def _to_element(note: Note) -> et._Element:
+  def _to_element(
+    note: Note, constructor: Callable[..., XmlElementLike] = et.Element
+  ) -> XmlElementLike:
     """
-    Convert a :class:`Note` to an :external:class:`lxml Element <lxml.etree._Element>`_.
+    Converts a :class:`Note` to an :class:`XmlElementLike` element.
+
+    NOT meant to be used directly, use :func:`to_element` instead.
 
     Parameters
     ----------
     note : Note
         The :class:`Note` to convert.
+    constructor : Callable[..., XmlElementLike], optional
+        The constructor to use for the :class:`XmlElementLike` to return.
+        Defaults to :class:`et.Element`.
 
     Returns
     -------
-    :external:class:`lxml Element <lxml.etree._Element>`_
-        The converted :class:`Note` as an :external:class:`lxml Element <lxml.etree._Element>`_.
+    XmlElementLike
+        An XmlElementLike representing the :class:`Prop` `prop`. The
+        :class:`XmlElementLike` is created using the `constructor` argument if
+        provided, or :external:`lxml.etree.Element` otherwise.
     """
 
+    if not callable(constructor):
+      raise TypeError("constructor must be a callable")
+    elem = constructor("note")
+    if not isinstance(elem, XmlElementLike):
+      raise TypeError("constructor must return an XmlElementLike")
     attribs = asdict(note, filter=_only_str)
-    elem = et.Element("note")
     _fill_attributes(elem, attribs)
     return elem
+
+
+a = Note(text="test", encoding="utf-8", lang="en")
+Note._to_element(a)
 
 
 @define(kw_only=True)
@@ -934,23 +969,35 @@ class Prop:
     )
 
   @staticmethod
-  def _to_element(prop: Prop) -> et._Element:
+  def _to_element(
+    prop: Prop, constructor: Callable[..., XmlElementLike] = et.Element
+  ) -> XmlElementLike:
     """
-    Convert a :class:`Prop` to an :external:class:`lxml Element <lxml.etree._Element>`_.
+    Converts a :class:`Prop` to an :class:`XmlElementLike` element.
+
+    NOT meant to be used directly, use :func:`to_element` instead.
 
     Parameters
     ----------
     prop : Prop
         The :class:`Prop` to convert.
+    constructor : Callable[..., XmlElementLike], optional
+        The constructor to use for the :class:`XmlElementLike` to return.
+        Defaults to :class:`et.Element`.
 
     Returns
     -------
-    :external:class:`lxml Element <lxml.etree._Element>`_
-        The converted :class:`Prop` as an :external:class:`lxml Element <lxml.etree._Element>`_.
+    XmlElementLike
+        An XmlElementLike representing the :class:`Prop` `prop`. The
+        :class:`XmlElementLike` is created using the `constructor` argument if
+        provided, or :external:`lxml.etree.Element` otherwise.
     """
-
+    if not callable(constructor):
+      raise TypeError("constructor must be a callable")
+    elem = constructor("prop")
+    if not isinstance(elem, XmlElementLike):
+      raise TypeError("constructor must return an XmlElementLike")
     attribs = asdict(prop, filter=_only_str)
-    elem = et.Element("prop")
     _fill_attributes(elem, attribs)
     return elem
 
@@ -963,46 +1010,25 @@ class Map:
   :class:`Ude`.
   """
 
-  unicode: str = field(validator=validators.instance_of(str))
+  unicode: str = field(validator=_hex_validator)
   """
   The Unicode character value of the element. Must be a valid Unicode value
   (including values in the Private Use areas) in hexadecimal format.
   """
-  code: str | None = field(
-    default=None,
-    validator=validators.optional(validators.instance_of(str)),
-  )
-
-  @code.validator
-  def _code_validator(self, attribute, value):
-    if value is not None:
-      if not value.startswith("#x"):
-        raise ValueError(
-          f"code must be a Hexadecimal value prefixed with '#x'. " f"Got: {value!r}"
-        )
-      try:
-        hex(int(value[2:], 16))
-      except ValueError:
-        raise ValueError(
-          f"code must be a Hexadecimal value prefixed with '#x'. " f"Got: {value!r}"
-        )
+  code: str | None = field(default=None, validator=validators.optional(_hex_validator))
 
   """
   The code-point value corresponding to the unicode character of a the element.
   Must be a Hexadecimal value prefixed with "#x". By default None.
   """
-  ent: str | None = field(
-    default=None,
-    validator=validators.optional([validators.instance_of(str), _ascii_validator]),
-  )
+  ent: str | None = field(default=None, validator=validators.optional(_ascii_validator))
   """
   The entity name of the character defined by the element. Must be text in ASCII.
   By default None.
   """
 
   subst: str | None = field(
-    default=None,
-    validator=validators.optional([validators.instance_of(str), _ascii_validator]),
+    default=None, validator=validators.optional(_ascii_validator)
   )
   """
   An alternative string for the character defined in the element. Must be text
@@ -1023,7 +1049,7 @@ class Map:
 
     Parameters
     ----------
-    elem : :external:class:`lxml.etree._Element` | :external:class:`xml.etree.ElementTree.Element`
+    elem : :external:class:`lxml.etree.Element` | :external:class:`xml.etree.ElementTree.Element`
         The Element to parse.
     unicode : str | None, optional
       The Unicode character value of the element. Must be a valid Unicode value
@@ -1077,22 +1103,35 @@ class Map:
     )
 
   @staticmethod
-  def _to_element(map: Map) -> et._Element:
+  def _to_element(
+    map: Map, constructor: Callable[..., XmlElementLike] = et.Element
+  ) -> XmlElementLike:
     """
-    Convert a :class:`Note` to an :external:class:`lxml Element <lxml.etree._Element>`_.
+    Converts a :class:`Map` to an :class:`XmlElementLike` element.
+
+    NOT meant to be used directly, use :func:`to_element` instead.
 
     Parameters
     ----------
     map : Map
         The :class:`Map` to convert.
+    constructor : Callable[..., XmlElementLike], optional
+        The constructor to use for the :class:`XmlElementLike` to return.
+        Defaults to :class:`et.Element`.
 
     Returns
     -------
-    :external:class:`lxml Element <lxml.etree._Element>`_
-        The converted :class:`Map` as an :external:class:`lxml Element <lxml.etree._Element>`_.
+    XmlElementLike
+        An XmlElementLike representing the :class:`Map` `map`. The
+        :class:`XmlElementLike` is created using the `constructor` argument if
+        provided, or :external:`lxml.etree.Element` otherwise.
     """
+    if not callable(constructor):
+      raise TypeError("constructor must be a callable")
+    elem = constructor("map")
+    if not isinstance(elem, XmlElementLike):
+      raise TypeError("constructor must return an XmlElementLike")
     attribs = asdict(map, filter=_only_str)
-    elem = et.Element("map")
     _fill_attributes(elem, attribs)
     return elem
 
@@ -1146,7 +1185,7 @@ class Ude:
 
     Parameters
     ----------
-    elem : :external:class:`lxml.etree._Element` | :external:class:`xml.etree.ElementTree.Element`
+    elem : :external:class:`lxml.etree.Element` | :external:class:`xml.etree.ElementTree.Element`
         The Element to parse.
     name: str
       The name of the element. Its value is not defined by the standard
@@ -1197,7 +1236,7 @@ class Ude:
         )
       name = name_
     if maps is None:
-      maps = [Map._from_element(e) for e in elem if e.tag == "map"]
+      maps = [Map._from_element(e) for e in elem.iter() if e.tag == "map"]
     else:
       for map in maps:
         if not isinstance(map, Map):
@@ -1207,30 +1246,41 @@ class Ude:
     )
 
   @staticmethod
-  def _to_element(ude: Ude) -> et._Element:
+  def _to_element(
+    ude: Ude, constructor: Callable[..., XmlElementLike] = et.Element
+  ) -> XmlElementLike:
     """
-    Convert a :class:`Note` to an :external:class:`lxml Element <lxml.etree._Element>`_.
+    Converts a :class:`Ude` to an :class:`XmlElementLike` element.
+
+    NOT meant to be used directly, use :func:`to_element` instead.
 
     Parameters
     ----------
-    map : Map
-        The :class:`Map` to convert.
+    ude : Ude
+        The :class:`Ude` to convert.
+    constructor : Callable[..., XmlElementLike], optional
+        The constructor to use for the :class:`XmlElementLike` to return.
+        Defaults to :class:`et.Element`.
 
     Returns
     -------
-    :external:class:`lxml Element <lxml.etree._Element>`_
-        The converted :class:`Map` as an :external:class:`lxml Element <lxml.etree._Element>`_.
+    XmlElementLike
+        An XmlElementLike representing the :class:`Ude` `ude`. The
+        :class:`XmlElementLike` is created using the `constructor` argument if
+        provided, or :external:`lxml.etree.Element` otherwise.
     """
 
-    attribs = asdict(ude, filter=_only_str_int_dt)
-    elem = et.Element("ude")
+    if not callable(constructor):
+      raise TypeError("constructor must be a callable")
+    elem = constructor("ude")
+    if not isinstance(elem, XmlElementLike):
+      raise TypeError("constructor must return an XmlElementLike")
+    attribs = asdict(ude, filter=_only_str)
     _fill_attributes(elem, attribs)
-    for map in ude.maps:
-      if not isinstance(map, Map):
-        raise TypeError(f"Expected Map, got {type(map)}")
-      if map.code is not None and ude.base is None:
-        raise ValueError("base cannot be None if at least 1 map has a code attribute")
-      elem.append(Map._to_element(map))
+    for map_ in ude.maps:
+      if not isinstance(map_, Map):
+        raise TypeError(f"Expected Map, got {type(map_)}")
+      elem.append(Map._to_element(map_, constructor))
     return elem
 
   def add_map(
@@ -1495,7 +1545,7 @@ class Header(SupportsNotesAndProps):
 
     Parameters
     ----------
-    elem : :external:class:`lxml.etree._Element` | :external:class:`xml.etree.ElementTree.Element`
+    elem : :external:class:`lxml.etree.Element` | :external:class:`xml.etree.ElementTree.Element`
         The Element to parse.
     creationtool : str
         The tool that created the TMX document.
@@ -1609,7 +1659,7 @@ class Header(SupportsNotesAndProps):
     if elem.tag != "header":
       raise ValueError(f"Expected <header> element, got <{str(elem.tag)}>")
     if props is None:
-      props = [Prop._from_element(e) for e in elem if e.tag == "prop"]
+      props = [Prop._from_element(e) for e in elem.iter() if e.tag == "prop"]
     else:
       props_ = []
       for prop in props:
@@ -1618,7 +1668,7 @@ class Header(SupportsNotesAndProps):
         props_.append(prop)
       props = props_
     if notes is None:
-      notes = [Note._from_element(e) for e in elem if e.tag == "note"]
+      notes = [Note._from_element(e) for e in elem.iter() if e.tag == "note"]
     else:
       notes_ = []
       for note in notes:
@@ -1627,7 +1677,7 @@ class Header(SupportsNotesAndProps):
         notes_.append(note)
       notes = notes_
     if udes is None:
-      udes = [Ude._from_element(e) for e in elem if e.tag == "ude"]
+      udes = [Ude._from_element(e) for e in elem.iter() if e.tag == "ude"]
     else:
       udes_ = []
       for ude in udes:
@@ -1700,6 +1750,27 @@ class Header(SupportsNotesAndProps):
       notes=notes,
       udes=udes,
     )
+
+  @staticmethod
+  def _to_element(
+    header: Header, constructor: Callable[..., XmlElementLike] = et.Element
+  ) -> XmlElementLike:
+    attribs = asdict(header, filter=_only_str_int_dt)
+    elem = constructor("header")
+    _fill_attributes(elem, attribs)
+    for note in header.notes:
+      if not isinstance(note, Note):
+        raise TypeError(f"Expected Note, got {type(note)}")
+      elem.append(Note._to_element(note, constructor))
+    for prop in header.props:
+      if not isinstance(prop, Prop):
+        raise TypeError(f"Expected Prop, got {type(note)}")
+      elem.append(Prop._to_element(prop, constructor))
+    for ude in header.udes:
+      if not isinstance(ude, Ude):
+        raise TypeError(f"Expected Ude, got {type(note)}")
+      elem.append(Ude._to_element(ude, constructor))
+    return elem
 
   def __attrs_post__init__(self):
     if self.creationdate is not None and not isinstance(self.creationdate, datetime):
@@ -1869,23 +1940,140 @@ class Header(SupportsNotesAndProps):
   def add_prop(self, prop=None, *, text=None, type=None, lang=None, encoding=None):
     return super().add_prop(prop, text=text, type=type, lang=lang, encoding=encoding)
 
+
+@define(kw_only=True)
+class Sub(SupportsInlineNoSub):
+  type: str | None = field(
+    default=None, validator=validators.optional(validators.instance_of(str))
+  )
+  """
+  The type of the data contained in the element. By default None.
+  """
+  datatype: str | None = field(
+    default=None, validator=validators.optional(validators.instance_of(str))
+  )
+  """
+  The data type of the element. By default None.
+  """
+
+  def _content_validator(self, attribute, value):
+    if not isinstance(value, (Bpt, Ept, It, Ph, Hi, Ut)):
+      raise TypeError(
+        f"content must be a collection of Bpt, Ept, It, Ph, Hi, Ut and/or str, not {type(value).__name__}"
+      )
+
+  content: MutableSequence[str | Bpt | Ept | It | Ph | Hi | Ut] = field(
+    factory=list,
+    validator=validators.deep_iterable(
+      member_validator=[validators.instance_of((str)), _content_validator],
+    ),
+  )
+  """
+  A MutableSequence of strings, or :class:`Bpt`, :class:`Ept`, :class:`It`,
+  :class:`Ph`, :class:`Hi`, :class:`Ut` elements. While any iterable
+  (or even a Generator expression) can technically be used, it is recommended to
+  use a list or some other collection that preserves the order of the elements.
+  At the very least, the container should support the ``append``.
+  By default an empty list. 
+  """
+
+  def add_bpt(self, bpt=None, *, content=None, i=None, x=None, type=None):
+    return super().add_bpt(bpt, content=content, i=i, x=x, type=type)
+
+  def add_ept(self, ept=None, *, content=None, i=None):
+    return super().add_ept(ept, content=content, i=i)
+
+  def add_hi(self, hi=None, *, type=None, x=None, content=None):
+    return super().add_hi(hi, type=type, x=x, content=content)
+
+  def add_it(self, it=None, *, content=None, pos=None, x=None, type=None):
+    return super().add_it(it, content=content, pos=pos, x=x, type=type)
+
+  def add_ph(self, ph=None, *, content=None, i=None, x=None, assoc=None):
+    return super().add_ph(ph, content=content, i=i, x=x, assoc=assoc)
+
+  def add_ut(self, ut=None, *, x=None, content=None):
+    return super().add_ut(ut, x=x, content=content)
+
   @staticmethod
-  def _to_element(header: Header) -> et._Element:
-    attribs = asdict(header, filter=_only_str_int_dt)
-    elem = et.Element("header")
+  def _from_element(
+    elem: XmlElementLike,
+    *,
+    type: str | None = None,
+    datatype: str | None = None,
+    content: Iterable[str | Bpt | Ept | It | Ph | Hi | Ut] | None = None,
+  ) -> Sub:
+    """
+    Create a :class:`Sub` Element from an XmlElement.
+
+    Parameters
+    ----------
+    elem : :external:class:`lxml.etree.Element` | :external:class:`xml.etree.ElementTree.Element`
+        The Element to parse.
+    type : str | None, optional
+        The type of the data contained in the element. By default None.
+    datatype : str | None, optional
+        The data type of the element. By default None.
+    content : Iterable[str | Bpt | Ept | It | Ph | Hi | Ut] | None, optional
+        A Iterable of strings, or :class:`Bpt`, :class:`Ept`, :class:`It`,
+        :class:`Ph`, :class:`Hi`, :class:`Ut` elements. While any iterable
+        (or even a Generator expression) can technically be used, the resulting
+        element :attr:`content` will be a list of made of the provided elements.
+        If the Iterable does not preserve insertion order, the order of the
+        resulting list cannot be guaranteed. By default an empty list.
+
+    Returns
+    -------
+    Sub
+        A new :class:`Sub` Object with the provided values
+
+    Raises
+    ------
+    TypeError
+        If `elem` is not an XmlElementLike, or any of the attributes is not a string.
+    ValueError
+        If the element's tag is not 'sub'.
+
+    Examples
+    --------
+
+    >>> from xml.etree.ElementTree import Element
+    >>> from PythonTmx.classes import Sub
+    >>> elem = Element("sub")
+    >>> elem.set("type", "x-my-type")
+    >>> elem.set("datatype", "x-my-type")
+    >>> elem.text = "sub-text"
+    >>> sub = Sub.from_element(elem)
+    >>> print(sub)
+    Sub(type='x-my-type', datatype='x-my-type', content=['sub-text'])
+    """
+    if elem.tag != "sub":
+      raise ValueError(f"Expected <sub> element, got <{str(elem.tag)}>")
+    if content is None:
+      content = _parse_inline(elem, mask=("bpt", "ept", "it", "ph", "hi", "ut"))
+    else:
+      content_ = []
+      for e in content:
+        if not isinstance(e, (Bpt, Ept, It, Ph, Hi, Ut, str)):
+          raise TypeError(f"Expected Bpt, Ept, It, Ph, Hi, Ut or str, got {type(e)}")
+        content_.append(e)
+      content = content_
+    return Sub(
+      type=type if type is not None else elem.get("type"),
+      datatype=datatype if datatype is not None else elem.get("datatype"),
+      content=content,
+    )
+
+  @staticmethod
+  def _to_element(
+    sub: Sub, constructor: Callable[..., XmlElementLike] = et.Element
+  ) -> XmlElementLike:
+    attribs = asdict(sub, filter=_only_str_int_dt)
+    elem = constructor("sub")
     _fill_attributes(elem, attribs)
-    for prop in header.props:
-      if not isinstance(prop, Prop):
-        raise TypeError(f"Expected Prop, got {type(prop)}")
-      elem.append(Prop._to_element(prop))
-    for note in header.notes:
-      if not isinstance(note, Note):
-        raise TypeError(f"Expected Note, got {type(note)}")
-      elem.append(Note._to_element(note))
-    for ude in header.udes:
-      if not isinstance(ude, Ude):
-        raise TypeError(f"Expected Ude, got {type(ude)}")
-      elem.append(Ude._to_element(ude))
+    _to_element_inline(
+      elem, constructor, sub.content, ("bpt", "ept", "it", "ph", "hi", "ut")
+    )
     return elem
 
 
@@ -1922,17 +2110,10 @@ class Bpt(SupportsSub):
   """
   The type of the data contained in the element. By default None.
   """
-
-  def _content_validator(self, attribute, value):
-    if not isinstance(value, Sub):
-      raise TypeError(
-        f"content must be a collection of Sub and/or str, not {type(value).__name__}"
-      )
-
   content: MutableSequence[str | Sub] = field(
     factory=list,
     validator=validators.deep_iterable(
-      member_validator=[validators.instance_of((str)), _content_validator],
+      member_validator=validators.instance_of((str, Sub))
     ),
   )
   """
@@ -1960,7 +2141,7 @@ class Bpt(SupportsSub):
 
     Parameters
     ----------
-    elem : :external:class:`lxml.etree._Element` | :external:class:`xml.etree.ElementTree.Element`
+    elem : :external:class:`lxml.etree.Element` | :external:class:`xml.etree.ElementTree.Element`
         The Element to parse.
     i : int | str | None, optional
         Used to pair the :class:`Bpt` with the corresponding :class:`Ept` element.
@@ -2047,11 +2228,13 @@ class Bpt(SupportsSub):
         pass
 
   @staticmethod
-  def _to_element(bpt: Bpt) -> et._Element:
+  def _to_element(
+    bpt: Bpt, constructor: Callable[..., XmlElementLike] = et.Element
+  ) -> XmlElementLike:
     attribs = asdict(bpt, filter=_only_str_int_dt)
-    elem = et.Element("bpt")
+    elem = constructor("bpt")
     _fill_attributes(elem, attribs)
-    _to_element_inline(elem, bpt.content, ("sub",))
+    _to_element_inline(elem, constructor, bpt.content, ("sub",))
     return elem
 
 
@@ -2069,17 +2252,10 @@ class Ept(SupportsSub):
   Used to pair the :class:`Bpt` with the corresponding :class:`Ept` element.
   Must be unique for each :class:`Bpt` element within the same parent element.
   """
-
-  def _content_validator(self, attribute, value):
-    if not isinstance(value, Sub):
-      raise TypeError(
-        f"content must be a collection of Sub and/or str, not {type(value).__name__}"
-      )
-
   content: MutableSequence[str | Sub] = field(
     factory=list,
     validator=validators.deep_iterable(
-      member_validator=[validators.instance_of((str)), _content_validator],
+      member_validator=validators.instance_of((str, Sub))
     ),
   )
   """
@@ -2106,7 +2282,7 @@ class Ept(SupportsSub):
 
     Parameters
     ----------
-    elem : :external:class:`lxml.etree._Element` | :external:class:`xml.etree.ElementTree.Element`
+    elem : :external:class:`lxml.etree.Element` | :external:class:`xml.etree.ElementTree.Element`
         The Element to parse.
     i : int | str | None, optional
         Used to pair the :class:`Bpt` with the corresponding :class:`Ept`
@@ -2176,11 +2352,13 @@ class Ept(SupportsSub):
         pass
 
   @staticmethod
-  def _to_element(ept: Ept) -> et._Element:
+  def _to_element(
+    ept: Ept, constructor: Callable[..., XmlElementLike] = et.Element
+  ) -> XmlElementLike:
     attribs = asdict(ept, filter=_only_str_int_dt)
-    elem = et.Element("ept")
+    elem = constructor("ept")
     _fill_attributes(elem, attribs)
-    _to_element_inline(elem, ept.content, ("sub",))
+    _to_element_inline(elem, constructor, ept.content, ("sub",))
     return elem
 
 
@@ -2213,17 +2391,16 @@ class Hi(SupportsInlineNoSub):
   """
 
   def _content_validator(self, attribute, value):
-    if not isinstance(value, (Bpt, Ept, It, Ph, Hi, Ut)):
+    if not isinstance(value, (Bpt, Ept, It, Ph, Hi, Ut, str)):
       raise TypeError(
-        f"content must be a collection of Sub and/or str, not {type(value).__name__}"
+        f"content must be a collection of Bpt, Ept, It, Ph, Hi, Ut and/or str, not {type(value).__name__}"
       )
 
   content: MutableSequence[str | Bpt | Ept | It | Ph | Hi | Ut] = field(
     factory=list,
-    validator=validators.deep_iterable(
-      member_validator=[validators.instance_of((str)), _content_validator],
-    ),
+    validator=validators.deep_iterable(member_validator=_content_validator),
   )
+
   """
   A MutableSequence of strings, or :class:`Bpt`, :class:`Ept`, :class:`It`,
   :class:`Ph`, :class:`Hi`, :class:`Ut` elements. While any iterable
@@ -2264,7 +2441,7 @@ class Hi(SupportsInlineNoSub):
 
     Parameters
     ----------
-    elem : :external:class:`lxml.etree._Element` | :external:class:`xml.etree.ElementTree.Element`
+    elem : :external:class:`lxml.etree.Element` | :external:class:`xml.etree.ElementTree.Element`
         The Element to parse.
     x : int | str | None, optional
         Used to match inline elements :class:`Bpt`, :class:`It`, :class:`Ph`,
@@ -2333,21 +2510,14 @@ class Hi(SupportsInlineNoSub):
         pass
 
   @staticmethod
-  def _to_element(hi: Hi) -> et._Element:
+  def _to_element(
+    hi: Hi, constructor: Callable[..., XmlElementLike] = et.Element
+  ) -> XmlElementLike:
     attribs = asdict(hi, filter=_only_str_int_dt)
-    elem = et.Element("hi")
+    elem = constructor("hi")
     _fill_attributes(elem, attribs)
     _to_element_inline(
-      elem,
-      hi.content,
-      (
-        "bpt",
-        "ept",
-        "it",
-        "ph",
-        "hi",
-        "ut",
-      ),
+      elem, constructor, hi.content, ("bpt", "ept", "it", "ph", "hi", "ut")
     )
     return elem
 
@@ -2381,19 +2551,13 @@ class It(SupportsSub):
   """
   The type of the data contained in the element. By default None.
   """
-
-  def _content_validator(self, attribute, value):
-    if not isinstance(value, Sub):
-      raise TypeError(
-        f"content must be a collection of Sub and/or str, not {type(value).__name__}"
-      )
-
   content: MutableSequence[str | Sub] = field(
     factory=list,
     validator=validators.deep_iterable(
-      member_validator=[validators.instance_of((str)), _content_validator],
+      member_validator=validators.instance_of((str, Sub))
     ),
   )
+
   """
   A MutableSequence of strings, or :class:`Sub` elements. While any iterable
   (or even a Generator expression) can technically be used, it is recommended to
@@ -2419,7 +2583,7 @@ class It(SupportsSub):
 
     Parameters
     ----------
-    elem : :external:class:`lxml.etree._Element` | :external:class:`xml.etree.ElementTree.Element`
+    elem : :external:class:`lxml.etree.Element` | :external:class:`xml.etree.ElementTree.Element`
         The Element to parse.
     pos : Literal["begin", "end"]
         The position of the element. Must be "begin" or "end".
@@ -2497,11 +2661,13 @@ class It(SupportsSub):
         pass
 
   @staticmethod
-  def _to_element(it: It) -> et._Element:
+  def _to_element(
+    it: It, constructor: Callable[..., XmlElementLike] = et.Element
+  ) -> XmlElementLike:
     attribs = asdict(it, filter=_only_str_int_dt)
-    elem = et.Element("it")
+    elem = constructor("it")
     _fill_attributes(elem, attribs)
-    _to_element_inline(elem, it.content, ("sub",))
+    _to_element_inline(elem, constructor, it.content, ("sub",))
     return elem
 
 
@@ -2573,7 +2739,7 @@ class Ph(SupportsSub):
 
     Parameters
     ----------
-    elem : :external:class:`lxml.etree._Element` | :external:class:`xml.etree.ElementTree.Element`
+    elem : :external:class:`lxml.etree.Element` | :external:class:`xml.etree.ElementTree.Element`
         The Element to parse.
     x : int | str | None, optional
         Used to match inline elements :class:`Bpt`, :class:`It`, :class:`Ph`,
@@ -2647,154 +2813,13 @@ class Ph(SupportsSub):
         pass
 
   @staticmethod
-  def _to_element(ph: Ph) -> et._Element:
+  def _to_element(
+    ph: Ph, constructor: Callable[..., XmlElementLike] = et.Element
+  ) -> XmlElementLike:
     attribs = asdict(ph, filter=_only_str_int_dt)
-    elem = et.Element("ph")
+    elem = constructor("ph")
     _fill_attributes(elem, attribs)
-    _to_element_inline(elem, ph.content, ("sub",))
-    return elem
-
-
-@define(kw_only=True)
-class Sub(SupportsInlineNoSub):
-  type: str | None = field(
-    default=None, validator=validators.optional(validators.instance_of(str))
-  )
-  """
-  The type of the data contained in the element. By default None.
-  """
-  datatype: str | None = field(
-    default=None, validator=validators.optional(validators.instance_of(str))
-  )
-  """
-  The data type of the element. By default None.
-  """
-
-  def _content_validator(self, attribute, value):
-    if not isinstance(value, (Bpt, Ept, It, Ph, Hi, Ut)):
-      raise TypeError(
-        f"content must be a collection of Bpt, Ept, It, Ph, Hi, Ut and/or str, not {type(value).__name__}"
-      )
-
-  content: MutableSequence[str | Bpt | Ept | It | Ph | Hi | Ut] = field(
-    factory=list,
-    validator=validators.deep_iterable(
-      member_validator=[validators.instance_of((str)), _content_validator],
-    ),
-  )
-  """
-  A MutableSequence of strings, or :class:`Bpt`, :class:`Ept`, :class:`It`,
-  :class:`Ph`, :class:`Hi`, :class:`Ut` elements. While any iterable
-  (or even a Generator expression) can technically be used, it is recommended to
-  use a list or some other collection that preserves the order of the elements.
-  At the very least, the container should support the ``append``.
-  By default an empty list. 
-  """
-
-  def add_bpt(self, bpt=None, *, content=None, i=None, x=None, type=None):
-    return super().add_bpt(bpt, content=content, i=i, x=x, type=type)
-
-  def add_ept(self, ept=None, *, content=None, i=None):
-    return super().add_ept(ept, content=content, i=i)
-
-  def add_hi(self, hi=None, *, type=None, x=None, content=None):
-    return super().add_hi(hi, type=type, x=x, content=content)
-
-  def add_it(self, it=None, *, content=None, pos=None, x=None, type=None):
-    return super().add_it(it, content=content, pos=pos, x=x, type=type)
-
-  def add_ph(self, ph=None, *, content=None, i=None, x=None, assoc=None):
-    return super().add_ph(ph, content=content, i=i, x=x, assoc=assoc)
-
-  def add_ut(self, ut=None, *, x=None, content=None):
-    return super().add_ut(ut, x=x, content=content)
-
-  @staticmethod
-  def _from_element(
-    elem: XmlElementLike,
-    *,
-    type: str | None = None,
-    datatype: str | None = None,
-    content: Iterable[str | Bpt | Ept | It | Ph | Hi | Ut] | None = None,
-  ) -> Sub:
-    """
-    Create a :class:`Sub` Element from an XmlElement.
-
-    Parameters
-    ----------
-    elem : :external:class:`lxml.etree._Element` | :external:class:`xml.etree.ElementTree.Element`
-        The Element to parse.
-    type : str | None, optional
-        The type of the data contained in the element. By default None.
-    datatype : str | None, optional
-        The data type of the element. By default None.
-    content : Iterable[str | Bpt | Ept | It | Ph | Hi | Ut] | None, optional
-        A Iterable of strings, or :class:`Bpt`, :class:`Ept`, :class:`It`,
-        :class:`Ph`, :class:`Hi`, :class:`Ut` elements. While any iterable
-        (or even a Generator expression) can technically be used, the resulting
-        element :attr:`content` will be a list of made of the provided elements.
-        If the Iterable does not preserve insertion order, the order of the
-        resulting list cannot be guaranteed. By default an empty list.
-
-    Returns
-    -------
-    Sub
-        A new :class:`Sub` Object with the provided values
-
-    Raises
-    ------
-    TypeError
-        If `elem` is not an XmlElementLike, or any of the attributes is not a string.
-    ValueError
-        If the element's tag is not 'sub'.
-
-    Examples
-    --------
-
-    >>> from xml.etree.ElementTree import Element
-    >>> from PythonTmx.classes import Sub
-    >>> elem = Element("sub")
-    >>> elem.set("type", "x-my-type")
-    >>> elem.set("datatype", "x-my-type")
-    >>> elem.text = "sub-text"
-    >>> sub = Sub.from_element(elem)
-    >>> print(sub)
-    Sub(type='x-my-type', datatype='x-my-type', content=['sub-text'])
-    """
-    if elem.tag != "sub":
-      raise ValueError(f"Expected <sub> element, got <{str(elem.tag)}>")
-    if content is None:
-      content = _parse_inline(elem, mask=("bpt", "ept", "it", "ph", "hi", "ut"))
-    else:
-      content_ = []
-      for e in content:
-        if not isinstance(e, (Bpt, Ept, It, Ph, Hi, Ut, str)):
-          raise TypeError(f"Expected Bpt, Ept, It, Ph, Hi, Ut or str, got {type(e)}")
-        content_.append(e)
-      content = content_
-    return Sub(
-      type=type if type is not None else elem.get("type"),
-      datatype=datatype if datatype is not None else elem.get("datatype"),
-      content=content,
-    )
-
-  @staticmethod
-  def _to_element(sub: Sub) -> et._Element:
-    attribs = asdict(sub, filter=_only_str_int_dt)
-    elem = et.Element("sub")
-    _fill_attributes(elem, attribs)
-    _to_element_inline(
-      elem,
-      sub.content,
-      (
-        "bpt",
-        "ept",
-        "it",
-        "ph",
-        "hi",
-        "ut",
-      ),
-    )
+    _to_element_inline(elem, constructor, ph.content, ("sub",))
     return elem
 
 
@@ -2861,7 +2886,7 @@ class Ut(SupportsSub):
 
     Parameters
     ----------
-    elem : :external:class:`lxml.etree._Element` | :external:class:`xml.etree.ElementTree.Element`
+    elem : :external:class:`lxml.etree.Element` | :external:class:`xml.etree.ElementTree.Element`
         The Element to parse.
     x : int | str | None, optional
         Used to match inline elements :class:`Bpt`, :class:`It`, :class:`Ph`,
@@ -2925,11 +2950,13 @@ class Ut(SupportsSub):
         pass
 
   @staticmethod
-  def _to_element(ut: Ut) -> et._Element:
+  def _to_element(
+    ut: Ut, constructor: Callable[..., XmlElementLike] = et.Element
+  ) -> XmlElementLike:
     attribs = asdict(ut, filter=_only_str_int_dt)
-    elem = et.Element("ut")
+    elem = constructor("sub")
     _fill_attributes(elem, attribs)
-    _to_element_inline(elem, ut.content, ("sub"))
+    _to_element_inline(elem, constructor, ut.content, ("sub",))
     return elem
 
 
@@ -3110,7 +3137,7 @@ class Tuv(SupportsNotesAndProps):
 
     Parameters
     ----------
-    elem : :external:class:`lxml.etree._Element` | :external:class:`xml.etree.ElementTree.Element`
+    elem : :external:class:`lxml.etree.Element` | :external:class:`xml.etree.ElementTree.Element`
         The Element to parse..
     segment : Iterable[str  |  Bpt  |  Ept  |  It  |  Ph  |  Hi  |  Ut] | None, optional
         Any Iterable of strings, or :class:`Bpt`, :class:`Ept`, :class:`It`, :class:`Ph`,
@@ -3239,7 +3266,7 @@ class Tuv(SupportsNotesAndProps):
         segment_.append(e)
       segment = segment_
     if props is None:
-      props = [Prop._from_element(e) for e in elem if e.tag == "prop"]
+      props = [Prop._from_element(e) for e in elem.iter() if e.tag == "prop"]
     else:
       props_ = []
       for prop in props:
@@ -3248,7 +3275,7 @@ class Tuv(SupportsNotesAndProps):
         props_.append(prop)
       props = props_
     if notes is None:
-      notes = [Note._from_element(e) for e in elem if e.tag == "note"]
+      notes = [Note._from_element(e) for e in elem.iter() if e.tag == "note"]
     else:
       notes_ = []
       for note in notes:
@@ -3283,21 +3310,25 @@ class Tuv(SupportsNotesAndProps):
     )
 
   @staticmethod
-  def _to_element(tuv: Tuv) -> et._Element:
+  def _to_element(
+    tuv: Tuv, constructor: Callable[..., XmlElementLike] = et.Element
+  ) -> XmlElementLike:
     attribs = asdict(tuv, filter=_only_str_int_dt)
-    elem = et.Element("tuv")
+    elem = constructor("tuv")
     _fill_attributes(elem, attribs)
     for note in tuv.notes:
       if not isinstance(note, Note):
         raise TypeError(f"Expected Note, got {type(note)}")
-      elem.append(Note._to_element(note))
+      elem.append(Note._to_element(note, constructor))
     for prop in tuv.props:
       if not isinstance(prop, Prop):
         raise TypeError(f"Expected Prop, got {type(prop)}")
-      elem.append(Prop._to_element(prop))
-    seg = et.SubElement(elem, "seg")
-    seg.text = ""
-    _to_element_inline(seg, tuv.segment, ("bpt", "ept", "it", "ph", "hi", "ut"))
+      elem.append(Prop._to_element(prop, constructor))
+    seg = constructor("seg")
+    elem.append(seg)
+    _to_element_inline(
+      seg, constructor, tuv.segment, ("bpt", "ept", "it", "ph", "hi", "ut")
+    )
     return elem
 
   def __attrs_post_init__(self):
@@ -3522,7 +3553,7 @@ class Tu(SupportsNotesAndProps):
 
     Parameters
     ----------
-    elem : :external:class:`lxml.etree._Element` | :external:class:`xml.etree.ElementTree.Element`
+    elem : :external:class:`lxml.etree.Element` | :external:class:`xml.etree.ElementTree.Element`
         The Element to parse.
     tuid : str | None, optional
         The ID of the translation unit. Its value is not defined by the standard.
@@ -3650,7 +3681,7 @@ class Tu(SupportsNotesAndProps):
     if elem.tag != "tu":
       raise ValueError(f"Expected <tu> element, got <{str(elem.tag)}>")
     if props is None:
-      props = [Prop._from_element(e) for e in elem if e.tag == "prop"]
+      props = [Prop._from_element(e) for e in elem.iter() if e.tag == "prop"]
     else:
       props_ = []
       for prop in props:
@@ -3659,7 +3690,7 @@ class Tu(SupportsNotesAndProps):
         props_.append(prop)
       props = props_
     if notes is None:
-      notes = [Note._from_element(e) for e in elem if e.tag == "note"]
+      notes = [Note._from_element(e) for e in elem.iter() if e.tag == "note"]
     else:
       notes_ = []
       for note in notes:
@@ -3668,7 +3699,7 @@ class Tu(SupportsNotesAndProps):
         notes_.append(note)
       notes = notes_
     if tuvs is None:
-      tuvs = [Tuv._from_element(e) for e in elem if e.tag == "tuv"]
+      tuvs = [Tuv._from_element(e) for e in elem.iter() if e.tag == "tuv"]
     else:
       tuvs_ = []
       for tuv in tuvs:
@@ -3704,22 +3735,24 @@ class Tu(SupportsNotesAndProps):
     )
 
   @staticmethod
-  def _to_element(tu: Tu) -> et._Element:
+  def _to_element(
+    tu: Tu, constructor: Callable[..., XmlElementLike] = et.Element
+  ) -> XmlElementLike:
     attribs = asdict(tu, filter=_only_str_int_dt)
-    elem = et.Element("tu")
+    elem = constructor("tu")
     _fill_attributes(elem, attribs)
     for note in tu.notes:
       if not isinstance(note, Note):
         raise TypeError(f"Expected Note, got {type(note)}")
-      elem.append(Note._to_element(note))
+      elem.append(Note._to_element(note, constructor))
     for prop in tu.props:
       if not isinstance(prop, Prop):
         raise TypeError(f"Expected Prop, got {type(prop)}")
-      elem.append(Prop._to_element(prop))
+      elem.append(Prop._to_element(prop, constructor))
     for tuv in tu.tuvs:
       if not isinstance(tuv, Tuv):
         raise TypeError(f"Expected Tuv, got {type(tuv)}")
-      elem.append(Tuv._to_element(tuv))
+      elem.append(Tuv._to_element(tuv, constructor))
     return elem
 
   def __attrs_post_init__(self):
@@ -4274,14 +4307,38 @@ class Tmx:
     self.tus.append(tu_)
 
   @staticmethod
-  def _to_element(tmx: Tmx) -> et._Element:
-    elem = et.Element("tmx", version="1.4")
-    if tmx.header is None:
-      raise TypeError("Cannot export Tmx with an empty header")
-    elem.append(Header._to_element(tmx.header))
-    body = et.SubElement(elem, "body")
+  def _to_element(
+    tmx: Tmx, constructor: Callable[..., XmlElementLike] = et.Element
+  ) -> XmlElementLike:
+    elem = constructor("tmx")
+    elem.set("version", "1.4")
+    if not isinstance(tmx.header, Header):
+      raise TypeError(f"Expected Header, got {type(tmx.header)}")
+    elem.append(Header._to_element(tmx.header, constructor))
+    body = constructor("body")
+    elem.append(body)
     for tu in tmx.tus:
       if not isinstance(tu, Tu):
         raise TypeError(f"Expected Tu, got {type(tu)}")
-      body.append(Tu._to_element(tu))
+      body.append(Tu._to_element(tu, constructor))
     return elem
+
+
+TmxElement = Union[
+  Note
+  | Prop
+  | Ude
+  | Map
+  | Header
+  | Tu
+  | Tuv
+  | Tmx
+  | Bpt
+  | Ept
+  | It
+  | Ph
+  | Hi
+  | Ut
+  | Sub
+  | Ude
+]
