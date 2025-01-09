@@ -1,152 +1,171 @@
 from __future__ import annotations
 
 import datetime as dt
+import xml.etree.ElementTree as et
 from collections.abc import MutableSequence
-from dataclasses import dataclass, field
-from enum import Enum
-from functools import partial
+from dataclasses import field
+from typing import Literal
 
-from PythonTmx.utils import _try_parse_dt
-
-
-def add_map(target: Ude, _map: Map) -> None:
-  """
-  Adds the give :class:`Map` object to the target :class:`Ude` object.
-
-  The :class:`Map` is appended to the :attr:`~Ude.maps` attribute.
-
-  If the target is not a :class:`Ude` object or :param:`_map` is not a
-  :class:`Map`, a TypeError will be raised.
-
-  Parameters
-  ----------
-  target : Ude
-      The :class:`Ude` to add the :class:`Map` to.
-  _map : Map
-      The :class:`Map` to add to the target.
-
-  Raises
-  ------
-  TypeError
-      If the :param:`target` is not a :class:`Ude` object or :param:`_map` is
-      not a :class:`Map` object.
-
-  """
-  if not isinstance(target, Ude):
-    raise TypeError(f"target must be a Ude object, not {type(target)}")
-  if not isinstance(_map, Map):
-    raise TypeError(f"_map must be a Map object, not {type(_map)}")
-  target.maps.append(_map)
+from PythonTmx.errors import ValidationError
+from PythonTmx.validation import validate_unicode_value
 
 
-class SEGTYPE(Enum):
-  BLOCK: str = "block"
-  PARAGRAPH: str = "paragraph"
-  SENTENCE: str = "sentence"
-  PHRASE: str = "phrase"
-
-
-class POS(Enum):
-  BEGIN: str = "begin"
-  END: str = "end"
-
-
-class ASSOC(Enum):
-  P: str = "p"
-  F: str = "f"
-  B: str = "b"
-
-
-@dataclass
 class Note:
-  text: str
-  lang: str | None = None
-  encoding: str | None = None
+  def __init__(
+    self,
+    text: str,
+    lang: str | None = None,
+    encoding: str | None = None,
+    *,
+    init_validate: bool = False,
+  ):
+    self.text = text
+    self.lang = lang
+    self.encoding = encoding
 
 
-@dataclass
 class Prop:
-  text: str
-  type: str
-  lang: str | None = None
-  encoding: str | None = None
+  def __init__(
+    self,
+    text: str,
+    type: str,
+    lang: str | None = None,
+    encoding: str | None = None,
+    *,
+    init_validate: bool = False,
+  ):
+    self.text = text
+    self.lang = lang
+    self.type = type
+    self.encoding = encoding
 
 
-@dataclass
 class Map:
-  unicode: str
-  code: str | None = None
-  ent: str | None = None
-  subst: str | None = None
+  __slots__ = ("unicode", "code", "ent", "subst")
 
+  def __init__(
+    self,
+    unicode: str,
+    code: str | None = None,
+    ent: str | None = None,
+    subst: str | None = None,
+    *,
+    init_validate: bool = False,
+  ):
+    self.unicode = unicode
+    self.code = code
+    self.ent = ent
+    self.subst = subst
+    if init_validate:
+      self.validate()
 
-@dataclass
-class Ude:
-  name: str
-  base: str | None = None
-  maps: MutableSequence[Map] = field(default_factory=list)
+  def validate(self):
+    try:
+      validate_unicode_value(self.unicode)
+    except (ValueError, TypeError) as e:
+      raise ValidationError("unicode") from e
+    if self.code is not None:
+      try:
+        validate_unicode_value(self.code)
+      except (ValueError, TypeError) as e:
+        raise ValidationError("code") from e
+    if self.ent is not None:
+      try:
+        if not self.ent.isascii():
+          raise ValueError("value must be ASCII")
+      except (ValueError, TypeError) as e:
+        raise ValidationError("ent") from e
+    if self.subst is not None:
+      try:
+        if not self.subst.isascii():
+          raise ValueError("value must be ASCII")
+      except (ValueError, TypeError) as e:
+        raise ValidationError("subst") from e
 
-  def __post_init__(self):
-    self.add_map = partial(add_map, target=self)
-    self.add_map.__doc__ = (
-      "Partial application of :func:`add_map` with the target set to self.\n"
-      + add_map.__doc__
+  def to_element(self) -> et.Element:
+    self.validate(**{s: getattr(self, s) for s in self.__slots__})
+    return et.Element(
+      "map",
+      {s: getattr(self, s) for s in self.__slots__ if getattr(self, s) is not None},
     )
 
+  @classmethod
+  def from_element(cls, element: et.Element, init_validate: bool = False) -> Map:
+    if not element.tag == "map":
+      raise ValueError("element's tag must be 'map'")
+    return cls(**element.attrib, init_validate=init_validate)
 
-@dataclass
+
+class Ude:
+  __slots__ = ("name", "base", "maps")
+
+  def __init__(
+    self,
+    name: str,
+    base: str | None = None,
+    maps: MutableSequence[Map] | None = None,
+    *,
+    init_validate: bool = False,
+  ) -> None:
+    self.name = name
+    self.base = base
+    self.maps = maps if maps is not None else []
+    if init_validate:
+      self.validate()
+
+  def validate(self):
+    if not isinstance(self.name, str):
+      raise ValidationError("name") from TypeError(
+        "value must be a string but got", type(self.name)
+      )
+    if len(self.maps) and any(map.code is not None for map in self.maps):
+      if not isinstance(self.base, str):
+        raise ValidationError("base") from TypeError(
+          "value must be a string if at least one map has a code but got",
+          type(self.base),
+        )
+    if self.base is not None and not isinstance(self.base, str):
+      raise ValidationError("base") from TypeError(
+        "value must be a string but got", type(self.base)
+      )
+
+
 class Header:
   creationtool: str
   creationtoolversion: str
-  segtype: SEGTYPE
+  segtype: Literal["block", "paragraph", "sentence", "phrase"]
   tmf: str
   adminlang: str
   srclang: str
   datatype: str
   encoding: str | None = None
-  creationdate: str | dt.datetime | None = None
+  creationdate: dt.datetime | None = None
   creationid: str | None = None
-  changedate: str | dt.datetime | None = None
+  changedate: dt.datetime | None = None
   changeid: str | None = None
   notes: MutableSequence[Note] = field(default_factory=list)
   props: MutableSequence[Prop] = field(default_factory=list)
   udes: MutableSequence[Ude] = field(default_factory=list)
 
-  def __post_init__(self):
-    if isinstance(self.creationdate, str):
-      self.creationdate = _try_parse_dt(self.creationdate)
-    if isinstance(self.changedate, str):
-      self.changedate = _try_parse_dt(self.changedate)
 
-
-@dataclass
 class Tuv:
   lang: str
   segment: MutableSequence[str] = field(default_factory=list)
   encoding: str | None = None
   datatype: str | None = None
   usagecount: str | None = None
-  lastusagedate: str | dt.datetime | None = None
+  lastusagedate: dt.datetime | None = None
   creationtool: str | None = None
   creationtoolversion: str | None = None
-  creationdate: str | dt.datetime | None = None
+  creationdate: dt.datetime | None = None
   creationid: str | None = None
-  changedate: str | dt.datetime | None = None
+  changedate: dt.datetime | None = None
   tmf: str | None = None
   changeid: str | None = None
   notes: MutableSequence[str] = field(default_factory=list)
   props: MutableSequence[str] = field(default_factory=list)
 
-  def __post_init__(self):
-    if isinstance(self.creationdate, str):
-      self.creationdate = _try_parse_dt(self.creationdate)
-    if isinstance(self.changedate, str):
-      self.changedate = _try_parse_dt(self.changedate)
-    if isinstance(self.lastusagedate, str):
-      self.lastusagedate = _try_parse_dt(self.lastusagedate)
 
-
-@dataclass
 class Tu:
   tuvs: MutableSequence[Tuv] = field(default_factory=list)
   notes: MutableSequence[Note] = field(default_factory=list)
@@ -161,19 +180,17 @@ class Tu:
   creationdate: str | None = None
   creationid: str | None = None
   changedate: str | None = None
-  segtype: SEGTYPE | None = None
+  segtype: Literal["block", "paragraph", "sentence", "phrase"] | None = None
   changeid: str | None = None
   tmf: str | None = None
   srclang: str | None = None
 
 
-@dataclass
 class Tmx:
   header: Header
   tus: MutableSequence[Tu] = field(default_factory=list)
 
 
-@dataclass
 class Sub:
   content: MutableSequence[str | Bpt | Ept | It | Ph | Hi | Ut] = field(
     default_factory=list
@@ -182,7 +199,6 @@ class Sub:
   datatype: str | None = None
 
 
-@dataclass
 class Bpt:
   i: int
   content: MutableSequence[str | Sub] = field(default_factory=list)
@@ -190,29 +206,25 @@ class Bpt:
   type: str | None = None
 
 
-@dataclass
 class Ept:
   i: int
   content: MutableSequence[str | Sub] = field(default_factory=list)
 
 
-@dataclass
 class It:
-  pos: POS
+  pos: Literal["begin", "end"]
   content: MutableSequence[str | Sub] = field(default_factory=list)
   x: int | None = None
   type: str | None = None
 
 
-@dataclass
 class Ph:
   content: MutableSequence[str | Sub] = field(default_factory=list)
   x: int | None = None
-  assoc: ASSOC | None = None
+  assoc: Literal["p", "f", "b"] | None = None
   type: str | None = None
 
 
-@dataclass
 class Hi:
   content: MutableSequence[str | Bpt | Ept | It | Ph | Hi | Ut] = field(
     default_factory=list
@@ -221,7 +233,6 @@ class Hi:
   type: str | None = None
 
 
-@dataclass
 class Ut:
   content: MutableSequence[str | Sub] = field(default_factory=list)
   x: int | None = None

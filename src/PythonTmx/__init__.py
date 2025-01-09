@@ -1,0 +1,17 @@
+from PythonTmx.classes import (
+  Bpt,
+  Ept,
+  Header,
+  Hi,
+  It,
+  Map,
+  Note,
+  Ph,
+  Prop,
+  Sub,
+  Tmx,
+  Tu,
+  Tuv,
+  Ude,
+  Ut,
+)
