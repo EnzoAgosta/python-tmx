@@ -1,5 +1,0 @@
-classes
-=======
-
-.. automodule:: classes
-   :members:
