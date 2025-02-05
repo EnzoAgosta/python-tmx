@@ -9,11 +9,24 @@ from warnings import warn
 
 import lxml.etree as lxet
 
-import PythonTmx.classes.structural as cl
+import PythonTmx.classes as cl
 
-__TYPES: tp.Dict[str, tp.Type[tp.Any]] = {
+__TYPES: tp.Dict[str, tp.Type[cl.Structural | cl.Inline]] = {
   "ude": cl.Ude,
   "map": cl.Map,
+  "note": cl.Note,
+  "prop": cl.Prop,
+  "tmx": cl.Tmx,
+  "tu": cl.Tu,
+  "tuv": cl.Tuv,
+  "header": cl.Header,
+  "ph": cl.Ph,
+  "bpt": cl.Bpt,
+  "ept": cl.Ept,
+  "it": cl.It,
+  "hi": cl.Hi,
+  "sub": cl.Sub,
+  "ut": cl.Ut,
 }
 
 
@@ -21,7 +34,7 @@ def from_element(element: pyet.Element | lxet._Element) -> tp.Optional[tp.Any]:
   tag = str(element.tag)
   if tag.lower() not in __TYPES:
     raise ValueError(f"Unknown tag: {tag!r}")
-  return __TYPES[tag.lower()].from_element(element)
+  return __TYPES[tag.lower()].from_element(element)  # type:ignore
 
 
 def from_string(string: str) -> tp.Optional[tp.Any]:
@@ -82,3 +95,46 @@ def _make_elem(
     return pyet.Element(tag, attrib=attrib)
   else:
     raise ValueError(f"Unknown engine: {engine!r}")
+
+
+def _parse_content(element: pyet.Element | lxet._Element) -> list[str | cl.Inline]:
+  content: list[str | cl.Inline] = []
+  if element.text:
+    content.append(element.text)
+  for child in element:
+    if child.tag not in __TYPES:
+      raise ValueError(f"Unknown tag: {child.tag!r}")
+    if child.tag not in {"sub", "it", "hi", "bpt", "ept", "ph", "ut"}:
+      raise ValueError(f"Non inline tag: {child.tag!r}")
+    content.append(__TYPES[child.tag].from_element(child))  # type:ignore
+    if child.tail:
+      content.append(child.tail)
+  return content
+
+
+def _add_content(
+  elem: lxet._Element | pyet.Element,
+  content: list[str | cl.Inline],
+  engine: tp.Literal["lxml", "python"],
+  allowed_types: tuple[tp.Type, ...],
+) -> None:
+  last: pyet.Element | lxet._Element = elem
+  for item in content:
+    if not isinstance(item, allowed_types):
+      raise TypeError(
+        f"Expected a str or one of {allowed_types!r} element but got {type(item)!r}"
+      )
+    if isinstance(item, str):
+      if last is elem:
+        if elem.text:
+          elem.text += item
+        else:
+          elem.text = item
+      else:
+        if last.tail:
+          last.tail += item
+        else:
+          last.tail = item
+    elif isinstance(item, cl.Inline):
+      last = item.to_element(engine)
+      elem.append(last)  # type:ignore

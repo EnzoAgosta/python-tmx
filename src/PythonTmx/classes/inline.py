@@ -4,11 +4,17 @@ import dataclasses as dc
 import enum
 import typing as tp
 import xml.etree.ElementTree as pyet
+from collections import abc
 from warnings import deprecated, warn
 
 import lxml.etree as lxet
 
-from PythonTmx.functions import _make_elem, _make_xml_attrs
+from PythonTmx.functions import (
+  _add_content,
+  _make_elem,
+  _make_xml_attrs,
+  _parse_content,
+)
 
 
 class POS(enum.Enum):
@@ -28,6 +34,12 @@ class ASSOC(enum.Enum):
   unsafe_hash=True,
 )
 class Bpt:
+  content: abc.Sequence[str | Sub] = dc.field(
+    default_factory=list,
+    hash=True,
+    compare=True,
+    metadata={"exclude": True},
+  )
   i: int = dc.field(
     hash=True,
     compare=True,
@@ -57,12 +69,15 @@ class Bpt:
         x = int(x)
       except (ValueError, TypeError):
         warn(f"Expected int for x but got {type(x)!r}")
-    return Bpt(i=i, x=x, type=type_)
+    content = kwargs.get("content", _parse_content(element))
+    return Bpt(content=content, i=i, x=x, type=type_)
 
   def to_element(
     self, engine: tp.Literal["lxml", "python"] = "lxml", **kwargs
   ) -> lxet._Element | pyet.Element:
-    return _make_elem("bpt", _make_xml_attrs(self, **kwargs), engine)
+    elem = _make_elem("bpt", _make_xml_attrs(self, **kwargs), engine)
+    _add_content(elem, kwargs.get("content", self.content), engine, (str, Sub))
+    return elem
 
 
 @dc.dataclass(
@@ -71,6 +86,12 @@ class Bpt:
   unsafe_hash=True,
 )
 class Ept:
+  content: abc.Sequence[str | Sub] = dc.field(
+    default_factory=list,
+    hash=True,
+    compare=True,
+    metadata={"exclude": True},
+  )
   i: int = dc.field(
     hash=True,
     compare=True,
@@ -83,12 +104,15 @@ class Ept:
       i = int(i)
     except (ValueError, TypeError):
       warn(f"Expected int for i but got {type(i)!r}")
-    return Ept(i=i)
+    content = kwargs.get("content", _parse_content(element))
+    return Ept(i=i, content=content)
 
   def to_element(
     self, engine: tp.Literal["lxml", "python"] = "lxml", **kwargs
   ) -> lxet._Element | pyet.Element:
-    return _make_elem("ept", _make_xml_attrs(self, **kwargs), engine)
+    elem = _make_elem("ept", _make_xml_attrs(self, **kwargs), engine)
+    _add_content(elem, kwargs.get("content", self.content), engine, (str, Sub))
+    return elem
 
 
 @dc.dataclass(
@@ -97,6 +121,12 @@ class Ept:
   unsafe_hash=True,
 )
 class Sub:
+  content: abc.Sequence[str | Bpt | Ept | It | Ph | Hi | Ut] = dc.field(
+    default_factory=list,
+    hash=True,
+    compare=True,
+    metadata={"exclude": True},
+  )
   datatype: tp.Optional[str] = dc.field(
     hash=True,
     compare=True,
@@ -110,12 +140,19 @@ class Sub:
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Sub:
-    return Sub(**dict(element.attrib) | kwargs)
+    content = kwargs.get("content", _parse_content(element))
+    datatype = kwargs.get("datatype", element.attrib.get("datatype"))
+    type_ = kwargs.get("type", element.attrib.get("type"))
+    return Sub(content=content, datatype=datatype, type=type_)
 
   def to_element(
     self, engine: tp.Literal["lxml", "python"] = "lxml", **kwargs
   ) -> lxet._Element | pyet.Element:
-    return _make_elem("sub", _make_xml_attrs(self, **kwargs), engine)
+    elem = _make_elem("sub", _make_xml_attrs(self, **kwargs), engine)
+    _add_content(
+      elem, kwargs.get("content", self.content), engine, (str, Bpt, Ept, It, Ph, Hi, Ut)
+    )
+    return elem
 
 
 @dc.dataclass(
@@ -124,6 +161,12 @@ class Sub:
   unsafe_hash=True,
 )
 class It:
+  content: abc.Sequence[str | Sub] = dc.field(
+    default_factory=list,
+    hash=True,
+    compare=True,
+    metadata={"exclude": True},
+  )
   pos: POS = dc.field(
     hash=True,
     compare=True,
@@ -152,12 +195,15 @@ class It:
       pos = POS(pos)
     except (ValueError, TypeError):
       warn(f"Expected one of 'begin' or 'end' for pos but got {pos!r}")
-    return It(pos=pos, x=x, type=type_)
+    content = kwargs.get("content", _parse_content(element))
+    return It(pos=pos, x=x, type=type_, content=content)
 
   def to_element(
     self, engine: tp.Literal["lxml", "python"] = "lxml", **kwargs
   ) -> lxet._Element | pyet.Element:
-    return _make_elem("it", _make_xml_attrs(self, **kwargs), engine)
+    elem = _make_elem("it", _make_xml_attrs(self, **kwargs), engine)
+    _add_content(elem, kwargs.get("content", self.content), engine, (str, Sub))
+    return elem
 
 
 @dc.dataclass(
@@ -166,6 +212,12 @@ class It:
   unsafe_hash=True,
 )
 class Ph:
+  content: abc.Sequence[str | Sub] = dc.field(
+    default_factory=list,
+    hash=True,
+    compare=True,
+    metadata={"exclude": True},
+  )
   x: tp.Optional[int] = dc.field(
     hash=True,
     default=None,
@@ -195,12 +247,15 @@ class Ph:
       assoc = ASSOC(assoc)
     except (ValueError, TypeError):
       warn(f"Expected one of 'p', 'f' or 'b' for pos but got {assoc!r}")
-    return Ph(assoc=assoc, x=x, type=type_)
+    content = kwargs.get("content", _parse_content(element))
+    return Ph(assoc=assoc, x=x, type=type_, content=content)
 
   def to_element(
     self, engine: tp.Literal["lxml", "python"] = "lxml", **kwargs
   ) -> lxet._Element | pyet.Element:
-    return _make_elem("ph", _make_xml_attrs(self, **kwargs), engine)
+    elem = _make_elem("ph", _make_xml_attrs(self, **kwargs), engine)
+    _add_content(elem, kwargs.get("content", self.content), engine, (str, Sub))
+    return elem
 
 
 @dc.dataclass(
@@ -209,6 +264,12 @@ class Ph:
   unsafe_hash=True,
 )
 class Hi:
+  content: abc.Sequence[str | Sub] = dc.field(
+    default_factory=list,
+    hash=True,
+    compare=True,
+    metadata={"exclude": True},
+  )
   x: tp.Optional[int] = dc.field(
     hash=True,
     default=None,
@@ -228,12 +289,15 @@ class Hi:
       x = int(x)
     except (ValueError, TypeError):
       warn(f"Expected int for x but got {x!r}")
-    return Hi(x=x, type=type_)
+    content = kwargs.get("content", _parse_content(element))
+    return Hi(x=x, type=type_, content=content)
 
   def to_element(
     self, engine: tp.Literal["lxml", "python"] = "lxml", **kwargs
   ) -> lxet._Element | pyet.Element:
-    return _make_elem("hi", _make_xml_attrs(self, **kwargs), engine)
+    elem = _make_elem("hi", _make_xml_attrs(self, **kwargs), engine)
+    _add_content(elem, kwargs.get("content", self.content), engine, (str, Sub))
+    return elem
 
 
 @dc.dataclass(
@@ -243,6 +307,12 @@ class Hi:
 )
 @deprecated("Deprecated since TMX 1.4")
 class Ut:
+  content: abc.Sequence[str | Sub] = dc.field(
+    default_factory=list,
+    hash=True,
+    compare=True,
+    metadata={"exclude": True},
+  )
   x: tp.Optional[int] = dc.field(
     hash=True,
     default=None,
@@ -256,9 +326,12 @@ class Ut:
       x = int(x)
     except (ValueError, TypeError):
       warn(f"Expected int for x but got {x!r}")
-    return Ut(x=x)
+    content = kwargs.get("content", _parse_content(element))
+    return Ut(x=x, content=content)
 
   def to_element(
     self, engine: tp.Literal["lxml", "python"] = "lxml", **kwargs
   ) -> lxet._Element | pyet.Element:
-    return _make_elem("ut", _make_xml_attrs(self, **kwargs), engine)
+    elem = _make_elem("ut", _make_xml_attrs(self, **kwargs), engine)
+    _add_content(elem, kwargs.get("content", self.content), engine, (str, Sub))
+    return elem

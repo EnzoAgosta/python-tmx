@@ -10,7 +10,13 @@ from warnings import warn
 
 import lxml.etree as lxet
 
-from PythonTmx.functions import _make_elem, _make_xml_attrs
+from PythonTmx.classes import Bpt, Ept, Hi, It, Ph, Ut
+from PythonTmx.functions import (
+  _add_content,
+  _make_elem,
+  _make_xml_attrs,
+  _parse_content,
+)
 
 
 class SEGTYPE(Enum):
@@ -350,6 +356,12 @@ class Header:
 
 @dc.dataclass(kw_only=True, slots=True, unsafe_hash=True)
 class Tuv:
+  segment: abc.Sequence[str | Bpt | Ept | Ph | It | Hi | Ut] = dc.field(
+    default_factory=list,
+    hash=True,
+    compare=True,
+    metadata={"exclude": True},
+  )
   lang: str = dc.field(
     hash=True,
     compare=True,
@@ -442,6 +454,10 @@ class Tuv:
     changedate = kwargs.get("changedate", element.attrib.get("changedate"))
     tmf = kwargs.get("tmf", element.attrib.get("o-tmf"))
     changeid = kwargs.get("changeid", element.attrib.get("changeid"))
+    if kwargs.get("segment") is None:
+      if (segment := element.find("seg")) is None:
+        raise ValueError("could not find segment")
+      segment_ = _parse_content(segment)
     if creationdate is not None:
       try:
         creationdate = dt.datetime.fromisoformat(creationdate)
@@ -463,6 +479,7 @@ class Tuv:
       except (ValueError, TypeError):
         warn(f"could not parse {usagecount!r} as an int.")
     return Tuv(
+      segment=segment_,  # type: ignore
       lang=lang,
       encoding=encoding,
       datatype=datatype,
@@ -489,6 +506,7 @@ class Tuv:
     elem = _make_elem("tuv", _make_xml_attrs(self, **kwargs), engine)
     elem.extend(note.to_element(engine) for note in self.notes)  # type: ignore
     elem.extend(prop.to_element(engine) for prop in self.props)  # type: ignore
+    _add_content(elem, self.segment, engine, (str, Bpt, Ept, Ph, It, Hi, Ut))  # type: ignore
     return elem
 
 
