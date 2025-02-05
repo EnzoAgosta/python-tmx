@@ -10,9 +10,7 @@ from warnings import warn
 
 import lxml.etree as lxet
 
-
-class Structural:
-  __slots__ = ()
+from PythonTmx.functions import _make_elem, _make_xml_attrs
 
 
 class SEGTYPE(Enum):
@@ -38,44 +36,12 @@ def _parse_tus(elem: pyet.Element | lxet._Element) -> list[Tu]:
   return [Tu.from_element(note) for note in elem.iter("tu")]
 
 
-def _make_xml_attrs(obj: dc._DataclassT, kwargs: dict[str, tp.Any]) -> dict[str, str]:
-  xml_attrs: dict[str, str] = dict()
-  for field in dc.fields(obj):
-    if not field.metadata.get("exclude", False):
-      val = kwargs.pop(field.name, getattr(obj, field.name))
-      if not isinstance(val, field.type):  # type:ignore
-        raise TypeError(
-          f"Expected one of {field.type!r} for {field.name!r} but got {type(val)!r}"
-        )
-      if isinstance(val, int):
-        val = str(val)
-      elif isinstance(val, Enum):
-        val = val.value
-      elif isinstance(val, dt.datetime):
-        val = val.strftime("%Y%m%dT%H%M%SZ")
-      elif isinstance(val, str):
-        pass
-      xml_attrs[field.metadata.get("export_name", field.name)] = val
-  return xml_attrs
-
-
-def _make_elem(
-  tag: str, attrib: dict[str, str], engine: tp.Literal["python", "lxml"]
-) -> lxet._Element | pyet.Element:
-  if engine == "lxml":
-    return lxet.Element(tag, attrib=attrib)
-  elif engine == "python":
-    return pyet.Element(tag, attrib=attrib)
-  else:
-    raise ValueError(f"Unknown engine: {engine!r}")
-
-
 @dc.dataclass(
   kw_only=True,
   slots=True,
   unsafe_hash=True,
 )
-class Map(Structural):
+class Map:
   unicode: str = dc.field(
     hash=True,
     compare=True,
@@ -111,7 +77,7 @@ class Map(Structural):
   slots=True,
   unsafe_hash=True,
 )
-class Ude(Structural):
+class Ude:
   name: str = dc.field(
     hash=True,
     compare=True,
@@ -161,9 +127,7 @@ class Ude(Structural):
   slots=True,
   unsafe_hash=True,
 )
-class Note(
-  Structural,
-):
+class Note:
   text: str = dc.field(
     hash=True,
     compare=True,
@@ -200,7 +164,7 @@ class Note(
 
 
 @dc.dataclass(kw_only=True, slots=True, unsafe_hash=True)
-class Prop(Structural):
+class Prop:
   text: str = dc.field(
     hash=True,
     compare=True,
@@ -242,7 +206,7 @@ class Prop(Structural):
 
 
 @dc.dataclass(kw_only=True, slots=True, unsafe_hash=True)
-class Header(Structural):
+class Header:
   creationtool: str = dc.field(
     hash=True,
     compare=True,
@@ -323,7 +287,7 @@ class Header(Structural):
     creationtoolversion = kwargs.get(
       "creationtoolversion", element.attrib.get("creationtoolversion")
     )
-    segtype = SEGTYPE(kwargs.get("segtype", element.attrib.get("segtype")))
+    segtype = kwargs.get("segtype", element.attrib.get("segtype"))
     tmf = kwargs.get("tmf", element.attrib.get("o-tmf"))
     adminlang = kwargs.get("adminlang", element.attrib.get("adminlang"))
     srclang = kwargs.get("srclang", element.attrib.get("srclang"))
@@ -343,6 +307,13 @@ class Header(Structural):
         changedate = dt.datetime.fromisoformat(changedate)
       except (ValueError, TypeError):
         warn(f"could not parse {changedate!r} as a datetime object.")
+    if segtype is not None:
+      try:
+        segtype = SEGTYPE(segtype)
+      except (ValueError, TypeError):
+        warn(
+          f"Expected one of 'block', 'paragraph', 'sentence' or 'phrase' for segtype but got {segtype!r}."
+        )
     return Header(
       creationtool=creationtool,
       creationtoolversion=creationtoolversion,
@@ -378,7 +349,7 @@ class Header(Structural):
 
 
 @dc.dataclass(kw_only=True, slots=True, unsafe_hash=True)
-class Tuv(Structural):
+class Tuv:
   lang: str = dc.field(
     hash=True,
     compare=True,
@@ -481,6 +452,11 @@ class Tuv(Structural):
         changedate = dt.datetime.fromisoformat(changedate)
       except (ValueError, TypeError):
         warn(f"could not parse {changedate!r} as a datetime object.")
+    if lastusagedate is not None:
+      try:
+        lastusagedate = dt.datetime.fromisoformat(lastusagedate)
+      except (ValueError, TypeError):
+        warn(f"could not parse {lastusagedate!r} as a datetime object.")
     if usagecount is not None:
       try:
         usagecount = int(usagecount)
@@ -517,7 +493,7 @@ class Tuv(Structural):
 
 
 @dc.dataclass(kw_only=True, slots=True, unsafe_hash=True)
-class Tu(Structural):
+class Tu:
   tuid: tp.Optional[str] = dc.field(
     default=None,
     hash=True,
@@ -622,7 +598,7 @@ class Tu(Structural):
     creationdate = kwargs.get("creationdate", element.attrib.get("creationdate"))
     creationid = kwargs.get("creationid", element.attrib.get("creationid"))
     changedate = kwargs.get("changedate", element.attrib.get("changedate"))
-    segtype = SEGTYPE(kwargs.get("segtype", element.attrib.get("segtype")))
+    segtype = kwargs.get("segtype", element.attrib.get("segtype"))
     tmf = kwargs.get("tmf", element.attrib.get("o-tmf"))
     changeid = kwargs.get("changeid", element.attrib.get("changeid"))
     srclang = kwargs.get("srclang", element.attrib.get("srclang"))
@@ -636,11 +612,23 @@ class Tu(Structural):
         changedate = dt.datetime.fromisoformat(changedate)
       except (ValueError, TypeError):
         warn(f"could not parse {changedate!r} as a datetime object.")
+    if lastusagedate is not None:
+      try:
+        lastusagedate = dt.datetime.fromisoformat(lastusagedate)
+      except (ValueError, TypeError):
+        warn(f"could not parse {lastusagedate!r} as a datetime object.")
     if usagecount is not None:
       try:
         usagecount = int(usagecount)
       except (ValueError, TypeError):
         warn(f"could not parse {usagecount!r} as an int.")
+    if segtype is not None:
+      try:
+        segtype = SEGTYPE(segtype)
+      except (ValueError, TypeError):
+        warn(
+          f"Expected one of 'block', 'paragraph', 'sentence' or 'phrase' for segtype but got {segtype!r}."
+        )
     return Tu(
       tuid=tuid,
       encoding=encoding,
@@ -676,7 +664,7 @@ class Tu(Structural):
 
 
 @dc.dataclass(kw_only=True, slots=True, unsafe_hash=True)
-class Tmx(Structural):
+class Tmx:
   header: tp.Optional[Header] = dc.field(
     default=None,
     hash=True,
@@ -692,23 +680,25 @@ class Tmx(Structural):
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Tmx:
-    header_ = kwargs.get("header", element.find("header"))
-    if header_ is None:
-      raise ValueError("header is required")
-    elif not isinstance(header_, Header):
-      header_ = Header.from_element(header_)
+    header = kwargs.get("header", None)
+    if header is None:
+      if (header_elem := element.find("header")) is None:
+        raise ValueError("could not find header")
+      header = Header.from_element(header_elem)
     tus_ = kwargs.get("tus", None)
     if tus_ is None:
       if (body := element.find("body")) is None:
         raise ValueError("could not find body")
       tus_ = _parse_tus(body)
-    return Tmx(header=header_, tus=tus_)
+    return Tmx(header=header, tus=tus_)
 
   def to_element(
-    self, engine: tp.Literal["lxml", "python"] = "lxml", **kwargs
+    self,
+    engine: tp.Literal["lxml", "python"] = "lxml",
   ) -> lxet._Element | pyet.Element:
-    elem = _make_elem("tmx", _make_xml_attrs(self, **kwargs), engine)
+    elem = _make_elem("tmx", {"version": "1.4"}, engine)
     elem.append(self.header.to_element(engine))  # type: ignore
-    body = elem.append(_make_elem("body", dict(), engine))  # type: ignore
+    body = _make_elem("body", dict(), engine)
+    elem.append(body)  # type: ignore
     body.extend(tu.to_element(engine) for tu in self.tus)  # type: ignore
     return elem
