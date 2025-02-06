@@ -1,9 +1,12 @@
-import unittest
 import xml.etree.ElementTree as pyet
+
+import lxml.etree as lxet
+import pytest
 
 from PythonTmx import Note
 
 
+@pytest.fixture
 def correct_elem_python():
   elem = pyet.Element("note")
   elem.text = "test"
@@ -12,62 +15,163 @@ def correct_elem_python():
   return elem
 
 
+@pytest.fixture
 def correct_elem_lxml():
-  elem = pyet.Element("note")
+  elem = lxet.Element("note")
   elem.text = "test"
   elem.set("{http://www.w3.org/XML/1998/namespace}lang", "en")
   elem.set("o-encoding", "utf-8")
   return elem
 
 
-class TestNote(unittest.TestCase):
-  def setUp(self):
-    self.correct_elem_python = correct_elem_python()
-    self.correct_elem_lxml = correct_elem_lxml()
-
+class TestNote:
   def test_init(self):
     note = Note(text="test", lang="en", encoding="utf-8")
-    self.assertEqual(note.text, "test")
-    self.assertEqual(note.lang, "en")
-    self.assertEqual(note.encoding, "utf-8")
+    assert note.text == "test"
+    assert note.lang == "en"
+    assert note.encoding == "utf-8"
 
   def test_empy_init(self):
-    with self.assertRaises(TypeError):
+    with pytest.raises(TypeError):
       Note()
 
   def test_minimum_init(self):
     note = Note(text="test")
-    self.assertEqual(note.text, "test")
-    self.assertIsNone(note.lang)
-    self.assertIsNone(note.encoding)
+    assert note.text == "test"
+    assert note.lang is None
+    assert note.encoding is None
 
-  def test_from_element_python(self):
-    note = Note.from_element(self.correct_elem_python)
-    self.assertEqual(note.text, "test")
-    self.assertEqual(note.lang, "en")
-    self.assertEqual(note.encoding, "utf-8")
+  def test_from_element_python(self, correct_elem_python):
+    note = Note.from_element(correct_elem_python)
+    assert note.text == "test" == correct_elem_python.text
+    assert (
+      note.lang
+      == "en"
+      == correct_elem_python.attrib.get("{http://www.w3.org/XML/1998/namespace}lang")
+    )
+    assert note.encoding == "utf-8" == correct_elem_python.attrib.get("o-encoding")
 
-  def test_from_element_lxml(self):
-    note = Note.from_element(self.correct_elem_lxml)
-    self.assertEqual(note.text, "test")
-    self.assertEqual(note.lang, "en")
-    self.assertEqual(note.encoding, "utf-8")
+  def test_from_element_python_kwargs(self, correct_elem_python):
+    note = Note.from_element(correct_elem_python, lang="es", encoding="utf-16")
+    assert note.text == "test" == correct_elem_python.text
+    assert (
+      note.lang
+      == "es"
+      != correct_elem_python.attrib.get("{http://www.w3.org/XML/1998/namespace}lang")
+    )
+    assert note.encoding == "utf-16" != correct_elem_python.attrib.get("o-encoding")
 
-  def test_to_element_python(self):
-    note = Note.from_element(self.correct_elem_python)
+  def test_from_element_lxml(self, correct_elem_lxml):
+    note = Note.from_element(correct_elem_lxml)
+    assert note.text == "test" == correct_elem_lxml.text
+    assert (
+      note.lang
+      == "en"
+      == correct_elem_lxml.attrib.get("{http://www.w3.org/XML/1998/namespace}lang")
+    )
+    assert note.encoding == "utf-8" == correct_elem_lxml.attrib.get("o-encoding")
+
+  def test_from_element_lxml_kwargs(self, correct_elem_lxml):
+    note = Note.from_element(correct_elem_lxml, lang="es", encoding="utf-16")
+    assert note.text == "test" == correct_elem_lxml.text
+    assert (
+      note.lang
+      == "es"
+      != correct_elem_lxml.attrib.get("{http://www.w3.org/XML/1998/namespace}lang")
+    )
+    assert note.encoding == "utf-16" != correct_elem_lxml.attrib.get("o-encoding")
+
+  def test_to_element_python(self, correct_elem_python):
+    note = Note.from_element(correct_elem_python)
     note_elem = note.to_element("python")
-    self.assertEqual(note_elem.tag, self.correct_elem_python.tag)
-    self.assertEqual(note_elem.text, self.correct_elem_python.text)
-    self.assertDictEqual(note_elem.attrib, self.correct_elem_python.attrib)
+    assert note_elem.tag == correct_elem_python.tag == "note"
+    assert note_elem.text == correct_elem_python.text == "test"
+    assert dict(note_elem.attrib) == correct_elem_python.attrib
 
-  def test_to_element_lxml(self):
-    note = Note.from_element(self.correct_elem_lxml)
+  def test_to_element_python_kwargs(self, correct_elem_python):
+    note = Note.from_element(correct_elem_python)
+    note_elem = note.to_element("python", lang="es", encoding="utf-16")
+    assert note_elem.tag == correct_elem_python.tag == "note"
+    assert note_elem.text == correct_elem_python.text == "test"
+    assert dict(note_elem.attrib) != dict(correct_elem_python.attrib)
+    assert note_elem.attrib["{http://www.w3.org/XML/1998/namespace}lang"] == "es"
+    assert note_elem.attrib["o-encoding"] == "utf-16"
+
+  def test_to_element_python_kwargs_add_extra(self, correct_elem_python):
+    note = Note.from_element(correct_elem_python)
+    note_elem = note.to_element(
+      "python", add_extra=True, lang="es", encoding="utf-16", extra="test"
+    )
+    assert note_elem.tag == correct_elem_python.tag == "note"
+    assert note_elem.text == correct_elem_python.text == "test"
+    assert dict(note_elem.attrib) != dict(correct_elem_python.attrib)
+    assert note_elem.attrib["{http://www.w3.org/XML/1998/namespace}lang"] == "es"
+    assert note_elem.attrib["o-encoding"] == "utf-16"
+    assert note_elem.attrib["extra"] == "test"
+
+  def test_to_element_lxml(self, correct_elem_lxml):
+    note = Note.from_element(correct_elem_lxml)
     note_elem = note.to_element("lxml")
-    self.assertEqual(note_elem.tag, self.correct_elem_lxml.tag)
-    self.assertEqual(note_elem.text, self.correct_elem_lxml.text)
-    self.assertDictEqual(dict(note_elem.attrib), self.correct_elem_lxml.attrib)
-    # lxml _Attrib behaves like a dict but isn't a dict Subclass so casting to dict is needed
+    assert note_elem.tag == correct_elem_lxml.tag == "note"
+    assert note_elem.text == correct_elem_lxml.text == "test"
+    assert dict(note_elem.attrib) == dict(correct_elem_lxml.attrib)
+
+  def test_to_element_lxml_kwargs_add_extra(self, correct_elem_lxml):
+    note = Note.from_element(correct_elem_lxml)
+    note_elem = note.to_element(
+      "lxml", add_extra=True, lang="es", encoding="utf-16", extra="test"
+    )
+    assert note_elem.tag == correct_elem_lxml.tag == "note"
+    assert note_elem.text == correct_elem_lxml.text == "test"
+    assert dict(note_elem.attrib) != dict(correct_elem_lxml.attrib)
+    assert note_elem.attrib["{http://www.w3.org/XML/1998/namespace}lang"] == "es"
+    assert note_elem.attrib["o-encoding"] == "utf-16"
+    assert note_elem.attrib["extra"] == "test"
+
+  def test_to_element_lxml_kwargs(self, correct_elem_lxml):
+    note = Note.from_element(correct_elem_lxml)
+    note_elem = note.to_element("lxml", lang="es", encoding="utf-16")
+    assert note_elem.tag == correct_elem_lxml.tag == "note"
+    assert note_elem.text == correct_elem_lxml.text == "test"
+    assert dict(note_elem.attrib) != dict(correct_elem_lxml.attrib)
+    assert note_elem.attrib["{http://www.w3.org/XML/1998/namespace}lang"] == "es"
+    assert note_elem.attrib["o-encoding"] == "utf-16"
 
   def test_from_element_invalid(self):
-    with self.assertRaises(ValueError):
+    with pytest.raises(ValueError):
       Note.from_element(pyet.Element("test"))
+
+  def test_incorrect_attrib_type_export(self):
+    note = Note(text="test", lang="en", encoding=123)
+    with pytest.raises(TypeError):
+      note.to_element()
+
+  def test_incorrect_text_export(self):
+    note = Note(text=13)
+    with pytest.raises(TypeError):
+      note.to_element()
+
+  def test_extra_attrib(self):
+    with pytest.raises(TypeError):
+      Note(text="test", lang="en", encoding="utf-8", extra="test")
+
+  def test_extra_attrib_from_element_python(self, correct_elem_python):
+    elem = correct_elem_python
+    elem.set("extra", "test")
+    note = Note.from_element(elem)
+    assert hasattr(note, "extra") is False
+
+  def test_extra_attrib_from_element_lxml(self, correct_elem_lxml):
+    elem = correct_elem_lxml
+    elem.set("extra", "test")
+    note = Note.from_element(elem)
+    assert hasattr(note, "extra") is False
+
+  def test_wrong_engine(self):
+    with pytest.raises(ValueError):
+      Note(text="test").to_element("wrong")
+
+  def test_engines(self):
+    note = Note(text="test")
+    assert isinstance(note.to_element("lxml"), lxet._Element)
+    assert isinstance(note.to_element("python"), pyet.Element)

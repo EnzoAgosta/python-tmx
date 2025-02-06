@@ -11,7 +11,7 @@ from warnings import deprecated, warn
 import lxml.etree as lxet
 
 
-def _make_xml_attrs(obj: object, **kwargs) -> dict[str, str]:
+def _make_xml_attrs(obj: object, add_extra: bool = False, **kwargs) -> dict[str, str]:
   if not dc.is_dataclass(obj):
     raise TypeError(f"Expected a dataclass but got {type(obj)!r}")
   xml_attrs: dict[str, str] = dict()
@@ -44,6 +44,8 @@ def _make_xml_attrs(obj: object, **kwargs) -> dict[str, str]:
       elif isinstance(val, str):
         pass
       xml_attrs[field.metadata.get("export_name", field.name)] = val
+  if add_extra:
+    xml_attrs.update(kwargs)
   return xml_attrs
 
 
@@ -182,13 +184,20 @@ class Map:
     return Map(**dict(element.attrib) | kwargs)
 
   @tp.overload
-  def to_element(self, engine: tp.Literal["lxml"]) -> lxet._Element: ...
-  @tp.overload
-  def to_element(self, engine: tp.Literal["python"]) -> pyet.Element: ...
   def to_element(
-    self, engine: tp.Literal["lxml", "python"] = "lxml", **kwargs
+    self, engine: tp.Literal["lxml"], add_extra: bool = False, **kwargs
+  ) -> lxet._Element: ...
+  @tp.overload
+  def to_element(
+    self, engine: tp.Literal["python"], add_extra: bool = False, **kwargs
+  ) -> pyet.Element: ...
+  def to_element(
+    self,
+    engine: tp.Literal["lxml", "python"] = "lxml",
+    add_extra: bool = False,
+    **kwargs,
   ) -> lxet._Element | pyet.Element:
-    return _make_elem("map", _make_xml_attrs(self, **kwargs), engine)
+    return _make_elem("map", _make_xml_attrs(self, add_extra, **kwargs), engine)
 
 
 @dc.dataclass(
@@ -226,16 +235,26 @@ class Ude:
     return Ude(**dict(element.attrib) | kwargs, maps=maps)
 
   @tp.overload
-  def to_element(self, engine: tp.Literal["lxml"]) -> lxet._Element: ...
-  @tp.overload
-  def to_element(self, engine: tp.Literal["python"]) -> pyet.Element: ...
   def to_element(
-    self, engine: tp.Literal["lxml", "python"] = "lxml", **kwargs
+    self, engine: tp.Literal["lxml"], add_extra: bool = False, **kwargs
+  ) -> lxet._Element: ...
+  @tp.overload
+  def to_element(
+    self, engine: tp.Literal["python"], add_extra: bool = False, **kwargs
+  ) -> pyet.Element: ...
+  def to_element(
+    self,
+    engine: tp.Literal["lxml", "python"] = "lxml",
+    add_extra: bool = False,
+    **kwargs,
   ) -> lxet._Element | pyet.Element:
-    elem = _make_elem(
-      "ude",
-      _make_xml_attrs(self, **kwargs),
-      engine,
+    elem = (
+      _make_elem,
+      add_extra(
+        "ude",
+        _make_xml_attrs(self, **kwargs),
+        engine,
+      ),
     )
     if len(self.maps):
       for map_ in self.maps:
@@ -281,13 +300,22 @@ class Note:
     return Note(text=text, lang=lang, encoding=encoding)
 
   @tp.overload
-  def to_element(self, engine: tp.Literal["lxml"]) -> lxet._Element: ...
-  @tp.overload
-  def to_element(self, engine: tp.Literal["python"]) -> pyet.Element: ...
   def to_element(
-    self, engine: tp.Literal["lxml", "python"] = "lxml", **kwargs
+    self, engine: tp.Literal["lxml"], add_extra: bool = False, **kwargs
+  ) -> lxet._Element: ...
+  @tp.overload
+  def to_element(
+    self, engine: tp.Literal["python"], add_extra: bool = False, **kwargs
+  ) -> pyet.Element: ...
+  def to_element(
+    self,
+    engine: tp.Literal["lxml", "python"] = "lxml",
+    add_extra: bool = False,
+    **kwargs,
   ) -> lxet._Element | pyet.Element:
-    elem = _make_elem("note", _make_xml_attrs(self, **kwargs), engine)
+    elem = _make_elem("note", _make_xml_attrs(self, add_extra, **kwargs), engine)
+    if not isinstance(self.text, str):
+      raise TypeError(f"Expected str for text but got {type(self.text)!r}")
     elem.text = self.text
     return elem
 
@@ -329,13 +357,22 @@ class Prop:
     return Prop(text=text, lang=lang, encoding=encoding, type=type_)
 
   @tp.overload
-  def to_element(self, engine: tp.Literal["lxml"]) -> lxet._Element: ...
-  @tp.overload
-  def to_element(self, engine: tp.Literal["python"]) -> pyet.Element: ...
   def to_element(
-    self, engine: tp.Literal["lxml", "python"] = "lxml", **kwargs
+    self, engine: tp.Literal["lxml"], add_extra: bool = False, **kwargs
+  ) -> lxet._Element: ...
+  @tp.overload
+  def to_element(
+    self, engine: tp.Literal["python"], add_extra: bool = False, **kwargs
+  ) -> pyet.Element: ...
+  def to_element(
+    self,
+    engine: tp.Literal["lxml", "python"] = "lxml",
+    add_extra: bool = False,
+    **kwargs,
   ) -> lxet._Element | pyet.Element:
-    elem = _make_elem("prop", _make_xml_attrs(self, **kwargs), engine)
+    elem = _make_elem("prop", _make_xml_attrs(self, add_extra, **kwargs), engine)
+    if not isinstance(self.text, str):
+      raise TypeError(f"Expected str for text but got {type(self.text)!r}")
     elem.text = self.text
     return elem
 
@@ -476,13 +513,20 @@ class Header:
     )
 
   @tp.overload
-  def to_element(self, engine: tp.Literal["lxml"]) -> lxet._Element: ...
-  @tp.overload
-  def to_element(self, engine: tp.Literal["python"]) -> pyet.Element: ...
   def to_element(
-    self, engine: tp.Literal["lxml", "python"] = "lxml", **kwargs
+    self, engine: tp.Literal["lxml"], add_extra: bool = False, **kwargs
+  ) -> lxet._Element: ...
+  @tp.overload
+  def to_element(
+    self, engine: tp.Literal["python"], add_extra: bool = False, **kwargs
+  ) -> pyet.Element: ...
+  def to_element(
+    self,
+    engine: tp.Literal["lxml", "python"] = "lxml",
+    add_extra: bool = False,
+    **kwargs,
   ) -> lxet._Element | pyet.Element:
-    elem = _make_elem("header", _make_xml_attrs(self, **kwargs), engine)
+    elem = _make_elem("header", _make_xml_attrs(self, add_extra, **kwargs), engine)
     elem.extend(note.to_element(engine) for note in self.notes)  # type: ignore
     elem.extend(prop.to_element(engine) for prop in self.props)  # type: ignore
     elem.extend(ude.to_element(engine) for ude in self.udes)  # type: ignore
@@ -638,13 +682,20 @@ class Tuv:
     )
 
   @tp.overload
-  def to_element(self, engine: tp.Literal["lxml"]) -> lxet._Element: ...
-  @tp.overload
-  def to_element(self, engine: tp.Literal["python"]) -> pyet.Element: ...
   def to_element(
-    self, engine: tp.Literal["lxml", "python"] = "lxml", **kwargs
+    self, engine: tp.Literal["lxml"], add_extra: bool = False, **kwargs
+  ) -> lxet._Element: ...
+  @tp.overload
+  def to_element(
+    self, engine: tp.Literal["python"], add_extra: bool = False, **kwargs
+  ) -> pyet.Element: ...
+  def to_element(
+    self,
+    engine: tp.Literal["lxml", "python"] = "lxml",
+    add_extra: bool = False,
+    **kwargs,
   ) -> lxet._Element | pyet.Element:
-    elem = _make_elem("tuv", _make_xml_attrs(self, **kwargs), engine)
+    elem = _make_elem("tuv", _make_xml_attrs(self, add_extra, **kwargs), engine)
     elem.extend(note.to_element(engine) for note in self.notes)  # type: ignore
     elem.extend(prop.to_element(engine) for prop in self.props)  # type: ignore
     seg = _make_elem("seg", dict(), engine)
@@ -817,13 +868,20 @@ class Tu:
     )
 
   @tp.overload
-  def to_element(self, engine: tp.Literal["lxml"]) -> lxet._Element: ...
-  @tp.overload
-  def to_element(self, engine: tp.Literal["python"]) -> pyet.Element: ...
   def to_element(
-    self, engine: tp.Literal["lxml", "python"] = "lxml", **kwargs
+    self, engine: tp.Literal["lxml"], add_extra: bool = False, **kwargs
+  ) -> lxet._Element: ...
+  @tp.overload
+  def to_element(
+    self, engine: tp.Literal["python"], add_extra: bool = False, **kwargs
+  ) -> pyet.Element: ...
+  def to_element(
+    self,
+    engine: tp.Literal["lxml", "python"] = "lxml",
+    add_extra: bool = False,
+    **kwargs,
   ) -> lxet._Element | pyet.Element:
-    elem = _make_elem("tu", _make_xml_attrs(self, **kwargs), engine)
+    elem = _make_elem("tu", _make_xml_attrs(self, add_extra, **kwargs), engine)
     elem.extend(note.to_element(engine) for note in self.notes)  # type: ignore
     elem.extend(prop.to_element(engine) for prop in self.props)  # type: ignore
     elem.extend(tuv.to_element(engine) for tuv in self.tuvs)  # type: ignore
@@ -862,9 +920,13 @@ class Tmx:
     return Tmx(header=header, tus=tus_)
 
   @tp.overload
-  def to_element(self, engine: tp.Literal["lxml"]) -> lxet._Element: ...
+  def to_element(
+    self, engine: tp.Literal["lxml"], add_extra: bool = False, **kwargs
+  ) -> lxet._Element: ...
   @tp.overload
-  def to_element(self, engine: tp.Literal["python"]) -> pyet.Element: ...
+  def to_element(
+    self, engine: tp.Literal["python"], add_extra: bool = False, **kwargs
+  ) -> pyet.Element: ...
   def to_element(
     self,
     engine: tp.Literal["lxml", "python"] = "lxml",
@@ -924,13 +986,20 @@ class Bpt:
     return Bpt(content=content, i=i, x=x, type=type_)
 
   @tp.overload
-  def to_element(self, engine: tp.Literal["lxml"]) -> lxet._Element: ...
-  @tp.overload
-  def to_element(self, engine: tp.Literal["python"]) -> pyet.Element: ...
   def to_element(
-    self, engine: tp.Literal["lxml", "python"] = "lxml", **kwargs
+    self, engine: tp.Literal["lxml"], add_extra: bool = False, **kwargs
+  ) -> lxet._Element: ...
+  @tp.overload
+  def to_element(
+    self, engine: tp.Literal["python"], add_extra: bool = False, **kwargs
+  ) -> pyet.Element: ...
+  def to_element(
+    self,
+    engine: tp.Literal["lxml", "python"] = "lxml",
+    add_extra: bool = False,
+    **kwargs,
   ) -> lxet._Element | pyet.Element:
-    elem = _make_elem("bpt", _make_xml_attrs(self, **kwargs), engine)
+    elem = _make_elem("bpt", _make_xml_attrs(self, add_extra, **kwargs), engine)
     _add_content(elem, kwargs.get("content", self.content), engine, (str, Sub))
     return elem
 
@@ -965,13 +1034,20 @@ class Ept:
     return Ept(i=i, content=content)
 
   @tp.overload
-  def to_element(self, engine: tp.Literal["lxml"]) -> lxet._Element: ...
-  @tp.overload
-  def to_element(self, engine: tp.Literal["python"]) -> pyet.Element: ...
   def to_element(
-    self, engine: tp.Literal["lxml", "python"] = "lxml", **kwargs
+    self, engine: tp.Literal["lxml"], add_extra: bool = False, **kwargs
+  ) -> lxet._Element: ...
+  @tp.overload
+  def to_element(
+    self, engine: tp.Literal["python"], add_extra: bool = False, **kwargs
+  ) -> pyet.Element: ...
+  def to_element(
+    self,
+    engine: tp.Literal["lxml", "python"] = "lxml",
+    add_extra: bool = False,
+    **kwargs,
   ) -> lxet._Element | pyet.Element:
-    elem = _make_elem("ept", _make_xml_attrs(self, **kwargs), engine)
+    elem = _make_elem("ept", _make_xml_attrs(self, add_extra, **kwargs), engine)
     _add_content(elem, kwargs.get("content", self.content), engine, (str, Sub))
     return elem
 
@@ -1009,13 +1085,20 @@ class Sub:
     return Sub(content=content, datatype=datatype, type=type_)
 
   @tp.overload
-  def to_element(self, engine: tp.Literal["lxml"]) -> lxet._Element: ...
-  @tp.overload
-  def to_element(self, engine: tp.Literal["python"]) -> pyet.Element: ...
   def to_element(
-    self, engine: tp.Literal["lxml", "python"] = "lxml", **kwargs
+    self, engine: tp.Literal["lxml"], add_extra: bool = False, **kwargs
+  ) -> lxet._Element: ...
+  @tp.overload
+  def to_element(
+    self, engine: tp.Literal["python"], add_extra: bool = False, **kwargs
+  ) -> pyet.Element: ...
+  def to_element(
+    self,
+    engine: tp.Literal["lxml", "python"] = "lxml",
+    add_extra: bool = False,
+    **kwargs,
   ) -> lxet._Element | pyet.Element:
-    elem = _make_elem("sub", _make_xml_attrs(self, **kwargs), engine)
+    elem = _make_elem("sub", _make_xml_attrs(self, add_extra, **kwargs), engine)
     _add_content(
       elem, kwargs.get("content", self.content), engine, (str, Bpt, Ept, It, Ph, Hi, Ut)
     )
@@ -1068,13 +1151,20 @@ class It:
     return It(pos=pos, x=x, type=type_, content=content)
 
   @tp.overload
-  def to_element(self, engine: tp.Literal["lxml"]) -> lxet._Element: ...
-  @tp.overload
-  def to_element(self, engine: tp.Literal["python"]) -> pyet.Element: ...
   def to_element(
-    self, engine: tp.Literal["lxml", "python"] = "lxml", **kwargs
+    self, engine: tp.Literal["lxml"], add_extra: bool = False, **kwargs
+  ) -> lxet._Element: ...
+  @tp.overload
+  def to_element(
+    self, engine: tp.Literal["python"], add_extra: bool = False, **kwargs
+  ) -> pyet.Element: ...
+  def to_element(
+    self,
+    engine: tp.Literal["lxml", "python"] = "lxml",
+    add_extra: bool = False,
+    **kwargs,
   ) -> lxet._Element | pyet.Element:
-    elem = _make_elem("it", _make_xml_attrs(self, **kwargs), engine)
+    elem = _make_elem("it", _make_xml_attrs(self, add_extra, **kwargs), engine)
     _add_content(elem, kwargs.get("content", self.content), engine, (str, Sub))
     return elem
 
@@ -1126,13 +1216,20 @@ class Ph:
     return Ph(assoc=assoc, x=x, type=type_, content=content)
 
   @tp.overload
-  def to_element(self, engine: tp.Literal["lxml"]) -> lxet._Element: ...
-  @tp.overload
-  def to_element(self, engine: tp.Literal["python"]) -> pyet.Element: ...
   def to_element(
-    self, engine: tp.Literal["lxml", "python"] = "lxml", **kwargs
+    self, engine: tp.Literal["lxml"], add_extra: bool = False, **kwargs
+  ) -> lxet._Element: ...
+  @tp.overload
+  def to_element(
+    self, engine: tp.Literal["python"], add_extra: bool = False, **kwargs
+  ) -> pyet.Element: ...
+  def to_element(
+    self,
+    engine: tp.Literal["lxml", "python"] = "lxml",
+    add_extra: bool = False,
+    **kwargs,
   ) -> lxet._Element | pyet.Element:
-    elem = _make_elem("ph", _make_xml_attrs(self, **kwargs), engine)
+    elem = _make_elem("ph", _make_xml_attrs(self, add_extra, **kwargs), engine)
     _add_content(elem, kwargs.get("content", self.content), engine, (str, Sub))
     return elem
 
@@ -1174,13 +1271,20 @@ class Hi:
     return Hi(x=x, type=type_, content=content)
 
   @tp.overload
-  def to_element(self, engine: tp.Literal["lxml"]) -> lxet._Element: ...
-  @tp.overload
-  def to_element(self, engine: tp.Literal["python"]) -> pyet.Element: ...
   def to_element(
-    self, engine: tp.Literal["lxml", "python"] = "lxml", **kwargs
+    self, engine: tp.Literal["lxml"], add_extra: bool = False, **kwargs
+  ) -> lxet._Element: ...
+  @tp.overload
+  def to_element(
+    self, engine: tp.Literal["python"], add_extra: bool = False, **kwargs
+  ) -> pyet.Element: ...
+  def to_element(
+    self,
+    engine: tp.Literal["lxml", "python"] = "lxml",
+    add_extra: bool = False,
+    **kwargs,
   ) -> lxet._Element | pyet.Element:
-    elem = _make_elem("hi", _make_xml_attrs(self, **kwargs), engine)
+    elem = _make_elem("hi", _make_xml_attrs(self, add_extra, **kwargs), engine)
     _add_content(elem, kwargs.get("content", self.content), engine, (str, Sub))
     return elem
 
@@ -1217,13 +1321,20 @@ class Ut:
     return Ut(x=x, content=content)
 
   @tp.overload
-  def to_element(self, engine: tp.Literal["lxml"]) -> lxet._Element: ...
-  @tp.overload
-  def to_element(self, engine: tp.Literal["python"]) -> pyet.Element: ...
   def to_element(
-    self, engine: tp.Literal["lxml", "python"] = "lxml", **kwargs
+    self, engine: tp.Literal["lxml"], add_extra: bool = False, **kwargs
+  ) -> lxet._Element: ...
+  @tp.overload
+  def to_element(
+    self, engine: tp.Literal["python"], add_extra: bool = False, **kwargs
+  ) -> pyet.Element: ...
+  def to_element(
+    self,
+    engine: tp.Literal["lxml", "python"] = "lxml",
+    add_extra: bool = False,
+    **kwargs,
   ) -> lxet._Element | pyet.Element:
-    elem = _make_elem("ut", _make_xml_attrs(self, **kwargs), engine)
+    elem = _make_elem("ut", _make_xml_attrs(self, add_extra, **kwargs), engine)
     _add_content(elem, kwargs.get("content", self.content), engine, (str, Sub))
     return elem
 
