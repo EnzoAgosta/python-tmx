@@ -1,5 +1,6 @@
 from PythonTmx.classes import (
   ASSOC,
+  ENGINE,
   POS,
   SEGTYPE,
   Bpt,

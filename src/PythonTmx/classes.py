@@ -49,8 +49,16 @@ def _make_xml_attrs(obj: object, add_extra: bool = False, **kwargs) -> dict[str,
   return xml_attrs
 
 
+@tp.overload
 def _make_elem(
-  tag: str, attrib: dict[str, str], engine: ENGINE
+  tag: str, attrib: dict[str, str], engine: tp.Literal[ENGINE.LXML]
+) -> lxet._Element: ...
+@tp.overload
+def _make_elem(
+  tag: str, attrib: dict[str, str], engine: tp.Literal[ENGINE.PYTHON]
+) -> pyet.Element: ...
+def _make_elem(
+  tag: str, attrib: dict[str, str], engine: tp.Literal[ENGINE.LXML, ENGINE.PYTHON]
 ) -> lxet._Element | pyet.Element:
   if engine is ENGINE.LXML:
     return lxet.Element(tag, attrib=attrib)
@@ -79,26 +87,102 @@ class ENGINE(enum.Enum):
 
 
 class POS(enum.Enum):
+  """
+  An Enum representing the possible values for the pos attribute in a <it> tag
+  and the It object. Indicates whether the element is a beginning or ending tag.
+  """
+
   BEGIN = "begin"
+  """
+  This isolated tag is a beginning tag.
+  """
   END = "end"
+  """
+  This isolated tag is an eding tag.
+  """
 
 
 class ASSOC(enum.Enum):
+  """
+  An Enum representing the possible values for the assoc attribute in a <ph> tag
+  and the Ph object. Indicates the element is associated with the text prior or
+  after.
+  """
+
   P = "p"
+  """
+  The element is associated with the text preceding the element.
+  """
   F = "f"
+  """
+  The element is associated with the text following the element.
+  """
   B = "b"
+  """
+  The element is associated with the text on both sides.
+  """
 
 
 class SEGTYPE(enum.Enum):
+  """
+  An Enum representing the possible values for the segtype attribute. Can be
+  used in a <tu> or a <header> tag and their correpsonding element. Specifies
+  the kind of segmentation. If a <tu> doesn't specify its segtype, CAT tools
+  will default to the one in the <header> tag.
+  """
+
   BLOCK = "block"
+  """
+  Used when the segment does not correspond to one of the other values, for
+  example when you want to store a chapter composed of several paragraphs in a
+  single <tu>.
+  """
   PARAGRAPH = "paragraph"
+  """
+  Used when the segment corresponds to a paragraph, i.e. multiple full sentences
+  in a single <tu>.
+  """
   SENTENCE = "sentence"
+  """
+  Used when a segment corresponds to a single grammatically correct sentence.
+  """
   PHRASE = "phrase"
+  """
+  Used when a segment corresponds to a single phrase, i.e. a group of words that
+  might or might not have semantic meaning.
+  """
 
 
 def _parse_content(
   element: pyet.Element | lxet._Element,
 ) -> list[str | Ph | It | Hi | Bpt | Ept | Sub | Ut]:
+  """
+  Internal function to parse the content of an inline tag.
+
+  Returns a list of the content of the tag (usually a <seg>) as a list of strings
+  and inline elements in document order.
+  If the element has text, it is appended to the list first, then each child is
+  parsed and appended to the list, followed by its tail text if it exists.
+
+  The function is Recursive and will go down as far as it needs to parse all the
+  content of the element.
+
+  Parameters
+  ----------
+  element : :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
+      The element to parse.
+
+  Returns
+  -------
+  list[str | Ph | It | Hi | Bpt | Ept | Sub | Ut]
+      A list of strings and inline element parsed from the element as they
+      would appear in a CAT tool.
+
+  Raises
+  ------
+  ValueError
+      if the tag is not recognized as an inline tag.
+  """
   content: list[str | Ph | It | Hi | Bpt | Ept | Sub | Ut] = []
   if element.text:
     content.append(element.text)
@@ -127,10 +211,36 @@ def _parse_content(
 
 def _add_content(
   elem: lxet._Element | pyet.Element,
-  content: list[str | Ph | It | Hi | Bpt | Ept | Sub | Ut],
-  engine: tp.Literal["lxml", "python"],
+  content: abc.Sequence[str | Ph | It | Hi | Bpt | Ept | Sub | Ut],
+  engine: ENGINE,
   allowed_types: tuple[tp.Type, ...],
 ) -> None:
+  """
+  Internal function to add the content of an InlineElement to its XML
+  representation using the given engine.
+
+  The function will iterate over the content list and add each item to the element.
+
+  Strings are added first to the element's text attribute. Elements are added
+  as children of the element. If there is another string after an element has
+  been added, that string is then added to the previous element's tail attribute.
+
+  Parameters
+  ----------
+  elem : :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
+      The XML element to add content to.
+  content : list[str  |  Ph  |  It  |  Hi  |  Bpt  |  Ept  |  Sub  |  Ut]
+      The content to be added to the element. A list of InlineElements and strings.
+  engine : ENGINE
+      The engine used to convert content elements to XML elements.
+  allowed_types : tuple[Type, ...]
+      A tuple of allowed types for the content elements.
+
+  Raises
+  ------
+  TypeError
+      If an item in the content list is not a string or one of the allowed types.
+  """
   last: pyet.Element | lxet._Element = elem
   for item in content:
     if isinstance(item, str):
@@ -150,22 +260,82 @@ def _add_content(
       )
     else:
       last = item.to_element(engine)
-      elem.append(last)  # type:ignore
+      elem.append(last)  # type: ignore
 
 
 def _parse_notes(elem: pyet.Element | lxet._Element) -> list[Note]:
+  """
+  Internal function to parse all the notes from the element. Converts them to
+  Note objects on the fly.
+
+  Parameters
+  ----------
+  elem : :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
+      The element to extract notes from.
+
+  Returns
+  -------
+  list[Note]
+      A list of Note object parsed from the object. Returns an empty list if no
+      notes are found.
+  """
   return [Note.from_element(note) for note in elem.iter("note")]
 
 
 def _parse_props(elem: pyet.Element | lxet._Element) -> list[Prop]:
+  """
+  Internal function to parse all the props from the element. Converts them to
+  Prop objects on the fly.
+
+  Parameters
+  ----------
+  elem : :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
+      The element to extract props from.
+
+  Returns
+  -------
+  list[Prop]
+      A list of Prop object parsed from the object. Returns an empty list if no
+      props are found.
+  """
   return [Prop.from_element(note) for note in elem.iter("prop")]
 
 
 def _parse_tuvs(elem: pyet.Element | lxet._Element) -> list[Tuv]:
+  """
+  Internal function to parse all the tuvs from the element. Converts them to
+  Tu objects on the fly.
+
+  Parameters
+  ----------
+  elem : :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
+      The element to extract tuvs from.
+
+  Returns
+  -------
+  list[Tuv]
+      A list of Tu object parsed from the object. Returns an empty list if no
+      tuvs are found.
+  """
   return [Tuv.from_element(note) for note in elem.iter("tuv")]
 
 
 def _parse_tus(elem: pyet.Element | lxet._Element) -> list[Tu]:
+  """
+  Internal function to parse all the tus from the element. Converts them to
+  Tuv objects on the fly.
+
+  Parameters
+  ----------
+  elem : :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
+      The element to extract tus from.
+
+  Returns
+  -------
+  list[Tu]
+      A list of Tu object parsed from the object. Returns an empty list if no
+      tuvs are found.
+  """
   return [Tu.from_element(note) for note in elem.iter("tu")]
 
 
@@ -222,10 +392,10 @@ class Map:
 
     Parameters
     ----------
-    element : :external:py:class:`lxml.etree._Element` | :py:class:`xml.etree.ElementTree.Element`
+    element : :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
         The element to parse. Must be a <map> tag.
     **kwargs
-        Additional keyword arguments to pass to the Map constructor. Values from
+        Additional keyword arguments to pass to the constructor. Values from
         these arguments will override values parsed from the element.
 
     Returns
@@ -247,20 +417,26 @@ class Map:
 
   @tp.overload
   def to_element(
-    self, engine: ENGINE = ENGINE.LXML, add_extra: bool = False, **kwargs
+    self,
+    engine: tp.Literal[ENGINE.LXML] = ENGINE.LXML,
+    add_extra: bool = False,
+    **kwargs,
   ) -> lxet._Element: ...
   @tp.overload
   def to_element(
-    self, engine: ENGINE = ENGINE.PYTHON, add_extra: bool = False, **kwargs
+    self,
+    engine: tp.Literal[ENGINE.PYTHON] = ENGINE.PYTHON,
+    add_extra: bool = False,
+    **kwargs,
   ) -> pyet.Element: ...
   def to_element(
     self,
-    engine: ENGINE = ENGINE.LXML,
+    engine: tp.Literal[ENGINE.LXML, ENGINE.PYTHON] = ENGINE.LXML,
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
     """
-    Create a Map object to an xml <map/> element.
+    Converts a Map object to an xml <map/> element.
 
     Parameters
     ----------
@@ -281,7 +457,7 @@ class Map:
 
     Returns
     -------
-    :external:py:class:`lxml.etree._Element` | :py:class:`xml.etree.ElementTree.Element`
+    :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
         A xml Element representing the Map object.
 
     Raises
@@ -291,7 +467,11 @@ class Map:
     ValueError
         If the engine is not recognized.
     """
-    return _make_elem("map", _make_xml_attrs(self, add_extra, **kwargs), engine)
+    return _make_elem(
+      "map",
+      _make_xml_attrs(self, add_extra=add_extra, **kwargs),
+      engine,
+    )
 
 
 @dc.dataclass(
@@ -300,26 +480,74 @@ class Map:
   unsafe_hash=True,
 )
 class Ude:
+  """
+  A dataclass representing a <ude> element in a tmx file.
+
+  *User-Defined Encoding* - The <ude> element is used to specify a set of
+  user-defined characters and/or, optionally their mapping from Unicode to
+  the user-defined encoding.
+  """
+
   name: str = dc.field(
     hash=True,
     compare=True,
   )
+  """
+  The name of the element. Its value is not defined by the standard. Required.
+  """
   base: tp.Optional[str] = dc.field(
     hash=True,
     compare=True,
     default=None,
   )
+  """
+  *Base encoding* - The encoding upon which the re-mapping is based. One of the
+  [IANA] recommended "charset identifier", if possible. Optional, by default None.
+  """
   maps: abc.Sequence[Map] = dc.field(
     hash=True,
     compare=True,
     default_factory=list,
     metadata={"exclude": True},
   )
+  """
+  A Sequence of Map objects representing the mappings from Unicode to the
+  user-defined encoding. Optional, by default an empty list.
+  """
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Ude:
-    if str(element.tag) != cls.__name__.lower():
-      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
+    """
+    Create a Ude object from an xml <ude> element.
+
+    Parameters
+    ----------
+    element : :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
+        The element to parse. Must be a <ude> tag.
+    **kwargs
+        Additional keyword arguments to pass to the Constructor. Values from
+        these arguments will override values parsed from the element.
+
+
+    .. note::
+        if `maps` is supplied as a keyword argument, the function will use that
+        value instead of parsing the element's children.
+
+    Returns
+    -------
+    Ude
+        A Ude object representing the parsed element.
+
+    Raises
+    ------
+    ValueError
+        If the element is not a <ude> tag.
+    TypeError
+        If the unicode attribute is missing from the element, or if any extra
+        attribute is found in the element or passed as a keyword argument.
+    """
+    if str(element.tag) != "ude":
+      raise ValueError(f"Expected a <ude> tag but got {element.tag!r}")
     maps = kwargs.pop("maps", None)
     if maps is None:
       if len(element):
@@ -330,26 +558,58 @@ class Ude:
 
   @tp.overload
   def to_element(
-    self, engine: tp.Literal["lxml"], add_extra: bool = False, **kwargs
+    self, engine: tp.Literal[ENGINE.LXML], add_extra: bool = False, **kwargs
   ) -> lxet._Element: ...
   @tp.overload
   def to_element(
-    self, engine: tp.Literal["python"], add_extra: bool = False, **kwargs
+    self, engine: tp.Literal[ENGINE.PYTHON], add_extra: bool = False, **kwargs
   ) -> pyet.Element: ...
   def to_element(
     self,
-    engine: tp.Literal["lxml", "python"] = "lxml",
+    engine: tp.Literal[ENGINE.LXML, ENGINE.PYTHON] = ENGINE.LXML,
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
-    elem = (
-      _make_elem,
-      add_extra(
-        "ude",
-        _make_xml_attrs(self, **kwargs),
-        engine,
-      ),
+    """
+    Converts a Ude object to an xml <ude> element. All of the Element's Map
+    objects are also converted to xml elements using the ENGINE passed as the
+    engine argument and added as children of the resulting <ude> element.
+
+    Parameters
+    ----------
+    engine : ENGINE, optional
+        The xml engine to use to create the Element, either python's standard
+        library or lxml, by default "lxml"
+    add_extra : bool, optional
+        Whether to add extra attributes to the resulting Element, by default False.
+    **kwargs
+        Additional attributes to add to the resulting Element. If add_extra is
+        False, any extra attribute passed as a keyword argument will be ignored.
+
+
+    .. warning::
+        If add_extra is True, any extra attribute passed as a keyword argument
+        will be added to the resulting Element, even if it is not a valid
+        attribute for a <ude> tag or the value is not a string.
+
+    Returns
+    -------
+    :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
+        A xml Element representing the Ude object.
+
+    Raises
+    ------
+    TypeError
+        If any attribute's type deosn't match its expected type.
+    ValueError
+        If the engine is not recognized.
+    """
+    elem = _make_elem(
+      "ude",
+      _make_xml_attrs(self, add_extra=add_extra, **kwargs),
+      engine,
     )
+
     if len(self.maps):
       for map_ in self.maps:
         if not self.base and map_.code:
@@ -384,8 +644,8 @@ class Note:
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Note:
-    if str(element.tag) != cls.__name__.lower():
-      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
+    if str(element.tag) != "note":
+      raise ValueError(f"Expected a <note> tag but got {element.tag!r}")
     lang = kwargs.get(
       "lang", element.attrib.get("{http://www.w3.org/XML/1998/namespace}lang")
     )
@@ -395,19 +655,21 @@ class Note:
 
   @tp.overload
   def to_element(
-    self, engine: tp.Literal["lxml"], add_extra: bool = False, **kwargs
+    self, engine: tp.Literal[ENGINE.LXML], add_extra: bool = False, **kwargs
   ) -> lxet._Element: ...
   @tp.overload
   def to_element(
-    self, engine: tp.Literal["python"], add_extra: bool = False, **kwargs
+    self, engine: tp.Literal[ENGINE.PYTHON], add_extra: bool = False, **kwargs
   ) -> pyet.Element: ...
   def to_element(
     self,
-    engine: tp.Literal["lxml", "python"] = "lxml",
+    engine: tp.Literal[ENGINE.LXML, ENGINE.PYTHON] = ENGINE.LXML,
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
-    elem = _make_elem("note", _make_xml_attrs(self, add_extra, **kwargs), engine)
+    elem = _make_elem(
+      "note", _make_xml_attrs(self, add_extra=add_extra, **kwargs), engine
+    )
     if not isinstance(self.text, str):
       raise TypeError(f"Expected str for text but got {type(self.text)!r}")
     elem.text = self.text
@@ -440,8 +702,8 @@ class Prop:
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Prop:
-    if str(element.tag) != cls.__name__.lower():
-      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
+    if str(element.tag) != "prop":
+      raise ValueError(f"Expected a <prop> tag but got {element.tag!r}")
     lang = kwargs.get(
       "lang", element.attrib.get("{http://www.w3.org/XML/1998/namespace}lang")
     )
@@ -452,19 +714,21 @@ class Prop:
 
   @tp.overload
   def to_element(
-    self, engine: tp.Literal["lxml"], add_extra: bool = False, **kwargs
+    self, engine: tp.Literal[ENGINE.LXML], add_extra: bool = False, **kwargs
   ) -> lxet._Element: ...
   @tp.overload
   def to_element(
-    self, engine: tp.Literal["python"], add_extra: bool = False, **kwargs
+    self, engine: tp.Literal[ENGINE.PYTHON], add_extra: bool = False, **kwargs
   ) -> pyet.Element: ...
   def to_element(
     self,
-    engine: tp.Literal["lxml", "python"] = "lxml",
+    engine: tp.Literal[ENGINE.LXML, ENGINE.PYTHON] = ENGINE.LXML,
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
-    elem = _make_elem("prop", _make_xml_attrs(self, add_extra, **kwargs), engine)
+    elem = _make_elem(
+      "prop", _make_xml_attrs(self, add_extra=add_extra, **kwargs), engine
+    )
     if not isinstance(self.text, str):
       raise TypeError(f"Expected str for text but got {type(self.text)!r}")
     elem.text = self.text
@@ -620,8 +884,10 @@ class Header:
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
-    elem = _make_elem("header", _make_xml_attrs(self, add_extra, **kwargs), engine)
-    elem.extend(note.to_element(engine) for note in self.notes)  # type: ignore
+    elem = _make_elem(
+      "header", _make_xml_attrs(self, add_extra=add_extra, **kwargs), engine
+    )
+    elem.extend(note.to_element(engine) for note in self.notes)
     elem.extend(prop.to_element(engine) for prop in self.props)  # type: ignore
     elem.extend(ude.to_element(engine) for ude in self.udes)  # type: ignore
     return elem
@@ -789,7 +1055,9 @@ class Tuv:
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
-    elem = _make_elem("tuv", _make_xml_attrs(self, add_extra, **kwargs), engine)
+    elem = _make_elem(
+      "tuv", _make_xml_attrs(self, add_extra=add_extra, **kwargs), engine
+    )
     elem.extend(note.to_element(engine) for note in self.notes)  # type: ignore
     elem.extend(prop.to_element(engine) for prop in self.props)  # type: ignore
     seg = _make_elem("seg", dict(), engine)
@@ -975,7 +1243,9 @@ class Tu:
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
-    elem = _make_elem("tu", _make_xml_attrs(self, add_extra, **kwargs), engine)
+    elem = _make_elem(
+      "tu", _make_xml_attrs(self, add_extra=add_extra, **kwargs), engine
+    )
     elem.extend(note.to_element(engine) for note in self.notes)  # type: ignore
     elem.extend(prop.to_element(engine) for prop in self.props)  # type: ignore
     elem.extend(tuv.to_element(engine) for tuv in self.tuvs)  # type: ignore
@@ -1093,7 +1363,9 @@ class Bpt:
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
-    elem = _make_elem("bpt", _make_xml_attrs(self, add_extra, **kwargs), engine)
+    elem = _make_elem(
+      "bpt", _make_xml_attrs(self, add_extra=add_extra, **kwargs), engine
+    )
     _add_content(elem, kwargs.get("content", self.content), engine, (str, Sub))
     return elem
 
@@ -1141,7 +1413,9 @@ class Ept:
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
-    elem = _make_elem("ept", _make_xml_attrs(self, add_extra, **kwargs), engine)
+    elem = _make_elem(
+      "ept", _make_xml_attrs(self, add_extra=add_extra, **kwargs), engine
+    )
     _add_content(elem, kwargs.get("content", self.content), engine, (str, Sub))
     return elem
 
@@ -1192,7 +1466,9 @@ class Sub:
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
-    elem = _make_elem("sub", _make_xml_attrs(self, add_extra, **kwargs), engine)
+    elem = _make_elem(
+      "sub", _make_xml_attrs(self, add_extra=add_extra, **kwargs), engine
+    )
     _add_content(
       elem, kwargs.get("content", self.content), engine, (str, Bpt, Ept, It, Ph, Hi, Ut)
     )
@@ -1258,7 +1534,9 @@ class It:
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
-    elem = _make_elem("it", _make_xml_attrs(self, add_extra, **kwargs), engine)
+    elem = _make_elem(
+      "it", _make_xml_attrs(self, add_extra=add_extra, **kwargs), engine
+    )
     _add_content(elem, kwargs.get("content", self.content), engine, (str, Sub))
     return elem
 
@@ -1323,7 +1601,9 @@ class Ph:
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
-    elem = _make_elem("ph", _make_xml_attrs(self, add_extra, **kwargs), engine)
+    elem = _make_elem(
+      "ph", _make_xml_attrs(self, add_extra=add_extra, **kwargs), engine
+    )
     _add_content(elem, kwargs.get("content", self.content), engine, (str, Sub))
     return elem
 
@@ -1378,7 +1658,9 @@ class Hi:
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
-    elem = _make_elem("hi", _make_xml_attrs(self, add_extra, **kwargs), engine)
+    elem = _make_elem(
+      "hi", _make_xml_attrs(self, add_extra=add_extra, **kwargs), engine
+    )
     _add_content(elem, kwargs.get("content", self.content), engine, (str, Sub))
     return elem
 
@@ -1428,7 +1710,9 @@ class Ut:
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
-    elem = _make_elem("ut", _make_xml_attrs(self, add_extra, **kwargs), engine)
+    elem = _make_elem(
+      "ut", _make_xml_attrs(self, add_extra=add_extra, **kwargs), engine
+    )
     _add_content(elem, kwargs.get("content", self.content), engine, (str, Sub))
     return elem
 

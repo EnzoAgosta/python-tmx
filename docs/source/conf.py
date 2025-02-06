@@ -25,8 +25,8 @@ exclude_patterns = []
 
 html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
-autodoc_member_order = "bysource"
 intersphinx_mapping = {
   "python": ("https://docs.python.org/3", None),
   "lxml": ("https://lxml.de/apidoc/", None),
 }
+autodoc_default_options = {"member-order": "bysource", "private-members": True}

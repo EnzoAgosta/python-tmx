@@ -3,7 +3,7 @@ import xml.etree.ElementTree as pyet
 import lxml.etree as lxet
 import pytest
 
-from PythonTmx import Prop
+from PythonTmx import ENGINE, Prop
 
 
 @pytest.fixture
@@ -95,14 +95,16 @@ class TestProp:
 
   def test_to_element_python(self, correct_elem_python):
     prop = Prop.from_element(correct_elem_python)
-    prop_elem = prop.to_element("python")
+    prop_elem = prop.to_element(ENGINE.PYTHON)
     assert prop_elem.tag == correct_elem_python.tag == "prop"
     assert prop_elem.text == correct_elem_python.text == "test"
     assert dict(prop_elem.attrib) == correct_elem_python.attrib
 
   def test_to_element_python_kwargs(self, correct_elem_python):
     prop = Prop.from_element(correct_elem_python)
-    prop_elem = prop.to_element("python", lang="es", encoding="utf-16", type="x-test2")
+    prop_elem = prop.to_element(
+      ENGINE.PYTHON, lang="es", encoding="utf-16", type="x-test2"
+    )
     assert prop_elem.tag == correct_elem_python.tag == "prop"
     assert prop_elem.text == correct_elem_python.text == "test"
     assert dict(prop_elem.attrib) != dict(correct_elem_python.attrib)
@@ -113,7 +115,7 @@ class TestProp:
   def test_to_element_python_kwargs_add_extra(self, correct_elem_python):
     prop = Prop.from_element(correct_elem_python)
     prop_elem = prop.to_element(
-      "python",
+      ENGINE.PYTHON,
       add_extra=True,
       lang="es",
       encoding="utf-16",
@@ -130,7 +132,7 @@ class TestProp:
 
   def test_to_element_lxml(self, correct_elem_lxml):
     prop = Prop.from_element(correct_elem_lxml)
-    prop_elem = prop.to_element("lxml")
+    prop_elem = prop.to_element(ENGINE.LXML)
     assert prop_elem.tag == correct_elem_lxml.tag == "prop"
     assert prop_elem.text == correct_elem_lxml.text == "test"
     assert dict(prop_elem.attrib) == dict(correct_elem_lxml.attrib)
@@ -138,7 +140,12 @@ class TestProp:
   def test_to_element_lxml_kwargs_add_extra(self, correct_elem_lxml):
     prop = Prop.from_element(correct_elem_lxml)
     prop_elem = prop.to_element(
-      "lxml", add_extra=True, lang="es", encoding="utf-16", extra="test", type="x-test2"
+      ENGINE.LXML,
+      add_extra=True,
+      lang="es",
+      encoding="utf-16",
+      extra="test",
+      type="x-test2",
     )
     assert prop_elem.tag == correct_elem_lxml.tag == "prop"
     assert prop_elem.text == correct_elem_lxml.text == "test"
@@ -150,7 +157,9 @@ class TestProp:
 
   def test_to_element_lxml_kwargs(self, correct_elem_lxml):
     prop = Prop.from_element(correct_elem_lxml)
-    prop_elem = prop.to_element("lxml", lang="es", encoding="utf-16", type="x-test2")
+    prop_elem = prop.to_element(
+      ENGINE.LXML, lang="es", encoding="utf-16", type="x-test2"
+    )
     assert prop_elem.tag == correct_elem_lxml.tag == "prop"
     assert prop_elem.text == correct_elem_lxml.text == "test"
     assert dict(prop_elem.attrib) != dict(correct_elem_lxml.attrib)
@@ -194,5 +203,5 @@ class TestProp:
 
   def test_engines(self):
     prop = Prop(text="test", type="123")
-    assert isinstance(prop.to_element("lxml"), lxet._Element)
-    assert isinstance(prop.to_element("python"), pyet.Element)
+    assert isinstance(prop.to_element(ENGINE.LXML), lxet._Element)
+    assert isinstance(prop.to_element(ENGINE.PYTHON), pyet.Element)

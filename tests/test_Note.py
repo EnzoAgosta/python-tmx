@@ -3,7 +3,7 @@ import xml.etree.ElementTree as pyet
 import lxml.etree as lxet
 import pytest
 
-from PythonTmx import Note
+from PythonTmx import ENGINE, Note
 
 
 @pytest.fixture
@@ -83,14 +83,14 @@ class TestNote:
 
   def test_to_element_python(self, correct_elem_python):
     note = Note.from_element(correct_elem_python)
-    note_elem = note.to_element("python")
+    note_elem = note.to_element(ENGINE.PYTHON)
     assert note_elem.tag == correct_elem_python.tag == "note"
     assert note_elem.text == correct_elem_python.text == "test"
     assert dict(note_elem.attrib) == correct_elem_python.attrib
 
   def test_to_element_python_kwargs(self, correct_elem_python):
     note = Note.from_element(correct_elem_python)
-    note_elem = note.to_element("python", lang="es", encoding="utf-16")
+    note_elem = note.to_element(ENGINE.PYTHON, lang="es", encoding="utf-16")
     assert note_elem.tag == correct_elem_python.tag == "note"
     assert note_elem.text == correct_elem_python.text == "test"
     assert dict(note_elem.attrib) != dict(correct_elem_python.attrib)
@@ -100,7 +100,7 @@ class TestNote:
   def test_to_element_python_kwargs_add_extra(self, correct_elem_python):
     note = Note.from_element(correct_elem_python)
     note_elem = note.to_element(
-      "python", add_extra=True, lang="es", encoding="utf-16", extra="test"
+      ENGINE.PYTHON, add_extra=True, lang="es", encoding="utf-16", extra="test"
     )
     assert note_elem.tag == correct_elem_python.tag == "note"
     assert note_elem.text == correct_elem_python.text == "test"
@@ -111,7 +111,7 @@ class TestNote:
 
   def test_to_element_lxml(self, correct_elem_lxml):
     note = Note.from_element(correct_elem_lxml)
-    note_elem = note.to_element("lxml")
+    note_elem = note.to_element(ENGINE.LXML)
     assert note_elem.tag == correct_elem_lxml.tag == "note"
     assert note_elem.text == correct_elem_lxml.text == "test"
     assert dict(note_elem.attrib) == dict(correct_elem_lxml.attrib)
@@ -119,7 +119,7 @@ class TestNote:
   def test_to_element_lxml_kwargs_add_extra(self, correct_elem_lxml):
     note = Note.from_element(correct_elem_lxml)
     note_elem = note.to_element(
-      "lxml", add_extra=True, lang="es", encoding="utf-16", extra="test"
+      ENGINE.LXML, add_extra=True, lang="es", encoding="utf-16", extra="test"
     )
     assert note_elem.tag == correct_elem_lxml.tag == "note"
     assert note_elem.text == correct_elem_lxml.text == "test"
@@ -130,7 +130,7 @@ class TestNote:
 
   def test_to_element_lxml_kwargs(self, correct_elem_lxml):
     note = Note.from_element(correct_elem_lxml)
-    note_elem = note.to_element("lxml", lang="es", encoding="utf-16")
+    note_elem = note.to_element(ENGINE.LXML, lang="es", encoding="utf-16")
     assert note_elem.tag == correct_elem_lxml.tag == "note"
     assert note_elem.text == correct_elem_lxml.text == "test"
     assert dict(note_elem.attrib) != dict(correct_elem_lxml.attrib)
@@ -173,5 +173,5 @@ class TestNote:
 
   def test_engines(self):
     note = Note(text="test")
-    assert isinstance(note.to_element("lxml"), lxet._Element)
-    assert isinstance(note.to_element("python"), pyet.Element)
+    assert isinstance(note.to_element(ENGINE.LXML), lxet._Element)
+    assert isinstance(note.to_element(ENGINE.PYTHON), pyet.Element)
