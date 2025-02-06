@@ -50,14 +50,32 @@ def _make_xml_attrs(obj: object, add_extra: bool = False, **kwargs) -> dict[str,
 
 
 def _make_elem(
-  tag: str, attrib: dict[str, str], engine: tp.Literal["python", "lxml"]
+  tag: str, attrib: dict[str, str], engine: ENGINE
 ) -> lxet._Element | pyet.Element:
-  if engine == "lxml":
+  if engine is ENGINE.LXML:
     return lxet.Element(tag, attrib=attrib)
-  elif engine == "python":
+  elif engine is ENGINE.PYTHON:
     return pyet.Element(tag, attrib=attrib)
   else:
     raise ValueError(f"Unknown engine: {engine!r}")
+
+
+class ENGINE(enum.Enum):
+  """
+  An Enum that represents which xml engines are available to convert an object
+  to a xml element.
+  """
+
+  LXML = enum.auto()
+  """
+  The lxml library, which is faster than the standard library's xml module but
+  requires the lxml package to be installed.
+  """
+  PYTHON = enum.auto()
+  """
+  The standard library's xml module, which is slower than lxml but doesn't
+  require any extra dependencies.
+  """
 
 
 class POS(enum.Enum):
@@ -157,46 +175,122 @@ def _parse_tus(elem: pyet.Element | lxet._Element) -> list[Tu]:
   unsafe_hash=True,
 )
 class Map:
+  """
+  A dataclass representing a <map/> element in a tmx file.
+
+  The <map/> element is used to specify a user-defined character and some of its
+  properties.
+  """
+
   unicode: str = dc.field(
     hash=True,
     compare=True,
   )
+  """
+  A valid Unicode value (including values in the Private Use areas) in
+  hexadecimal format. For example: unicode="#xF8FF". Required."""
   code: tp.Optional[str] = dc.field(
     default=None,
     hash=True,
     compare=True,
   )
+  """
+  The code-point value corresponding to the unicode character. A hexadecimal
+  value prefixed with "#x". For example: code="#x9F". Optional, by default None.
+  """
   ent: tp.Optional[str] = dc.field(
     default=None,
     hash=True,
     compare=True,
   )
+  """
+  The entity name corresponding to the unicode character. Text in ASCII.
+  For example: ent="copy". Optional, by default None."""
   subst: tp.Optional[str] = dc.field(
     default=None,
     hash=True,
     compare=True,
   )
+  """
+  An alternative string for the character.Text in ASCII. For example: subst="(c)"
+  for the copyright sign. Optional, by default None."""
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Map:
-    if str(element.tag) != cls.__name__.lower():
-      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
+    """
+    Create a Map object from an xml <map/> element.
+
+    Parameters
+    ----------
+    element : :external:py:class:`lxml.etree._Element` | :py:class:`xml.etree.ElementTree.Element`
+        The element to parse. Must be a <map> tag.
+    **kwargs
+        Additional keyword arguments to pass to the Map constructor. Values from
+        these arguments will override values parsed from the element.
+
+    Returns
+    -------
+    Map
+        A Map object representing the parsed element.
+
+    Raises
+    ------
+    ValueError
+        If the element is not a <map> tag.
+    TypeError
+        If the unicode attribute is missing from the element, or if any extra
+        attribute is found in the element or passed as a keyword argument.
+    """
+    if str(element.tag) != "map":
+      raise ValueError(f"Expected a <map> tag but got {element.tag!r}")
     return Map(**dict(element.attrib) | kwargs)
 
   @tp.overload
   def to_element(
-    self, engine: tp.Literal["lxml"], add_extra: bool = False, **kwargs
+    self, engine: ENGINE = ENGINE.LXML, add_extra: bool = False, **kwargs
   ) -> lxet._Element: ...
   @tp.overload
   def to_element(
-    self, engine: tp.Literal["python"], add_extra: bool = False, **kwargs
+    self, engine: ENGINE = ENGINE.PYTHON, add_extra: bool = False, **kwargs
   ) -> pyet.Element: ...
   def to_element(
     self,
-    engine: tp.Literal["lxml", "python"] = "lxml",
+    engine: ENGINE = ENGINE.LXML,
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
+    """
+    Create a Map object to an xml <map/> element.
+
+    Parameters
+    ----------
+    engine : ENGINE, optional
+        The xml engine to use to create the Element, either python's standard
+        library or lxml, by default "lxml"
+    add_extra : bool, optional
+        Whether to add extra attributes to the resulting Element, by default False.
+    **kwargs
+        Additional attributes to add to the resulting Element. If add_extra is
+        False, any extra attribute passed as a keyword argument will be ignored.
+
+
+    .. warning::
+        If add_extra is True, any extra attribute passed as a keyword argument
+        will be added to the resulting Element, even if it is not a valid
+        attribute for a <map> tag or the value is not a string.
+
+    Returns
+    -------
+    :external:py:class:`lxml.etree._Element` | :py:class:`xml.etree.ElementTree.Element`
+        A xml Element representing the Map object.
+
+    Raises
+    ------
+    TypeError
+        If any attribute's type deosn't match its expected type.
+    ValueError
+        If the engine is not recognized.
+    """
     return _make_elem("map", _make_xml_attrs(self, add_extra, **kwargs), engine)
 
 
