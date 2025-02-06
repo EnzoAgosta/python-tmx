@@ -1,54 +1,81 @@
-import dataclasses as dc
-import datetime as dt
-import enum
+import os
+import pathlib as pl
 import typing as tp
 import xml.etree.ElementTree as pyet
+from warnings import warn
 
 import lxml.etree as lxet
 
+from PythonTmx import (
+  Bpt,
+  Ept,
+  Header,
+  Hi,
+  It,
+  Map,
+  Note,
+  Ph,
+  Prop,
+  Sub,
+  Tmx,
+  TmxElement,
+  Tu,
+  Tuv,
+  Ude,
+  Ut,
+)
 
-def _make_xml_attrs(obj: object, **kwargs) -> dict[str, str]:
-  if not dc.is_dataclass(obj):
-    raise TypeError(f"Expected a dataclass but got {type(obj)!r}")
-  xml_attrs: dict[str, str] = dict()
-  for field in dc.fields(obj):
-    type_: tp.Type
-    if "int" in field.type:
-      type_ = int
-    elif "SEGTYPE" in field.type:
-      type_ = enum.Enum
-    elif "ASSOC" in field.type:
-      type_ = enum.Enum
-    elif "POS" in field.type:
-      type_ = enum.Enum
-    elif "dt" in field.type:
-      type_ = dt.datetime
-    else:
-      type_ = str
-    if not field.metadata.get("exclude", False):
-      val = kwargs.pop(field.name, getattr(obj, field.name))
-      if val is None and field.default is not dc.MISSING:
-        continue
-      if not isinstance(val, type_):
-        raise TypeError(f"Expected {type_!r} for {field.name!r} but got {type(val)!r}")
-      if isinstance(val, int):
-        val = str(val)
-      elif isinstance(val, enum.Enum):
-        val = val.value
-      elif isinstance(val, dt.datetime):
-        val = val.strftime("%Y%m%dT%H%M%SZ")
-      elif isinstance(val, str):
-        pass
-      xml_attrs[field.metadata.get("export_name", field.name)] = val
-  return xml_attrs
+__ElementMap: tp.Dict[str, tp.Type[TmxElement]] = {
+  "tmx": Tmx,
+  "header": Header,
+  "note": Note,
+  "prop": Prop,
+  "ude": Ude,
+  "map": Map,
+  "tu": Tu,
+  "tuv": Tuv,
+  "bpt": Bpt,
+  "ept": Ept,
+  "hi": Hi,
+  "it": It,
+  "ph": Ph,
+  "sub": Sub,
+  "ut": Ut,
+}
 
 
-def _make_elem(
-  tag: str, attrib: dict[str, str], engine: tp.Literal["python", "lxml"]
-) -> lxet._Element | pyet.Element:
-  if engine == "lxml":
-    return lxet.Element(tag, attrib=attrib)
-  elif engine == "python":
-    return pyet.Element(tag, attrib=attrib)
+def from_element(element: pyet.Element | lxet._Element) -> TmxElement:
+  if str(element.tag) not in __ElementMap:
+    raise ValueError(f"Unknown tag: {element.tag!r}")
+  return __ElementMap[str(element.tag)].from_element(element)
+
+
+def _check_path(
+  path: tp.Union[str, pl.Path, os.PathLike, tp.TextIO, tp.BinaryIO],
+) -> None:
+  if isinstance(path, (tp.TextIO, tp.BinaryIO)):
+    return
+  if isinstance(path, (str, os.PathLike)):
+    path = pl.Path(path)
+  if isinstance(path, pl.Path):
+    if not path.exists():
+      raise FileNotFoundError(f"Path not found: {path!r}")
+    if not path.is_file():
+      raise IsADirectoryError(f"Path is not a file: {path!r}")
+    if path.suffix.lower() != ".tmx":
+      warn(f"File suffix is not .tmx: {path!r}")
   else:
-    raise ValueError(f"Unknown engine: {engine!r}")
+    raise TypeError(
+      f"Path must be str, a pathLike object, or a file-like object, not {type(path).__name__!r}"
+    )
+
+
+def from_file(
+  path: tp.Union[str, pl.Path, os.PathLike, tp.TextIO, tp.BinaryIO],
+  engine: tp.Literal["lxml", "python"] = "lxml",
+) -> Tmx:
+  _check_path(path)
+  root = lxet.parse(path).getroot() if engine == "lxml" else pyet.parse(path).getroot()
+  if root.tag != "tmx":
+    raise ValueError(f"Expected <tmx> as root but got {root.tag!r}")
+  return Tmx.from_element(root)

@@ -10,10 +10,52 @@ from warnings import deprecated, warn
 
 import lxml.etree as lxet
 
-from PythonTmx.utils import (
-  _make_elem,
-  _make_xml_attrs,
-)
+
+def _make_xml_attrs(obj: object, **kwargs) -> dict[str, str]:
+  if not dc.is_dataclass(obj):
+    raise TypeError(f"Expected a dataclass but got {type(obj)!r}")
+  xml_attrs: dict[str, str] = dict()
+  for field in dc.fields(obj):
+    type_: tp.Type
+    if "int" in field.type:
+      type_ = int
+    elif "SEGTYPE" in field.type:
+      type_ = enum.Enum
+    elif "ASSOC" in field.type:
+      type_ = enum.Enum
+    elif "POS" in field.type:
+      type_ = enum.Enum
+    elif "dt" in field.type:
+      type_ = dt.datetime
+    else:
+      type_ = str
+    if not field.metadata.get("exclude", False):
+      val = kwargs.pop(field.name, getattr(obj, field.name))
+      if val is None and field.default is not dc.MISSING:
+        continue
+      if not isinstance(val, type_):
+        raise TypeError(f"Expected {type_!r} for {field.name!r} but got {type(val)!r}")
+      if isinstance(val, int):
+        val = str(val)
+      elif isinstance(val, enum.Enum):
+        val = val.value
+      elif isinstance(val, dt.datetime):
+        val = val.strftime("%Y%m%dT%H%M%SZ")
+      elif isinstance(val, str):
+        pass
+      xml_attrs[field.metadata.get("export_name", field.name)] = val
+  return xml_attrs
+
+
+def _make_elem(
+  tag: str, attrib: dict[str, str], engine: tp.Literal["python", "lxml"]
+) -> lxet._Element | pyet.Element:
+  if engine == "lxml":
+    return lxet.Element(tag, attrib=attrib)
+  elif engine == "python":
+    return pyet.Element(tag, attrib=attrib)
+  else:
+    raise ValueError(f"Unknown engine: {engine!r}")
 
 
 class POS(enum.Enum):
@@ -135,6 +177,8 @@ class Map:
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Map:
+    if str(element.tag) != cls.__name__.lower():
+      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
     return Map(**dict(element.attrib) | kwargs)
 
   @tp.overload
@@ -171,6 +215,8 @@ class Ude:
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Ude:
+    if str(element.tag) != cls.__name__.lower():
+      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
     maps = kwargs.pop("maps", None)
     if maps is None:
       if len(element):
@@ -225,6 +271,8 @@ class Note:
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Note:
+    if str(element.tag) != cls.__name__.lower():
+      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
     lang = kwargs.get(
       "lang", element.attrib.get("{http://www.w3.org/XML/1998/namespace}lang")
     )
@@ -270,6 +318,8 @@ class Prop:
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Prop:
+    if str(element.tag) != cls.__name__.lower():
+      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
     lang = kwargs.get(
       "lang", element.attrib.get("{http://www.w3.org/XML/1998/namespace}lang")
     )
@@ -368,6 +418,8 @@ class Header:
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Header:
+    if str(element.tag) != cls.__name__.lower():
+      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
     creationtool = kwargs.get("creationtool", element.attrib.get("creationtool"))
     creationtoolversion = kwargs.get(
       "creationtoolversion", element.attrib.get("creationtoolversion")
@@ -521,6 +573,8 @@ class Tuv:
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Tuv:
+    if str(element.tag) != cls.__name__.lower():
+      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
     lang = kwargs.get(
       "lang", element.attrib.get("{http://www.w3.org/XML/1998/namespace}lang")
     )
@@ -693,6 +747,8 @@ class Tu:
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Tu:
+    if str(element.tag) != cls.__name__.lower():
+      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
     tuid = kwargs.get("tuid", element.attrib.get("tuid"))
     encoding = kwargs.get("encoding", element.attrib.get("o-encoding"))
     datatype = kwargs.get("datatype", element.attrib.get("datatype"))
@@ -791,6 +847,8 @@ class Tmx:
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Tmx:
+    if str(element.tag) != cls.__name__.lower():
+      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
     header = kwargs.get("header", None)
     if header is None:
       if (header_elem := element.find("header")) is None:
@@ -848,6 +906,8 @@ class Bpt:
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Bpt:
+    if str(element.tag) != cls.__name__.lower():
+      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
     i = kwargs.get("i", element.attrib.get("i"))
     x = kwargs.get("x", element.attrib.get("x"))
     type_ = kwargs.get("type", element.attrib.get("type"))
@@ -894,6 +954,8 @@ class Ept:
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Ept:
+    if str(element.tag) != cls.__name__.lower():
+      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
     i = kwargs.get("i", element.attrib.get("i"))
     try:
       i = int(i)
@@ -939,6 +1001,8 @@ class Sub:
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Sub:
+    if str(element.tag) != cls.__name__.lower():
+      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
     content = kwargs.get("content", _parse_content(element))
     datatype = kwargs.get("datatype", element.attrib.get("datatype"))
     type_ = kwargs.get("type", element.attrib.get("type"))
@@ -987,6 +1051,8 @@ class It:
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> It:
+    if str(element.tag) != cls.__name__.lower():
+      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
     pos = kwargs.get("pos", element.attrib.get("pos"))
     x = kwargs.get("x", element.attrib.get("x"))
     type_ = kwargs.get("type", element.attrib.get("type"))
@@ -1043,6 +1109,8 @@ class Ph:
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Ph:
+    if str(element.tag) != cls.__name__.lower():
+      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
     x = kwargs.get("x", element.attrib.get("x"))
     assoc = kwargs.get("assoc", element.attrib.get("pos"))
     type_ = kwargs.get("type", element.attrib.get("type"))
@@ -1094,6 +1162,8 @@ class Hi:
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Hi:
+    if str(element.tag) != cls.__name__.lower():
+      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
     x = kwargs.get("x", element.attrib.get("x"))
     type_ = kwargs.get("type", element.attrib.get("type"))
     try:
@@ -1136,6 +1206,8 @@ class Ut:
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Ut:
+    if str(element.tag) != cls.__name__.lower():
+      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
     x = kwargs.get("x", element.attrib.get("x"))
     try:
       x = int(x)
@@ -1154,3 +1226,43 @@ class Ut:
     elem = _make_elem("ut", _make_xml_attrs(self, **kwargs), engine)
     _add_content(elem, kwargs.get("content", self.content), engine, (str, Sub))
     return elem
+
+
+TmxElement = tp.Union[
+  Tmx,
+  Header,
+  Ude,
+  Map,
+  Note,
+  Prop,
+  Tu,
+  Tuv,
+  Bpt,
+  Ept,
+  Hi,
+  It,
+  Ph,
+  Sub,
+  Ut,
+]
+
+StructuralElement = tp.Union[
+  Header,
+  Note,
+  Prop,
+  Ude,
+  Map,
+  Tu,
+  Tuv,
+  Tmx,
+]
+
+InlineElement = tp.Union[
+  Bpt,
+  Ept,
+  Hi,
+  It,
+  Ph,
+  Sub,
+  Ut,
+]
