@@ -624,26 +624,71 @@ class Ude:
   unsafe_hash=True,
 )
 class Note:
+  """
+  A dataclass representing a <note> element in a tmx file, generally used for
+  comments.
+  """
+
   text: str = dc.field(
     hash=True,
     compare=True,
     metadata={"exclude": True},
   )
+  """
+  The text of the Note. Required.
+  """
   lang: tp.Optional[str] = dc.field(
     hash=True,
     compare=True,
     default=None,
     metadata={"export_name": "{http://www.w3.org/XML/1998/namespace}lang"},
   )
+  """
+  The language of the Note. A language code as described in the [RFC 3066].
+  Not case-sensitive. Optional, by default None.
+  """
   encoding: tp.Optional[str] = dc.field(
     hash=True,
     compare=True,
     default=None,
     metadata={"export_name": "o-encoding"},
   )
+  """
+  The original encoding of the text. One of the [IANA] recommended "charset
+  identifier", if possible. Optional, by default None.
+  """
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Note:
+    """
+    Create a Note object from an xml <note> element.
+
+    Parameters
+    ----------
+    element : :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
+        The element to parse. Must be a <note> tag.
+    **kwargs
+        Additional keyword arguments to pass to the Constructor. Values from
+        these arguments will override values parsed from the element.
+
+
+    .. note::
+        if `maps` is supplied as a keyword argument, the function will use that
+        value instead of parsing the element's children.
+
+    Returns
+    -------
+    Note
+        A Note object representing the parsed element.
+
+    Raises
+    ------
+    ValueError
+        If the element is not a <note> tag.
+    TypeError
+        If the unicode attribute is missing from the element, or if any extra
+        attribute is found in the element or passed as a keyword argument.
+    """
     if str(element.tag) != "note":
       raise ValueError(f"Expected a <note> tag but got {element.tag!r}")
     lang = kwargs.get(
@@ -667,6 +712,38 @@ class Note:
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
+    """
+    Converts a Note object to an xml <note> element.
+
+    Parameters
+    ----------
+    engine : ENGINE, optional
+        The xml engine to use to create the Element, either python's standard
+        library or lxml, by default "lxml"
+    add_extra : bool, optional
+        Whether to add extra attributes to the resulting Element, by default False.
+    **kwargs
+        Additional attributes to add to the resulting Element. If add_extra is
+        False, any extra attribute passed as a keyword argument will be ignored.
+
+
+    .. warning::
+        If add_extra is True, any extra attribute passed as a keyword argument
+        will be added to the resulting Element, even if it is not a valid
+        attribute for a <note> tag or the value is not a string.
+
+    Returns
+    -------
+    :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
+        A xml Element representing the Note object.
+
+    Raises
+    ------
+    TypeError
+        If any attribute's type deosn't match its expected type.
+    ValueError
+        If the engine is not recognized.
+    """
     elem = _make_elem(
       "note", _make_xml_attrs(self, add_extra=add_extra, **kwargs), engine
     )
@@ -678,30 +755,82 @@ class Note:
 
 @dc.dataclass(kw_only=True, slots=True, unsafe_hash=True)
 class Prop:
+  """
+  A dataclass representing a <prop> element in a tmx file, used to define various
+  properties of its parent element. These properties are not defined by the standard.
+  The "text" can be any anything as long as it is in string format.
+
+  By convention, values for the "type" attribute that are not defined by the standard
+  should be prefixed with "x-". For example, "x-my-custom-type".
+  """
+
   text: str = dc.field(
     hash=True,
     compare=True,
     metadata={"exclude": True},
   )
+  """
+  The text of the Prop. Required.
+  """
   type: str = dc.field(
     hash=True,
     compare=True,
   )
+  """
+  The type of the Prop. Not defined by the standard. Required.
+  """
   lang: tp.Optional[str] = dc.field(
     hash=True,
     compare=True,
     default=None,
     metadata={"export_name": "{http://www.w3.org/XML/1998/namespace}lang"},
   )
+  """
+  The language of the Prop. A language code as described in the [RFC 3066].
+  Not case-sensitive. Optional, by default None.
+  """
   encoding: tp.Optional[str] = dc.field(
     hash=True,
     compare=True,
     default=None,
     metadata={"export_name": "o-encoding"},
   )
+  """
+  The original encoding of the text. One of the [IANA] recommended "charset
+  identifier", if possible. Optional, by default None.
+  """
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Prop:
+    """
+    Create a Prop object from an xml <prop> element.
+
+    Parameters
+    ----------
+    element : :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
+        The element to parse. Must be a <prop> tag.
+    **kwargs
+        Additional keyword arguments to pass to the Constructor. Values from
+        these arguments will override values parsed from the element.
+
+
+    .. prop::
+        if `maps` is supplied as a keyword argument, the function will use that
+        value instead of parsing the element's children.
+
+    Returns
+    -------
+    Prop
+        A Prop object representing the parsed element.
+
+    Raises
+    ------
+    ValueError
+        If the element is not a <prop> tag.
+    TypeError
+        If the unicode attribute is missing from the element, or if any extra
+        attribute is found in the element or passed as a keyword argument.
+    """
     if str(element.tag) != "prop":
       raise ValueError(f"Expected a <prop> tag but got {element.tag!r}")
     lang = kwargs.get(
@@ -726,6 +855,38 @@ class Prop:
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
+    """
+    Converts a Prop object to an xml <prop> element.
+
+    Parameters
+    ----------
+    engine : ENGINE, optional
+        The xml engine to use to create the Element, either python's standard
+        library or lxml, by default "lxml"
+    add_extra : bool, optional
+        Whether to add extra attributes to the resulting Element, by default False.
+    **kwargs
+        Additional attributes to add to the resulting Element. If add_extra is
+        False, any extra attribute passed as a keyword argument will be ignored.
+
+
+    .. warning::
+        If add_extra is True, any extra attribute passed as a keyword argument
+        will be added to the resulting Element, even if it is not a valid
+        attribute for a <prop> tag or the value is not a string.
+
+    Returns
+    -------
+    :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
+        A xml Element representing the Prop object.
+
+    Raises
+    ------
+    TypeError
+        If any attribute's type deosn't match its expected type.
+    ValueError
+        If the engine is not recognized.
+    """
     elem = _make_elem(
       "prop", _make_xml_attrs(self, add_extra=add_extra, **kwargs), engine
     )
