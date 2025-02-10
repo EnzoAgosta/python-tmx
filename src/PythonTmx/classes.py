@@ -181,13 +181,14 @@ def _parse_content(
   Raises
   ------
   ValueError
-      if the tag is not recognized as an inline tag.
+      if the tag is not recognized as an inline tag or if an unallowed tag is
+      found.
   """
   content: list[str | Ph | It | Hi | Bpt | Ept | Sub | Ut] = []
   if element.text:
     content.append(element.text)
   for child in element:
-    match child.tag:
+    match str(child.tag):
       case "bpt":
         content.append(Bpt.from_element(child))
       case "ept":
@@ -668,7 +669,11 @@ class Note:
     return elem
 
 
-@dc.dataclass(kw_only=True, slots=True, unsafe_hash=True)
+@dc.dataclass(
+  kw_only=True,
+  slots=True,
+  unsafe_hash=True,
+)
 class Prop:
   """
   A dataclass representing a <prop> element in a tmx file, used to define various
@@ -809,7 +814,11 @@ class Prop:
     return elem
 
 
-@dc.dataclass(kw_only=True, slots=True, unsafe_hash=True)
+@dc.dataclass(
+  kw_only=True,
+  slots=True,
+  unsafe_hash=True,
+)
 class Header:
   """
   A dataclass representing a <header> element in a tmx file, contains
@@ -863,7 +872,7 @@ class Header:
   )
   """
   Source language - Specifies the language of the original document from which
-  the translation was derived. Required. A language code as described in the
+  the translation was derived. A language code as described in the
   [RFC 3066], or the value "*all*" if any language can be used as the source
   language. Required.
   """
@@ -1090,7 +1099,11 @@ class Header:
     return elem
 
 
-@dc.dataclass(kw_only=True, slots=True, unsafe_hash=True)
+@dc.dataclass(
+  kw_only=True,
+  slots=True,
+  unsafe_hash=True,
+)
 class Tuv:
   """
   A dataclass representing a <tuv> element in a tmx file, specifies text in a
@@ -1250,10 +1263,6 @@ class Tuv:
         Additional keyword arguments to pass to the Constructor. Values from
         these arguments will override values parsed from the element.
 
-
-    .. note::
-        Unless `props`
-
     Returns
     -------
     Tuv
@@ -1267,8 +1276,8 @@ class Tuv:
         If the unicode attribute is missing from the element, or if any extra
         attribute is found in the element or passed as a keyword argument.
     """
-    if str(element.tag) != cls.__name__.lower():
-      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
+    if str(element.tag) != "tuv":
+      raise ValueError(f"Expected a <tuv> tag but got {element.tag!r}")
     lang = kwargs.get(
       "lang", element.attrib.get("{http://www.w3.org/XML/1998/namespace}lang")
     )
@@ -1388,100 +1397,205 @@ class Tuv:
     return elem
 
 
-@dc.dataclass(kw_only=True, slots=True, unsafe_hash=True)
+@dc.dataclass(
+  kw_only=True,
+  slots=True,
+  unsafe_hash=True,
+)
 class Tu:
+  """
+  A dataclass representing a <tu> element in a tmx file, contains the data for
+  a given translation unit
+  """
+
   tuid: tp.Optional[str] = dc.field(
     default=None,
     hash=True,
     compare=True,
   )
+  """
+  Translation unit identifier - Specifies an identifier for the tu element.
+  Optional, by default None.
+  """
   encoding: tp.Optional[str] = dc.field(
     hash=True,
     compare=True,
     default=None,
     metadata={"export_name": "o-encoding"},
   )
+  """
+  Original encoding - Specifies the original encoding of the element. One of
+  the [IANA] recommended "charset identifier", if possible. Optional, by default
+  None.
+  """
   datatype: tp.Optional[str] = dc.field(
     default=None,
     hash=True,
     compare=True,
   )
+  """
+  Data type - Specifies the type of data contained in the element. Optional,
+  by default None.
+  """
   usagecount: tp.Optional[int] = dc.field(
     default=None,
     hash=True,
     compare=True,
   )
+  """
+  Usage count - Specifies the number of times a the element has been accessed
+  in the original TM environment. Optional, by default None.
+  """
   lastusagedate: tp.Optional[dt.datetime] = dc.field(
     default=None,
     hash=True,
     compare=True,
   )
+  """
+  Last usage date - Specifies the date of the last time the element was accessed
+  in the original TM environment. Optional, by default None.
+  """
   creationtool: tp.Optional[str] = dc.field(
     default=None,
     hash=True,
     compare=True,
   )
+  """
+  Creation tool - Identifies the tool that created the TMX document. Optional,
+  by default None.
+  """
   creationtoolversion: tp.Optional[str] = dc.field(
     default=None,
     hash=True,
     compare=True,
   )
+  """
+  Creation tool version - Identifies the version of the tool that created the
+  TMX document. Optional, by default None.
+  """
   creationdate: tp.Optional[dt.datetime] = dc.field(
     default=None,
     hash=True,
     compare=True,
   )
+  """
+  Creation date - Specifies the date the document was created. Optional, by
+  default None.
+  """
   creationid: tp.Optional[str] = dc.field(
     default=None,
     hash=True,
     compare=True,
   )
+  """
+  Creation identifier - Specifies the ID of the document creator. Optional,
+  by default None.
+  """
   changedate: tp.Optional[dt.datetime] = dc.field(
     default=None,
     hash=True,
     compare=True,
   )
+  """
+  Change date - Specifies the date of the last modification of the element.
+  Optional, by default None.
+  """
   segtype: tp.Optional[SEGTYPE] = dc.field(
     default=None,
     hash=True,
     compare=True,
   )
+  """
+  Segment type - Specifies the kind of segmentation used in the document.
+  Optional, by default None.
+  """
   changeid: tp.Optional[str] = dc.field(
     default=None,
     hash=True,
     compare=True,
   )
+  """
+  Change identifier - Specifies the ID of the last user who made a change to the
+  document. Optional, by default None.
+  """
   tmf: tp.Optional[str] = dc.field(
     default=None,
     hash=True,
     compare=True,
   )
+  """
+  Original translation memory format - Specifies the format of the translation
+  memory file from which the TMX document or segment thereof have been generated.
+  Optional, by default None.
+  """
   srclang: tp.Optional[str] = dc.field(
     default=None,
     hash=True,
     compare=True,
   )
+  """
+  Source language - Specifies the language of the original document from which
+  the translation was derived. A language code as described in the
+  [RFC 3066], or the value "*all*" if any language can be used as the source
+  language. Optional, by default None.
+  """
   tuvs: abc.Sequence[Tuv] = dc.field(
     default_factory=list,
     hash=True,
     compare=True,
     metadata={"exclude": True},
   )
+  """
+  An array of :class:`~Tuv` elements, each of which contains the data for a
+  given translation unit variant.
+  """
   notes: abc.Sequence[Note] = dc.field(
     default_factory=list,
     hash=True,
     compare=True,
     metadata={"exclude": True},
   )
+  """
+  An array of :class:`~Note` elements, each of which contains a note
+  associated with the translation unit.
+  """
   props: abc.Sequence[Prop] = dc.field(
     default_factory=list,
     hash=True,
     compare=True,
     metadata={"exclude": True},
   )
+  """
+  An array of :class:`~Prop` elements, each of which contains a property
+  associated with the translation unit.
+  """
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Tu:
+    """
+    Create a Tu object from an xml <tu> element.
+
+    Parameters
+    ----------
+    element : :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
+        The element to parse. Must be a <tu> tag.
+    **kwargs
+        Additional keyword arguments to pass to the Constructor. Values from
+        these arguments will override values parsed from the element.
+
+    Returns
+    -------
+    Tu
+        A Tu object representing the parsed element.
+
+    Raises
+    ------
+    ValueError
+        If the element is not a <tu> tag.
+    TypeError
+        If the unicode attribute is missing from the element, or if any extra
+        attribute is found in the element or passed as a keyword argument.
+    """
     if str(element.tag) != cls.__name__.lower():
       raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
     tuid = kwargs.get("tuid", element.attrib.get("tuid"))
@@ -1542,29 +1656,63 @@ class Tu:
       tmf=tmf,
       changeid=changeid,
       srclang=srclang,
-      tuvs=tuvs if (tuvs := kwargs.get("tuvs")) is not None else _parse_tuvs(element),
       notes=notes
       if (notes := kwargs.get("notes")) is not None
-      else _parse_notes(element),
+      else [Note.from_element(note) for note in element.iter("note")],
       props=props
       if (props := kwargs.get("props")) is not None
-      else _parse_props(element),
+      else [Prop.from_element(prop) for prop in element.iter("prop")],
+      tuvs=tuvs
+      if (tuvs := kwargs.get("tuvs")) is not None
+      else [Tuv.from_element(tuv) for tuv in element.iter("tuv")],
     )
 
   @tp.overload
   def to_element(
-    self, engine: tp.Literal["lxml"], add_extra: bool = False, **kwargs
+    self, engine: tp.Literal[ENGINE.LXML], add_extra: bool = False, **kwargs
   ) -> lxet._Element: ...
   @tp.overload
   def to_element(
-    self, engine: tp.Literal["python"], add_extra: bool = False, **kwargs
+    self, engine: tp.Literal[ENGINE.PYTHON], add_extra: bool = False, **kwargs
   ) -> pyet.Element: ...
   def to_element(
     self,
-    engine: tp.Literal["lxml", "python"] = "lxml",
+    engine: tp.Literal[ENGINE.PYTHON, ENGINE.LXML] = ENGINE.LXML,
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
+    """
+    Converts a Tu object to an xml <tu> element.
+
+    Parameters
+    ----------
+    engine : ENGINE, optional
+        The xml engine to use to create the Element, either python's standard
+        library or lxml, by default "lxml"
+    add_extra : bool, optional
+        Whether to add extra attributes to the resulting Element, by default False.
+    **kwargs
+        Additional attributes to add to the resulting Element. If add_extra is
+        False, any extra attribute passed as a keyword argument will be ignored.
+
+
+    .. warning::
+        If add_extra is True, any extra attribute passed as a keyword argument
+        will be added to the resulting Element, even if it is not a valid
+        attribute for a <tu> tag or the value is not a string.
+
+    Returns
+    -------
+    :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
+        A xml Element representing the Tu object.
+
+    Raises
+    ------
+    TypeError
+        If any attribute's type deosn't match its expected type.
+    ValueError
+        If the engine is not recognized.
+    """
     elem = _make_elem(
       "tu", _make_xml_attrs(self, add_extra=add_extra, **kwargs), engine
     )
@@ -1574,20 +1722,37 @@ class Tu:
     return elem
 
 
-@dc.dataclass(kw_only=True, slots=True, unsafe_hash=True)
+@dc.dataclass(
+  kw_only=True,
+  slots=True,
+  unsafe_hash=True,
+)
 class Tmx:
+  """
+  A dataclass representing a <tmx> element in a tmx file, contains the data for
+  a given translation memory file
+  """
+
   header: tp.Optional[Header] = dc.field(
     default=None,
     hash=True,
     compare=True,
     metadata={"exclude": True},
   )
+  """
+  An :class:`~Header` element, that contains the metadata for the translation
+  memory file.
+  """
   tus: abc.Sequence[Tu] = dc.field(
     default_factory=list,
     hash=True,
     compare=True,
     metadata={"exclude": True},
   )
+  """
+  An array of :class:`~Tu` elements, each of which contains the data for a
+  given translation unit.
+  """
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Tmx:
@@ -1602,22 +1767,60 @@ class Tmx:
     if tus_ is None:
       if (body := element.find("body")) is None:
         raise ValueError("could not find body")
-      tus_ = _parse_tus(body)
+      tus_ = [Tu.from_element(tu) for tu in body]
     return Tmx(header=header, tus=tus_)
 
   @tp.overload
   def to_element(
-    self, engine: tp.Literal["lxml"], add_extra: bool = False, **kwargs
+    self, engine: tp.Literal[ENGINE.LXML], add_extra: bool = False, **kwargs
   ) -> lxet._Element: ...
   @tp.overload
   def to_element(
-    self, engine: tp.Literal["python"], add_extra: bool = False, **kwargs
+    self, engine: tp.Literal[ENGINE.PYTHON], add_extra: bool = False, **kwargs
   ) -> pyet.Element: ...
   def to_element(
     self,
-    engine: tp.Literal["lxml", "python"] = "lxml",
+    engine: tp.Literal[ENGINE.PYTHON, ENGINE.LXML] = ENGINE.LXML,
+    add_extra: bool = False,
+    **kwargs,
   ) -> lxet._Element | pyet.Element:
-    elem = _make_elem("tmx", {"version": "1.4"}, engine)
+    """
+    Converts a Tu object to an xml <tu> element.
+
+    Parameters
+    ----------
+    engine : ENGINE, optional
+        The xml engine to use to create the Element, either python's standard
+        library or lxml, by default "lxml"
+    add_extra : bool, optional
+        Whether to add extra attributes to the resulting Element, by default False.
+    **kwargs
+        Additional attributes to add to the resulting Element. If add_extra is
+        False, any extra attribute passed as a keyword argument will be ignored.
+
+
+    .. warning::
+        If add_extra is True, any extra attribute passed as a keyword argument
+        will be added to the resulting Element, even if it is not a valid
+        attribute for a <tu> tag or the value is not a string.
+
+    Returns
+    -------
+    :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
+        A xml Element representing the Tu object.
+
+    Raises
+    ------
+    TypeError
+        If any attribute's type deosn't match its expected type.
+    ValueError
+        If the engine is not recognized.
+    """
+
+    elem = _make_elem(
+      "tmx", _make_xml_attrs(self, add_extra=add_extra, **kwargs), engine
+    )
+    elem.attrib["version"] = "1.4"
     elem.append(self.header.to_element(engine))  # type: ignore
     body = _make_elem("body", dict(), engine)
     elem.append(body)  # type: ignore
