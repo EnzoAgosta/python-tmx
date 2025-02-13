@@ -1596,8 +1596,8 @@ class Tu:
         If the unicode attribute is missing from the element, or if any extra
         attribute is found in the element or passed as a keyword argument.
     """
-    if str(element.tag) != cls.__name__.lower():
-      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
+    if str(element.tag) != "tu":
+      raise ValueError(f"Expected a <tu> tag but got {element.tag!r}")
     tuid = kwargs.get("tuid", element.attrib.get("tuid"))
     encoding = kwargs.get("encoding", element.attrib.get("o-encoding"))
     datatype = kwargs.get("datatype", element.attrib.get("datatype"))
@@ -1756,8 +1756,32 @@ class Tmx:
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Tmx:
-    if str(element.tag) != cls.__name__.lower():
-      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
+    """
+    Create a Tmx object from an xml <tmx> element.
+
+    Parameters
+    ----------
+    element : :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
+        The element to parse. Must be a <tmx> tag.
+    **kwargs
+        Additional keyword arguments to pass to the Constructor. Values from
+        these arguments will override values parsed from the element.
+
+    Returns
+    -------
+    Tmx
+        A Tmx object representing the parsed element.
+
+    Raises
+    ------
+    ValueError
+        If the element is not a <tmx> tag.
+    TypeError
+        If the unicode attribute is missing from the element, or if any extra
+        attribute is found in the element or passed as a keyword argument.
+    """
+    if str(element.tag) != "tmx":
+      raise ValueError(f"Expected a <tmx> tag but got {element.tag!r}")
     header = kwargs.get("header", None)
     if header is None:
       if (header_elem := element.find("header")) is None:
@@ -1785,7 +1809,7 @@ class Tmx:
     **kwargs,
   ) -> lxet._Element | pyet.Element:
     """
-    Converts a Tu object to an xml <tu> element.
+    Converts a Tmx object to an xml <tmx> element.
 
     Parameters
     ----------
@@ -1802,12 +1826,12 @@ class Tmx:
     .. warning::
         If add_extra is True, any extra attribute passed as a keyword argument
         will be added to the resulting Element, even if it is not a valid
-        attribute for a <tu> tag or the value is not a string.
+        attribute for a <tmx> tag or the value is not a string.
 
     Returns
     -------
     :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
-        A xml Element representing the Tu object.
+        A xml Element representing the Tmx object.
 
     Raises
     ------
@@ -1834,31 +1858,81 @@ class Tmx:
   unsafe_hash=True,
 )
 class Bpt:
+  """
+  A dataclass representing a <bpt> element in a tmx file, used to delimit the
+  beginning of a paired sequence of native codes. Each <bpt> has a corresponding
+  <ept> element within the segment.
+  """
+
   content: abc.Sequence[str | Sub] = dc.field(
     default_factory=list,
     hash=True,
     compare=True,
     metadata={"exclude": True},
   )
+  """
+  The actual contents of the elements, an array of strings and :class:`Sub`
+  elements. Required, an empty list by default.
+  """
   i: int = dc.field(
     hash=True,
     compare=True,
   )
+  """
+  Internal matching - Used to pair the <bpt> elements with <ept> elements. Must
+  be unique for each <bpt> within a given <tuv> element. Required.
+  """
   x: tp.Optional[int] = dc.field(
     hash=True,
     compare=True,
     default=None,
   )
+  """
+  External matching - Used to match inline elements between each <tuv> element
+  of a given <tu> element. Facilitates the pairing of allied codes in source and
+  target text, even if the order of code occurrence differs between the two
+  because of the translation syntax. Note that an <ept> element is matched based
+  on x attribute of its corresponding <bpt> element. Optional, by default None.
+  """
   type: tp.Optional[str] = dc.field(
     hash=True,
     compare=True,
     default=None,
   )
+  """
+  Type - Specifies the kind of data contained in its parent element. Not defined
+  by the standard. By convention, values for the "type" attribute should be
+  prefixed with "x-". For example, "x-my-custom-type". Optional by default None.
+  """
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Bpt:
-    if str(element.tag) != cls.__name__.lower():
-      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
+    """
+    Create a Bpt object from an xml <bpt> element.
+
+    Parameters
+    ----------
+    element : :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
+        The element to parse. Must be a <bpt> tag.
+    **kwargs
+        Additional keyword arguments to pass to the Constructor. Values from
+        these arguments will override values parsed from the element.
+
+    Returns
+    -------
+    Bpt
+        A Bpt object representing the parsed element.
+
+    Raises
+    ------
+    ValueError
+        If the element is not a <bpt> tag.
+    TypeError
+        If the unicode attribute is missing from the element, or if any extra
+        attribute is found in the element or passed as a keyword argument.
+    """
+    if str(element.tag) != "bpt":
+      raise ValueError(f"Expected a <bpt> tag but got {element.tag!r}")
     i = kwargs.get("i", element.attrib.get("i"))
     x = kwargs.get("x", element.attrib.get("x"))
     type_ = kwargs.get("type", element.attrib.get("type"))
@@ -1888,6 +1962,38 @@ class Bpt:
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
+    """
+    Converts a Bpt object to an xml <bpt> element.
+
+    Parameters
+    ----------
+    engine : ENGINE, optional
+        The xml engine to use to create the Element, either python's standard
+        library or lxml, by default "lxml"
+    add_extra : bool, optional
+        Whether to add extra attributes to the resulting Element, by default False.
+    **kwargs
+        Additional attributes to add to the resulting Element. If add_extra is
+        False, any extra attribute passed as a keyword argument will be ignored.
+
+
+    .. warning::
+        If add_extra is True, any extra attribute passed as a keyword argument
+        will be added to the resulting Element, even if it is not a valid
+        attribute for a <bpt> tag or the value is not a string.
+
+    Returns
+    -------
+    :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
+        A xml Element representing the Bpt object.
+
+    Raises
+    ------
+    TypeError
+        If any attribute's type deosn't match its expected type.
+    ValueError
+        If the engine is not recognized.
+    """
     elem = _make_elem(
       "bpt", _make_xml_attrs(self, add_extra=add_extra, **kwargs), engine
     )
@@ -1901,21 +2007,59 @@ class Bpt:
   unsafe_hash=True,
 )
 class Ept:
+  """
+  A dataclass representing a <ept> element in a tmx file, used to delimit the
+  end of a paired sequence of native codes. Each <ept> has a corresponding
+  <bpt> element within the segment.
+  """
+
   content: abc.Sequence[str | Sub] = dc.field(
     default_factory=list,
     hash=True,
     compare=True,
     metadata={"exclude": True},
   )
+  """
+  The actual contents of the elements, an array of strings and :class:`Sub`
+  elements. Required, an empty list by default.
+  """
   i: int = dc.field(
     hash=True,
     compare=True,
   )
+  """
+  Internal matching - Used to pair the <bpt> elements with <ept> elements. Must
+  be unique for each <bpt> within a given <tuv> element. Required.
+  """
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Ept:
-    if str(element.tag) != cls.__name__.lower():
-      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
+    """
+    Create a Ept object from an xml <ept> element.
+
+    Parameters
+    ----------
+    element : :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
+        The element to parse. Must be a <ept> tag.
+    **kwargs
+        Additional keyword arguments to pass to the Constructor. Values from
+        these arguments will override values parsed from the element.
+
+    Returns
+    -------
+    Ept
+        A Ept object representing the parsed element.
+
+    Raises
+    ------
+    ValueError
+        If the element is not a <ept> tag.
+    TypeError
+        If the unicode attribute is missing from the element, or if any extra
+        attribute is found in the element or passed as a keyword argument.
+    """
+    if str(element.tag) != "ept":
+      raise ValueError(f"Expected a <ept> tag but got {element.tag!r}")
     i = kwargs.get("i", element.attrib.get("i"))
     try:
       i = int(i)
@@ -1938,6 +2082,38 @@ class Ept:
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
+    """
+    Converts a Ept object to an xml <ept> element.
+
+    Parameters
+    ----------
+    engine : ENGINE, optional
+        The xml engine to use to create the Element, either python's standard
+        library or lxml, by default "lxml"
+    add_extra : bool, optional
+        Whether to add extra attributes to the resulting Element, by default False.
+    **kwargs
+        Additional attributes to add to the resulting Element. If add_extra is
+        False, any extra attribute passed as a keyword argument will be ignored.
+
+
+    .. warning::
+        If add_extra is True, any extra attribute passed as a keyword argument
+        will be added to the resulting Element, even if it is not a valid
+        attribute for a <ept> tag or the value is not a string.
+
+    Returns
+    -------
+    :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
+        A xml Element representing the Ept object.
+
+    Raises
+    ------
+    TypeError
+        If any attribute's type deosn't match its expected type.
+    ValueError
+        If the engine is not recognized.
+    """
     elem = _make_elem(
       "ept", _make_xml_attrs(self, add_extra=add_extra, **kwargs), engine
     )
@@ -1951,27 +2127,70 @@ class Ept:
   unsafe_hash=True,
 )
 class Sub:
+  """
+  A dataclass representing a <sub> element in a tmx file, used to delimit
+  sub-flow text inside a sequence of native code, for example: the definition of
+  a footnote or the text of title in a HTML anchor element.
+  """
+
   content: abc.Sequence[str | Bpt | Ept | It | Ph | Hi | Ut] = dc.field(
     default_factory=list,
     hash=True,
     compare=True,
     metadata={"exclude": True},
   )
+  """
+  The actual contents of the elements, an array of strings and Inline elements.
+  elements. Required, an empty list by default.
+  """
   datatype: tp.Optional[str] = dc.field(
     hash=True,
     compare=True,
     default=None,
   )
+  """
+  Data type - Specifies the type of data contained in the element. Optional,
+  by default None.
+  """
   type: tp.Optional[str] = dc.field(
     hash=True,
     compare=True,
     default=None,
   )
+  """
+  Type - Specifies the kind of data contained in its parent element. Not defined
+  by the standard. By convention, values for the "type" attribute should be
+  prefixed with "x-". For example, "x-my-custom-type". Optional by default None.
+  """
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Sub:
-    if str(element.tag) != cls.__name__.lower():
-      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
+    """
+    Create a Sub object from an xml <sub> element.
+
+    Parameters
+    ----------
+    element : :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
+        The element to parse. Must be a <sub> tag.
+    **kwargs
+        Additional keyword arguments to pass to the Constructor. Values from
+        these arguments will override values parsed from the element.
+
+    Returns
+    -------
+    Sub
+        A Sub object representing the parsed element.
+
+    Raises
+    ------
+    ValueError
+        If the element is not a <sub> tag.
+    TypeError
+        If the unicode attribute is missing from the element, or if any extra
+        attribute is found in the element or passed as a keyword argument.
+    """
+    if str(element.tag) != "sub":
+      raise ValueError(f"Expected a <sub> tag but got {element.tag!r}")
     content = kwargs.get("content", _parse_content(element))
     datatype = kwargs.get("datatype", element.attrib.get("datatype"))
     type_ = kwargs.get("type", element.attrib.get("type"))
@@ -1991,6 +2210,38 @@ class Sub:
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
+    """
+    Converts a Sub object to an xml <sub> element.
+
+    Parameters
+    ----------
+    engine : ENGINE, optional
+        The xml engine to use to create the Element, either python's standard
+        library or lxml, by default "lxml"
+    add_extra : bool, optional
+        Whether to add extra attributes to the resulting Element, by default False.
+    **kwargs
+        Additional attributes to add to the resulting Element. If add_extra is
+        False, any extra attribute passed as a keyword argument will be ignored.
+
+
+    .. warning::
+        If add_extra is True, any extra attribute passed as a keyword argument
+        will be added to the resulting Element, even if it is not a valid
+        attribute for a <sub> tag or the value is not a string.
+
+    Returns
+    -------
+    :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
+        A xml Element representing the Sub object.
+
+    Raises
+    ------
+    TypeError
+        If any attribute's type deosn't match its expected type.
+    ValueError
+        If the engine is not recognized.
+    """
     elem = _make_elem(
       "sub", _make_xml_attrs(self, add_extra=add_extra, **kwargs), engine
     )
@@ -2006,31 +2257,57 @@ class Sub:
   unsafe_hash=True,
 )
 class It:
+  """
+  A dataclass representing a <it> element in a tmx file, used to delimit a
+  beginning/ending sequence of native codes that does not have its corresponding
+  ending/beginning within the segment.
+  """
+
   content: abc.Sequence[str | Sub] = dc.field(
     default_factory=list,
     hash=True,
     compare=True,
     metadata={"exclude": True},
   )
+  """
+  The actual contents of the elements, an array of strings and :class:`Sub`
+  elements. Required, an empty list by default.
+  """
   pos: POS = dc.field(
     hash=True,
     compare=True,
   )
+  """
+  Position - Indicates whether an isolated tag <it> is a beginning or and ending
+  tag. Required.
+  """
   x: tp.Optional[int] = dc.field(
     hash=True,
     compare=True,
     default=None,
   )
+  """
+  External matching - Used to match inline elements between each <tuv> element
+  of a given <tu> element. Facilitates the pairing of allied codes in source and
+  target text, even if the order of code occurrence differs between the two
+  because of the translation syntax. Note that an <ept> element is matched based
+  on x attribute of its corresponding <bpt> element. Optional, by default None.
+  """
   type: tp.Optional[str] = dc.field(
     hash=True,
     compare=True,
     default=None,
   )
+  """
+  Type - Specifies the kind of data contained in its parent element. Not defined
+  by the standard. By convention, values for the "type" attribute should be
+  prefixed with "x-". For example, "x-my-custom-type". Optional by default None.
+  """
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> It:
-    if str(element.tag) != cls.__name__.lower():
-      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
+    if str(element.tag) != "it":
+      raise ValueError(f"Expected a <it> tag but got {element.tag!r}")
     pos = kwargs.get("pos", element.attrib.get("pos"))
     x = kwargs.get("x", element.attrib.get("x"))
     type_ = kwargs.get("type", element.attrib.get("type"))
@@ -2059,6 +2336,38 @@ class It:
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
+    """
+    Converts a It object to an xml <it> element.
+
+    Parameters
+    ----------
+    engine : ENGINE, optional
+        The xml engine to use to create the Element, either python's standard
+        library or lxml, by default "lxml"
+    add_extra : bool, optional
+        Whether to add extra attributes to the resulting Element, by default False.
+    **kwargs
+        Additional attributes to add to the resulting Element. If add_extra is
+        False, any extra attribute passed as a keyword argument will be ignored.
+
+
+    .. warning::
+        If add_extra is True, any extra attribute passed as a keyword argument
+        will be added to the resulting Element, even if it is not a valid
+        attribute for a <it> tag or the value is not a string.
+
+    Returns
+    -------
+    :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
+        A xml Element representing the It object.
+
+    Raises
+    ------
+    TypeError
+        If any attribute's type deosn't match its expected type.
+    ValueError
+        If the engine is not recognized.
+    """
     elem = _make_elem(
       "it", _make_xml_attrs(self, add_extra=add_extra, **kwargs), engine
     )
@@ -2072,32 +2381,57 @@ class It:
   unsafe_hash=True,
 )
 class Ph:
+  """
+  A dataclass representing a <ph> element in a tmx file, used to delimit a
+  sequence of native standalone codes in the segment.
+  """
+
   content: abc.Sequence[str | Sub] = dc.field(
     default_factory=list,
     hash=True,
     compare=True,
     metadata={"exclude": True},
   )
+  """
+  The actual contents of the elements, an array of strings and :class:`Sub`
+  elements. Required, an empty list by default.
+  """
   x: tp.Optional[int] = dc.field(
     hash=True,
     default=None,
     compare=True,
   )
+  """
+  External matching - Used to match inline elements between each <tuv> element
+  of a given <tu> element. Facilitates the pairing of allied codes in source and
+  target text, even if the order of code occurrence differs between the two
+  because of the translation syntax. Note that an <ept> element is matched based
+  on x attribute of its corresponding <bpt> element. Optional, by default None.
+  """
   assoc: tp.Optional[ASSOC] = dc.field(
     hash=True,
     default=None,
     compare=True,
   )
+  """
+  Association - Specifies the element is associated with the text prior or after.
+  Optional, by default None.
+  """
   type: tp.Optional[str] = dc.field(
     hash=True,
     compare=True,
     default=None,
   )
+  """
+  Type - Specifies the kind of data contained in its parent element. Not defined
+  by the standard. By convention, values for the "type" attribute should be
+  prefixed with "x-". For example, "x-my-custom-type". Optional by default None.
+  """
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Ph:
-    if str(element.tag) != cls.__name__.lower():
-      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
+    if str(element.tag) != "ph":
+      raise ValueError(f"Expected a <ph> tag but got {element.tag!r}")
     x = kwargs.get("x", element.attrib.get("x"))
     assoc = kwargs.get("assoc", element.attrib.get("pos"))
     type_ = kwargs.get("type", element.attrib.get("type"))
@@ -2126,6 +2460,38 @@ class Ph:
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
+    """
+    Converts a Ph object to an xml <ph> element.
+
+    Parameters
+    ----------
+    engine : ENGINE, optional
+        The xml engine to use to create the Element, either python's standard
+        library or lxml, by default "lxml"
+    add_extra : bool, optional
+        Whether to add extra attributes to the resulting Element, by default False.
+    **kwargs
+        Additional attributes to add to the resulting Element. If add_extra is
+        False, any extra attribute passed as a keyword argument will be ignored.
+
+
+    .. warning::
+        If add_extra is True, any extra attribute passed as a keyword argument
+        will be added to the resulting Element, even if it is not a valid
+        attribute for a <ph> tag or the value is not a string.
+
+    Returns
+    -------
+    :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
+        A xml Element representing the Ph object.
+
+    Raises
+    ------
+    TypeError
+        If any attribute's type deosn't match its expected type.
+    ValueError
+        If the engine is not recognized.
+    """
     elem = _make_elem(
       "ph", _make_xml_attrs(self, add_extra=add_extra, **kwargs), engine
     )
@@ -2139,27 +2505,72 @@ class Ph:
   unsafe_hash=True,
 )
 class Hi:
+  """
+  A dataclass representing a <hi> element in a tmx file, used to delimit a
+  section of text that has special meaning.
+  """
+
   content: abc.Sequence[str | Sub] = dc.field(
     default_factory=list,
     hash=True,
     compare=True,
     metadata={"exclude": True},
   )
+  """
+  The actual contents of the elements, an array of strings and :class:`Sub`
+  elements. Required, an empty list by default.
+  """
   x: tp.Optional[int] = dc.field(
     hash=True,
     default=None,
     compare=True,
   )
+  """
+  External matching - Used to match inline elements between each <tuv> element
+  of a given <tu> element. Facilitates the pairing of allied codes in source and
+  target text, even if the order of code occurrence differs between the two
+  because of the translation syntax. Note that an <ept> element is matched based
+  on x attribute of its corresponding <bpt> element. Optional, by default None.
+  """
   type: tp.Optional[str] = dc.field(
     hash=True,
     compare=True,
     default=None,
   )
+  """
+  Type - Specifies the kind of data contained in its parent element. Not defined
+  by the standard. By convention, values for the "type" attribute should be
+  prefixed with "x-". For example, "x-my-custom-type". Optional by default None.
+  """
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Hi:
-    if str(element.tag) != cls.__name__.lower():
-      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
+    """
+    Create a Hi object from an xml <hi> element.
+
+    Parameters
+    ----------
+    element : :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
+        The element to parse. Must be a <hi> tag.
+    **kwargs
+        Additional keyword arguments to pass to the Constructor. Values from
+        these arguments will override values parsed from the element.
+
+    Returns
+    -------
+    Hi
+        A Hi object representing the parsed element.
+
+    Raises
+    ------
+    ValueError
+        If the element is not a <hi> tag.
+    TypeError
+        If the unicode attribute is missing from the element, or if any extra
+        attribute is found in the element or passed as a keyword argument.
+    """
+    if str(element.tag) != "hi":
+      raise ValueError(f"Expected a <hi> tag but got {element.tag!r}")
     x = kwargs.get("x", element.attrib.get("x"))
     type_ = kwargs.get("type", element.attrib.get("type"))
     try:
@@ -2183,6 +2594,38 @@ class Hi:
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
+    """
+    Converts a Hi object to an xml <hi> element.
+
+    Parameters
+    ----------
+    engine : ENGINE, optional
+        The xml engine to use to create the Element, either python's standard
+        library or lxml, by default "lxml"
+    add_extra : bool, optional
+        Whether to add extra attributes to the resulting Element, by default False.
+    **kwargs
+        Additional attributes to add to the resulting Element. If add_extra is
+        False, any extra attribute passed as a keyword argument will be ignored.
+
+
+    .. warning::
+        If add_extra is True, any extra attribute passed as a keyword argument
+        will be added to the resulting Element, even if it is not a valid
+        attribute for a <hi> tag or the value is not a string.
+
+    Returns
+    -------
+    :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
+        A xml Element representing the Hi object.
+
+    Raises
+    ------
+    TypeError
+        If any attribute's type deosn't match its expected type.
+    ValueError
+        If the engine is not recognized.
+    """
     elem = _make_elem(
       "hi", _make_xml_attrs(self, add_extra=add_extra, **kwargs), engine
     )
@@ -2197,22 +2640,62 @@ class Hi:
 )
 @deprecated("Deprecated since TMX 1.4")
 class Ut:
+  """
+  A dataclass representing a <ut> element in a tmx file, used to delimit a
+  sequence of native unknown codes in the segment.
+  """
+
   content: abc.Sequence[str | Sub] = dc.field(
     default_factory=list,
     hash=True,
     compare=True,
     metadata={"exclude": True},
   )
+  """
+  The actual contents of the elements, an array of strings and :class:`Sub`
+  elements. Required, an empty list by default.
+  """
   x: tp.Optional[int] = dc.field(
     hash=True,
     default=None,
     compare=True,
   )
+  """
+  External matching - Used to match inline elements between each <tuv> element
+  of a given <tu> element. Facilitates the pairing of allied codes in source and
+  target text, even if the order of code occurrence differs between the two
+  because of the translation syntax. Note that an <ept> element is matched based
+  on x attribute of its corresponding <bpt> element. Optional, by default None.
+  """
 
   @classmethod
   def from_element(cls, element: pyet.Element | lxet._Element, **kwargs) -> Ut:
-    if str(element.tag) != cls.__name__.lower():
-      raise ValueError(f"Expected a {cls.__name__.lower()} tag but got {element.tag!r}")
+    """
+    Create a Ut object from an xml <ut> element.
+
+    Parameters
+    ----------
+    element : :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
+        The element to parse. Must be a <ut> tag.
+    **kwargs
+        Additional keyword arguments to pass to the Constructor. Values from
+        these arguments will override values parsed from the element.
+
+    Returns
+    -------
+    Ut
+        A Ut object representing the parsed element.
+
+    Raises
+    ------
+    ValueError
+        If the element is not a <ut> tag.
+    TypeError
+        If the unicode attribute is missing from the element, or if any extra
+        attribute is found in the element or passed as a keyword argument.
+    """
+    if str(element.tag) != "ut":
+      raise ValueError(f"Expected a <ut> tag but got {element.tag!r}")
     x = kwargs.get("x", element.attrib.get("x"))
     try:
       x = int(x)
@@ -2235,6 +2718,38 @@ class Ut:
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
+    """
+    Converts a Ut object to an xml <ut> element.
+
+    Parameters
+    ----------
+    engine : ENGINE, optional
+        The xml engine to use to create the Element, either python's standard
+        library or lxml, by default "lxml"
+    add_extra : bool, optional
+        Whether to add extra attributes to the resulting Element, by default False.
+    **kwargs
+        Additional attributes to add to the resulting Element. If add_extra is
+        False, any extra attribute passed as a keyword argument will be ignored.
+
+
+    .. warning::
+        If add_extra is True, any extra attribute passed as a keyword argument
+        will be added to the resulting Element, even if it is not a valid
+        attribute for a <ut> tag or the value is not a string.
+
+    Returns
+    -------
+    :external:py:class:`~lxml.etree._Element` | :py:class:`~xml.etree.ElementTree.Element`
+        A xml Element representing the Ut object.
+
+    Raises
+    ------
+    TypeError
+        If any attribute's type deosn't match its expected type.
+    ValueError
+        If the engine is not recognized.
+    """
     elem = _make_elem(
       "ut", _make_xml_attrs(self, add_extra=add_extra, **kwargs), engine
     )
