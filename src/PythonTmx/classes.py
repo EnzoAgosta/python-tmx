@@ -1950,15 +1950,15 @@ class Bpt:
 
   @tp.overload
   def to_element(
-    self, engine: tp.Literal["lxml"], add_extra: bool = False, **kwargs
+    self, engine: tp.Literal[ENGINE.LXML], add_extra: bool = False, **kwargs
   ) -> lxet._Element: ...
   @tp.overload
   def to_element(
-    self, engine: tp.Literal["python"], add_extra: bool = False, **kwargs
+    self, engine: tp.Literal[ENGINE.PYTHON], add_extra: bool = False, **kwargs
   ) -> pyet.Element: ...
   def to_element(
     self,
-    engine: tp.Literal["lxml", "python"] = "lxml",
+    engine: tp.Literal[ENGINE.PYTHON, ENGINE.LXML] = ENGINE.LXML,
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
@@ -2070,15 +2070,15 @@ class Ept:
 
   @tp.overload
   def to_element(
-    self, engine: tp.Literal["lxml"], add_extra: bool = False, **kwargs
+    self, engine: tp.Literal[ENGINE.LXML], add_extra: bool = False, **kwargs
   ) -> lxet._Element: ...
   @tp.overload
   def to_element(
-    self, engine: tp.Literal["python"], add_extra: bool = False, **kwargs
+    self, engine: tp.Literal[ENGINE.PYTHON], add_extra: bool = False, **kwargs
   ) -> pyet.Element: ...
   def to_element(
     self,
-    engine: tp.Literal["lxml", "python"] = "lxml",
+    engine: tp.Literal[ENGINE.PYTHON, ENGINE.LXML] = ENGINE.LXML,
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
@@ -2198,15 +2198,15 @@ class Sub:
 
   @tp.overload
   def to_element(
-    self, engine: tp.Literal["lxml"], add_extra: bool = False, **kwargs
+    self, engine: tp.Literal[ENGINE.LXML], add_extra: bool = False, **kwargs
   ) -> lxet._Element: ...
   @tp.overload
   def to_element(
-    self, engine: tp.Literal["python"], add_extra: bool = False, **kwargs
+    self, engine: tp.Literal[ENGINE.PYTHON], add_extra: bool = False, **kwargs
   ) -> pyet.Element: ...
   def to_element(
     self,
-    engine: tp.Literal["lxml", "python"] = "lxml",
+    engine: tp.Literal[ENGINE.PYTHON, ENGINE.LXML] = ENGINE.LXML,
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
@@ -2324,15 +2324,15 @@ class It:
 
   @tp.overload
   def to_element(
-    self, engine: tp.Literal["lxml"], add_extra: bool = False, **kwargs
+    self, engine: tp.Literal[ENGINE.LXML], add_extra: bool = False, **kwargs
   ) -> lxet._Element: ...
   @tp.overload
   def to_element(
-    self, engine: tp.Literal["python"], add_extra: bool = False, **kwargs
+    self, engine: tp.Literal[ENGINE.PYTHON], add_extra: bool = False, **kwargs
   ) -> pyet.Element: ...
   def to_element(
     self,
-    engine: tp.Literal["lxml", "python"] = "lxml",
+    engine: tp.Literal[ENGINE.PYTHON, ENGINE.LXML] = ENGINE.LXML,
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
@@ -2448,15 +2448,15 @@ class Ph:
 
   @tp.overload
   def to_element(
-    self, engine: tp.Literal["lxml"], add_extra: bool = False, **kwargs
+    self, engine: tp.Literal[ENGINE.LXML], add_extra: bool = False, **kwargs
   ) -> lxet._Element: ...
   @tp.overload
   def to_element(
-    self, engine: tp.Literal["python"], add_extra: bool = False, **kwargs
+    self, engine: tp.Literal[ENGINE.PYTHON], add_extra: bool = False, **kwargs
   ) -> pyet.Element: ...
   def to_element(
     self,
-    engine: tp.Literal["lxml", "python"] = "lxml",
+    engine: tp.Literal[ENGINE.PYTHON, ENGINE.LXML] = ENGINE.LXML,
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
@@ -2582,15 +2582,15 @@ class Hi:
 
   @tp.overload
   def to_element(
-    self, engine: tp.Literal["lxml"], add_extra: bool = False, **kwargs
+    self, engine: tp.Literal[ENGINE.LXML], add_extra: bool = False, **kwargs
   ) -> lxet._Element: ...
   @tp.overload
   def to_element(
-    self, engine: tp.Literal["python"], add_extra: bool = False, **kwargs
+    self, engine: tp.Literal[ENGINE.PYTHON], add_extra: bool = False, **kwargs
   ) -> pyet.Element: ...
   def to_element(
     self,
-    engine: tp.Literal["lxml", "python"] = "lxml",
+    engine: tp.Literal[ENGINE.PYTHON, ENGINE.LXML] = ENGINE.LXML,
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
@@ -2706,15 +2706,15 @@ class Ut:
 
   @tp.overload
   def to_element(
-    self, engine: tp.Literal["lxml"], add_extra: bool = False, **kwargs
+    self, engine: tp.Literal[ENGINE.LXML], add_extra: bool = False, **kwargs
   ) -> lxet._Element: ...
   @tp.overload
   def to_element(
-    self, engine: tp.Literal["python"], add_extra: bool = False, **kwargs
+    self, engine: tp.Literal[ENGINE.PYTHON], add_extra: bool = False, **kwargs
   ) -> pyet.Element: ...
   def to_element(
     self,
-    engine: tp.Literal["lxml", "python"] = "lxml",
+    engine: tp.Literal[ENGINE.PYTHON, ENGINE.LXML] = ENGINE.LXML,
     add_extra: bool = False,
     **kwargs,
   ) -> lxet._Element | pyet.Element:
