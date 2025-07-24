@@ -9,7 +9,11 @@ from PythonTmx.core import (
   P,
   R,
 )
-from PythonTmx.utils import raise_serialization_errors
+from PythonTmx.utils import (
+  ensure_element_structure,
+  ensure_required_attributes_are_present,
+  raise_serialization_errors,
+)
 
 
 @dataclass(slots=True)
@@ -21,15 +25,11 @@ class Prop(BaseTmxElement):
 
   @classmethod
   def from_xml(cls: type[Prop], element: AnyXmlElement) -> Prop:
+    ensure_element_structure(element, expected_tag="prop")
+    if not element.text:
+      raise_serialization_errors(element.tag, ValueError(), missing="text")
+    ensure_required_attributes_are_present(element, ("type",))
     try:
-      if str(element.tag) != "prop":
-        raise_serialization_errors(
-          element.tag, ValueError(), expected="prop", actual=str(element.tag)
-        )
-      if not element.text:
-        raise_serialization_errors(element.tag, ValueError(), missing="text")
-      if "type" not in element.attrib:
-        raise_serialization_errors(element.tag, KeyError(), missing="type")
       return cls(
         value=element.text,
         type=element.attrib["type"],

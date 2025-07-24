@@ -8,8 +8,6 @@ from os import PathLike
 from pathlib import Path
 from typing import Any, Iterator, ParamSpec, Protocol, TypeVar
 
-from PythonTmx.utils import ensure_file
-
 
 class AnyXmlElement(Protocol):
   """
@@ -199,6 +197,7 @@ class TmxParser(ABC):
   A `Path` object pointing to the source file to parse.
   """
 
+  @abstractmethod
   def __init__(self, source: PathLike[str] | Path | str) -> None:
     """
     Initialize the parser from a source file after performing
@@ -212,8 +211,7 @@ class TmxParser(ABC):
         FileNotFoundError: If the source path does not exist.
         IsADirectoryError: If the source path is not a file.
     """
-    source = ensure_file(source)
-    self.source = source
+    ...
 
   @abstractmethod
   def iter(
