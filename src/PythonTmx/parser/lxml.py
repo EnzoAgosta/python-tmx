@@ -1,13 +1,19 @@
 from collections.abc import Iterator
+from os import PathLike
+from pathlib import Path
 
 from lxml.etree import QName, iterparse
 
 from PythonTmx.core import BaseTmxElement, TmxParser
 from PythonTmx.tag_map import __TAG_MAP__
-from PythonTmx.utils import raise_parsing_errors
+from PythonTmx.utils import ensure_file, raise_parsing_errors
 
 
 class LazyLxmlParser(TmxParser):
+  def __init__(self, source: PathLike[str] | Path | str) -> None:
+    source = ensure_file(source)
+    self.source = source
+
   def iter(
     self, mask: str | tuple[str, ...] | None = None, mask_exclude: bool = False
   ) -> Iterator[BaseTmxElement]:

@@ -40,3 +40,15 @@ class SerializationError(Exception):
     self.original_exception = original_exception
     for key, value in extra.items():
       setattr(self, key, value)
+
+class MalFormedElementError(Exception):
+  missing_field: str
+
+  def __str__(self):
+        return f"{super().__str__()}\nMissing field: {self.missing_field}"
+
+  def __init__(self, msg: str, missing_field: str, **extra: Any):
+    super().__init__(msg)
+    self.missing_field = missing_field
+    for key, value in extra.items():
+      setattr(self, key, value)
