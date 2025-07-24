@@ -9,6 +9,7 @@ from PythonTmx.core import (
   P,
   R,
 )
+from PythonTmx.utils import raise_serialization_errors
 
 
 @dataclass(slots=True)
@@ -19,13 +20,24 @@ class Prop(BaseTmxElement):
   lang: str | None = None
 
   @classmethod
-  def from_xml(cls, element: AnyXmlElement) -> Prop:
-    return cls(
-      value=element.text,
-      type=element.attrib["type"],
-      encoding=element.attrib.get("encoding"),
-      lang=element.attrib.get("lang"),
-    )
+  def from_xml(cls: type[Prop], element: AnyXmlElement) -> Prop:
+    try:
+      if str(element.tag) != "prop":
+        raise_serialization_errors(
+          element.tag, ValueError(), expected="prop", actual=str(element.tag)
+        )
+      if not element.text:
+        raise_serialization_errors(element.tag, ValueError(), missing="text")
+      if "type" not in element.attrib:
+        raise_serialization_errors(element.tag, KeyError(), missing="type")
+      return cls(
+        value=element.text,
+        type=element.attrib["type"],
+        encoding=element.attrib.get("encoding"),
+        lang=element.attrib.get("lang"),
+      )
+    except Exception as e:
+      raise_serialization_errors(element.tag, e)
 
   def to_xml(self, factory: AnyElementFactory[P, R]) -> R:
     element = factory(
