@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import ClassVar
 
 from PythonTmx.core import (
   AnyElementFactory,
@@ -14,7 +13,6 @@ from PythonTmx.core import (
 
 @dataclass(slots=True)
 class Prop(BaseTmxElement):
-  tag: ClassVar[str] = "prop"
   value: str
   type: str
   encoding: str | None = None
@@ -31,7 +29,7 @@ class Prop(BaseTmxElement):
 
   def to_xml(self, factory: AnyElementFactory[P, R]) -> R:
     element = factory(
-      self.tag,
+      "prop",
       self._make_attrib_dict(),
     )
     element.text = self.value
