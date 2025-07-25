@@ -15,10 +15,10 @@ A living roadmap for the v0.4+ rewrite of PythonTmx
 
 - Structural Elements
   - ✅ `Prop`
-  - 🚧 `Note`
-  - 🚧 `Map`
-  - 🚧 `Ude`
-  - 🚧 `Header`
+  - ✅ `Note`
+  - 🔜 `Map`
+  - 🔜 `Ude`
+  - 🔜 `Header`
   - `Tu`
   - `Tuv`
   - `Segment`
