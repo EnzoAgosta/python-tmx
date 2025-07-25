@@ -41,14 +41,16 @@ class SerializationError(Exception):
     for key, value in extra.items():
       setattr(self, key, value)
 
-class MalFormedElementError(Exception):
+class UnusableElementError(Exception):
   missing_field: str
 
   def __str__(self):
-        return f"{super().__str__()}\nMissing field: {self.missing_field}"
+        if hasattr(self, "missing_field"):
+            return f"{super().__str__()}\nMissing required field {self.missing_field}"
+        else:
+            return super().__str__()
 
-  def __init__(self, msg: str, missing_field: str, **extra: Any):
+  def __init__(self, msg: str, **extra: Any):
     super().__init__(msg)
-    self.missing_field = missing_field
     for key, value in extra.items():
       setattr(self, key, value)

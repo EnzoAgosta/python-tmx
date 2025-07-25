@@ -4,9 +4,9 @@ from typing import Any, Never
 
 from PythonTmx.core import AnyXmlElement
 from PythonTmx.errors import (
-  MalFormedElementError,
   ParsingError,
   SerializationError,
+  UnusableElementError,
 )
 
 
@@ -104,6 +104,56 @@ def raise_parsing_errors(
       )
 
 
+def _check_attrs_and_methods(element: object) -> None:
+  if not hasattr(element, "tag"):
+    raise UnusableElementError(
+      f"Element {element} does not have a tag attribute",
+      missing_field="tag",
+    )
+  if not hasattr(element, "attrib"):
+    raise UnusableElementError(
+      f"Element {element} does not have an attrib attribute",
+      missing_field="attrib",
+    )
+  if not hasattr(element, "text"):
+    raise UnusableElementError(
+      f"Element {element} does not have a text attribute",
+      missing_field="text",
+    )
+  if not hasattr(element, "tail"):
+    raise UnusableElementError(
+      f"Element {element} does not have a tail attribute",
+      missing_field="tail",
+    )
+  try:
+    iter(element)  # type: ignore # we're intentionally not being safe here
+  except TypeError:
+    raise UnusableElementError(
+      f"Element {element} is not iterable",
+    )
+
+
+def _check_attrib_is_mapping_like(element: object) -> None:
+  if not hasattr(getattr(element, "attrib"), "__getitem__"):
+    raise UnusableElementError(
+      f"Element {element} attrib attribute does not have a __getitem__ method, cannot use it as a mapping-like object",
+      missing_field="attrib",
+    )
+  if not hasattr(getattr(element, "attrib"), "get"):
+    raise UnusableElementError(
+      f"Element {element} attrib attribute does not have a get method, cannot use it as a mapping-like object",
+      missing_field="attrib",
+    )
+
+
+def _check_tag_is_expected(element: object, expected_tag: str) -> None:
+  tag: str = getattr(element, "tag")
+  if str(tag) != expected_tag:
+    raise UnusableElementError(
+      f"Element {element} has a tag attribute with unexpected value {str(tag)}, expected {expected_tag}",
+    )
+
+
 def ensure_element_structure(element: object, expected_tag: str) -> None:
   """
   Ensures that the provided element has the expected structure for TMX elements.
@@ -112,58 +162,11 @@ def ensure_element_structure(element: object, expected_tag: str) -> None:
     element: The element to check.
 
   Raises:
-    SerializationError: If the element does not have any of the expected attributes.
+    UnusableElementError: If the element does not have any of the expected attributes.
   """
-  # Check attribute/method existence
-  if not hasattr(element, "tag"):
-    raise MalFormedElementError(
-      f"Element {element} does not have a tag attribute",
-      "tag",
-    )
-  if not hasattr(element, "attrib"):
-    raise MalFormedElementError(
-      f"Element {element} does not have an attrib attribute",
-      "attrib",
-    )
-  if not hasattr(element, "text"):
-    raise MalFormedElementError(
-      f"Element {element} does not have a text attribute",
-      "text",
-    )
-  if not hasattr(element, "tail"):
-    raise MalFormedElementError(
-      f"Element {element} does not have a tail attribute",
-      "tail",
-    )
-  if not hasattr(element, "__iter__"):
-    raise MalFormedElementError(
-      f"Element {element} does not have an __iter__ method",
-      "__iter__",
-    )
-  if not hasattr(element, "__len__"):
-    raise MalFormedElementError(
-      f"Element {element} does not have a __len__ method",
-      "__len__",
-    )
-  # ensure attrib is usable as a read-only mapping
-  if not hasattr(getattr(element, "attrib"), "__getitem__"):
-    raise MalFormedElementError(
-      f"Element {element} attrib attribute does not have a __getitem__ method, cannot use it as a mapping-like object",
-      "attrib",
-    )
-  # ensure attrib is usable as a read-only mapping
-  if not hasattr(getattr(element, "attrib"), "get"):
-    raise MalFormedElementError(
-      f"Element {element} attrib attribute does not have a get method, cannot use it as a mapping-like object",
-      "attrib",
-    )
-  # check expected tag
-  tag = getattr(element, "tag")
-  if str(tag) != expected_tag:
-    raise MalFormedElementError(
-      f"Element {element} has a tag attribute with unexpected value {str(tag)}, expected {expected_tag}",
-      "tag",
-    )
+  _check_attrs_and_methods(element)
+  _check_attrib_is_mapping_like(element)
+  _check_tag_is_expected(element, expected_tag)
 
 
 def ensure_required_attributes_are_present(

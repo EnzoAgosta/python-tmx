@@ -44,15 +44,6 @@ class AnyXmlElement(Protocol):
     """
     ...
 
-  def __len__(self) -> int:
-    """Return the number of child elements.
-
-    Returns:
-        int: The number of direct children of this element.
-    """
-    ...
-
-
 P = ParamSpec("P")  # Generic ParamSpec
 R = TypeVar(
   "R", bound=AnyXmlElement, covariant=True, default=AnyXmlElement
