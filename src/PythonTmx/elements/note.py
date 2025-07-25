@@ -11,7 +11,6 @@ from PythonTmx.core import (
 )
 from PythonTmx.utils import (
   ensure_element_structure,
-  ensure_required_attributes_are_present,
   raise_serialization_errors,
 )
 
@@ -24,10 +23,9 @@ class Note(BaseTmxElement):
 
   @classmethod
   def from_xml(cls: type[Note], element: AnyXmlElement) -> Note:
-    ensure_element_structure(element, expected_tag="prop")
+    ensure_element_structure(element, expected_tag="note")
     if not element.text:
       raise_serialization_errors(element.tag, ValueError(), missing="text")
-    ensure_required_attributes_are_present(element, ("type",))
     try:
       return cls(
         value=element.text,
