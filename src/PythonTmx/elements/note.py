@@ -18,7 +18,7 @@ from PythonTmx.utils import (
 
 @dataclass(slots=True)
 class Note(BaseTmxElement):
-  value: str
+  text: str
   encoding: str | None = None
   lang: str | None = None
 
@@ -29,7 +29,7 @@ class Note(BaseTmxElement):
       raise_serialization_errors(element.tag, ValueError(), missing="text")
     try:
       return cls(
-        value=element.text,
+        text=element.text,
         encoding=element.attrib.get("encoding", None),
         lang=element.attrib.get(
           "{http://www.w3.org/XML/1998/namespace}lang", None
@@ -40,9 +40,6 @@ class Note(BaseTmxElement):
 
   def to_xml(self, factory: AnyElementFactory[P, R] | None = None) -> R:
     _factory = get_factory(self, factory)
-    element = _factory(
-      "note",
-      self._make_attrib_dict(),
-    )
-    element.text = self.value
+    element = _factory("note", self._make_attrib_dict(("text",)))
+    element.text = self.text
     return element

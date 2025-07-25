@@ -16,7 +16,7 @@ class TestNoteHappyPath:
     el = ElementClass("note", {})
     el.text = "hello"
     note = Note.from_xml(el)
-    assert note.value == "hello"
+    assert note.text == "hello"
     assert note.lang is None
 
   def test_from_xml_full(
@@ -28,13 +28,13 @@ class TestNoteHappyPath:
     )
     el.text = "bonjour"
     note = Note.from_xml(el)
-    assert note.value == "bonjour"
+    assert note.text == "bonjour"
     assert note.lang == "fr"
 
   def test_to_xml_roundtrip(
     self, ElementClass: AnyElementFactory[..., AnyXmlElement]
   ):
-    note = Note(value="Hello, world!", lang="es")
+    note = Note(text="Hello, world!", lang="es")
 
     def factory(
       tag: str, attrib: dict[str, str], *_: object, **__: object
@@ -102,10 +102,12 @@ class TestNoteMalformedInputs:
       def __iter__(self):
         return iter([])
 
+      def append(self, element: AnyXmlElement) -> None: ...
+
     el = WrongText()
     note = Note.from_xml(el)
     assert isinstance(note, Note)
-    assert note.value == 1234
+    assert note.text == 1234
 
   def test_lang_attribute_present(self):
     class WithLang:
@@ -116,8 +118,10 @@ class TestNoteMalformedInputs:
 
       def __iter__(self):
         return iter([])
+      
+      def append(self, element: AnyXmlElement) -> None: ...
 
     el = WithLang()
     note = Note.from_xml(el)
     assert note.lang == "fr"
-    assert note.value == "salut"
+    assert note.text == "salut"

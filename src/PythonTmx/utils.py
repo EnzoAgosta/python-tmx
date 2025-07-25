@@ -133,12 +133,17 @@ def _check_attrs_and_methods(element: object) -> None:
       f"Element {element} does not have a tail attribute",
       missing_field="tail",
     )
+  if not hasattr(element, "append"):
+    raise UnusableElementError(
+      f"Element {element} does not have an append method",
+      missing_field="append",
+    )
   try:
     iter(element)  # type: ignore # we're intentionally not being safe here
-  except TypeError:
+  except TypeError as e:
     raise UnusableElementError(
       f"Element {element} is not iterable",
-    )
+    ) from e
 
 
 def _check_attrib_is_mapping_like(element: object) -> None:
