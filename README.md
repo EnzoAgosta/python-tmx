@@ -22,4 +22,3 @@ Full documentation can be found
 ## License
 
 [MIT](https://choosealicense.com/licenses/mit/)
-
