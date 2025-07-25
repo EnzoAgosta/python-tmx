@@ -68,7 +68,7 @@ def raise_serialization_errors(
       ) from error
     case _:
       raise SerializationError(
-        f"taf: {tag!r} - Unknown error: {error}",
+        f"tag: {tag!r} - Unknown error: {error}",
         tag,
         error,
         **extra,

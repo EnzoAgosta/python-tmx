@@ -8,6 +8,8 @@ from os import PathLike
 from pathlib import Path
 from typing import Any, Iterator, ParamSpec, Protocol, TypeVar
 
+from PythonTmx.errors import SerializationError, ValidationError
+
 
 class AnyXmlElement(Protocol):
   """
@@ -199,6 +201,7 @@ class BaseTmxElement(ABC):
       ValueError: If a required field is missing (i.e., has no value).
     """
     attrib_dict: dict[str, str] = {}
+    exclude = ("xml_factory", *exclude)
     for field_data in fields(self):
       key, val = field_data.name, getattr(self, field_data.name)
       if key in exclude:
@@ -211,13 +214,28 @@ class BaseTmxElement(ABC):
       key = (
         "{http://www.w3.org/XML/1998/namespace}lang" if key == "lang" else key
       )
+      if not isinstance(val, field_data.metadata["expected_types"]):
+        raise ValidationError(
+          f"Validation failed. Value is not one of the expected type for the field - Field: {key!r} - Expected type: {field_data.type!r} - Actual type: {type(val)!r}",
+          key,
+          val,
+          TypeError(),
+        )
       match val:
         case datetime():
           attrib_dict[key] = val.strftime("%Y%m%dT%H%M%SZ")
         case Enum():
           attrib_dict[key] = val.value
-        case _:
+        case str() | int() | float():
           attrib_dict[key] = str(val)
+        case bool():
+          attrib_dict[key] = "yes" if val else "no"
+        case _:
+          raise SerializationError(
+            f"Validation failed - Expected type: {field_data.type} - Actual type: {type(val)}",
+            self.__class__.__name__.lower(),
+            TypeError(),
+          )
     return attrib_dict
 
 

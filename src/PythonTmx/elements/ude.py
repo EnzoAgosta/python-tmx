@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Generator
+from collections.abc import Generator, Iterable
 from dataclasses import dataclass, field
+from types import NoneType
 
 from PythonTmx.core import (
   AnyElementFactory,
@@ -21,9 +22,13 @@ from PythonTmx.utils import (
 
 @dataclass(slots=True)
 class Ude(BaseTmxElement):
-  name: str
-  base: str | None = None
-  _children: list[Map] = field(default_factory=list)
+  name: str = field(metadata={"expected_types": (str,)})
+  base: str | None = field(
+    default=None, metadata={"expected_types": (str, NoneType)}
+  )
+  _children: list[Map] = field(
+    default_factory=list, metadata={"expected_types": (Iterable,)}
+  )
 
   @property
   def maps(self) -> list[Map]:
@@ -42,7 +47,7 @@ class Ude(BaseTmxElement):
       raise SerializationError(
         f"Unexpected text in ude element: {element.text!r}",
         "ude",
-        Exception(),
+        ValueError(),
       )
     ensure_required_attributes_are_present(element, ("name",))
     try:
@@ -58,5 +63,18 @@ class Ude(BaseTmxElement):
     _factory = get_factory(self, factory)
     element = _factory("ude", self._make_attrib_dict(("_children",)))
     for map in self._children:
+      if not isinstance(map, Map):  # type: ignore # we're being defensive here, ignore redundant isinstance check
+        raise SerializationError(
+          f"Unexpected child element in ude element - Expected Map, got {type(map)}",
+          "ude",
+          TypeError(),
+        )
+      if map.code is not None:
+        if self.base is None:
+          raise SerializationError(
+            "Cannot export a ude element if at least one of its map elements has a code attribute",
+            "ude",
+            ValueError(),
+          )
       element.append(map.to_xml())
     return element
