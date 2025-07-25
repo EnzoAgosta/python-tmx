@@ -6,19 +6,19 @@ from PythonTmx.core import (
   AnyElementFactory,
   AnyXmlElement,
   BaseTmxElement,
-  P,
   R,
 )
 from PythonTmx.utils import (
   ensure_element_structure,
   ensure_required_attributes_are_present,
+  get_factory,
   raise_serialization_errors,
 )
 
 
 @dataclass(slots=True)
 class Prop(BaseTmxElement):
-  value: str
+  text: str
   type: str
   encoding: str | None = None
   lang: str | None = None
@@ -31,18 +31,21 @@ class Prop(BaseTmxElement):
     ensure_required_attributes_are_present(element, ("type",))
     try:
       return cls(
-        value=element.text,
+        text=element.text,
         type=element.attrib["type"],
         encoding=element.attrib.get("encoding", None),
-        lang=element.attrib.get("{http://www.w3.org/XML/1998/namespace}lang", None),
+        lang=element.attrib.get(
+          "{http://www.w3.org/XML/1998/namespace}lang", None
+        ),
       )
     except Exception as e:
       raise_serialization_errors(element.tag, e)
 
-  def to_xml(self, factory: AnyElementFactory[P, R]) -> R:
-    element = factory(
+  def to_xml(self, factory: AnyElementFactory[..., R] | None = None) -> R:
+    _factory = get_factory(self, factory)
+    element = _factory(
       "prop",
       self._make_attrib_dict(),
     )
-    element.text = self.value
+    element.text = self.text
     return element

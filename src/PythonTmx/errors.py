@@ -54,3 +54,6 @@ class UnusableElementError(Exception):
     super().__init__(msg)
     for key, value in extra.items():
       setattr(self, key, value)
+
+class MissingDefaultFactoryError(Exception):
+  pass
