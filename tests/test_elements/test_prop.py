@@ -94,9 +94,6 @@ class TestPropMalformedInputs:
       def __iter__(self):
         return iter([])
 
-      def __len__(self):
-        return 0
-
     el = NoAttrib()
     with pytest.raises(UnusableElementError) as excinfo:
       Prop.from_xml(el)  # type: ignore # This is supposed to fail
@@ -107,12 +104,12 @@ class TestPropMalformedInputs:
       tag = "prop"
       text = "foo"
       tail = ""
+      attrib = 1
 
       def __iter__(self):
         return iter([])
-
-      def __len__(self):
-        return 0
+      
+      def append(self, element: AnyXmlElement) -> None: ...
 
     el = AttribNoGetitem()
     with pytest.raises(UnusableElementError) as excinfo:
@@ -129,8 +126,7 @@ class TestPropMalformedInputs:
       def __iter__(self):
         return iter([])
 
-      def __len__(self):
-        return 0
+      def append(self, element: AnyXmlElement) -> None: ...
 
     el = WrongText()
     prop = Prop.from_xml(el)
@@ -153,8 +149,7 @@ class TestPropMalformedInputs:
       def __iter__(self):
         return iter([])
 
-      def __len__(self):
-        return 0
+      def append(self, element: AnyXmlElement) -> None: ...
 
     el = WeirdAttrib()
     prop = Prop.from_xml(el)
@@ -167,9 +162,6 @@ class TestPropMalformedInputs:
       text = "foo"
       tail = ""
       attrib = {"type": "bar"}
-
-      def __len__(self):
-        return 0
 
     el = NoIter()
     with pytest.raises(UnusableElementError):

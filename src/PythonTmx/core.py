@@ -27,7 +27,7 @@ class AnyXmlElement(Protocol):
 
   Methods:
       __iter__(): Returns an iterator over the child elements.
-      __len__(): Returns the number of child elements.
+      append(element): Appends the given element to the end of the child elements.
   """
 
   tag: Any
@@ -41,6 +41,15 @@ class AnyXmlElement(Protocol):
 
     Returns:
         Iterator[Any]: An iterator of child elements.
+    """
+    ...
+
+  def append(self, element: AnyXmlElement) -> None:
+    """
+    Appends the given element to the end of the child elements.
+
+    Args:
+        element: The element to append.
     """
     ...
 
@@ -167,7 +176,7 @@ class BaseTmxElement(ABC):
     """
     ...
 
-  def _make_attrib_dict(self) -> dict[str, str]:
+  def _make_attrib_dict(self, exclude: tuple[str, ...]) -> dict[str, str]:
     """
     Private method to create a dictionary of XML attributes
     from the element's fields.
@@ -192,11 +201,7 @@ class BaseTmxElement(ABC):
     attrib_dict: dict[str, str] = {}
     for field_data in fields(self):
       key, val = field_data.name, getattr(self, field_data.name)
-      if key in (
-        "xml_factory",
-        "text",
-        "value",
-      ):  # Skip factory and fields that will become the element's text
+      if key in exclude:
         continue
       if val is None:
         if field_data.default is MISSING:

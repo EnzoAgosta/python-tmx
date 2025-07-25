@@ -43,9 +43,6 @@ class Prop(BaseTmxElement):
 
   def to_xml(self, factory: AnyElementFactory[..., R] | None = None) -> R:
     _factory = get_factory(self, factory)
-    element = _factory(
-      "prop",
-      self._make_attrib_dict(),
-    )
+    element = _factory("prop", self._make_attrib_dict(exclude=("text",)))
     element.text = self.text
     return element
