@@ -33,8 +33,8 @@ class Prop(BaseTmxElement):
       return cls(
         value=element.text,
         type=element.attrib["type"],
-        encoding=element.attrib.get("encoding"),
-        lang=element.attrib.get("lang"),
+        encoding=element.attrib.get("encoding", None),
+        lang=element.attrib.get("{http://www.w3.org/XML/1998/namespace}lang", None),
       )
     except Exception as e:
       raise_serialization_errors(element.tag, e)
