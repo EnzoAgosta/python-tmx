@@ -14,19 +14,16 @@ class AnyXmlElement(Protocol):
   Protocol for a generic XML element abstraction.
 
   Defines the minimal interface required for XML element objects to be
-  compatible with TMX element parsing and serialization. This protocol
-  is intentionally lax and uses `Any` to allow for easy compatibility
-  with both lxml and the standard library's `xml.etree.ElementTree` and
-  their sometimes unreconcilable interfaces.
+  compatible with TMX element parsing and serialization. This protocol is
+  intentionally lax and uses `Any` to allow for easy compatibility with both
+  lxml and the standard library's `xml.etree.ElementTree` and their sometimes
+  unreconcilable interfaces.
 
   Attributes:
-      tag: The element's tag name or qualified name.
-        Usually a string or a QName-like object
-      text: The text content directly under this element,
-        and before any child, if any
+      tag: The element's tag name or qualified name (usually a string or QName).
+      text: The text content directly under this element, before any children.
       tail: The text following this element's end tag, if any.
-      attrib: A mapping of the element's attributes. Expected to be
-        a dict[str, str] or an object behaving like a dict.
+      attrib: An attribute mapping supporting both `get` and `__getitem__`.
 
   Methods:
       __iter__(): Returns an iterator over the child elements.
@@ -38,13 +35,27 @@ class AnyXmlElement(Protocol):
   tail: Any
   attrib: Any
 
-  def __iter__(self) -> Iterator[Any]: ...
-  def __len__(self) -> int: ...
+  def __iter__(self) -> Iterator[Any]:
+    """
+    Iterate over the child elements.
+
+    Returns:
+        Iterator[Any]: An iterator of child elements.
+    """
+    ...
+
+  def __len__(self) -> int:
+    """Return the number of child elements.
+
+    Returns:
+        int: The number of direct children of this element.
+    """
+    ...
 
 
 P = ParamSpec("P")  # Generic ParamSpec
 R = TypeVar(
-  "R", bound=AnyXmlElement, covariant=True
+  "R", bound=AnyXmlElement, covariant=True, default=AnyXmlElement
 )  # Generic TypeVar for return type
 
 
@@ -52,22 +63,22 @@ class AnyElementFactory(Protocol[P, R]):
   """
   Protocol for an XML element factory callable.
 
-  This protocol defines the expected signature for any factory function or
-  callable that creates XML elements. Implementations should return an object
-  which implements the `AnyXmlElement` protocol.
+  Defines the expected signature for any factory function or callable that
+  creates XML elements. Implementations must return an object that implements
+  the `AnyXmlElement` protocol.
 
-  The only required arguments here are `tag` and `attrib`, which are used to
-  create the XML element. Additional positional and keyword arguments are
-  included for wide compatibility but not used by this library.
+  Only `tag` and `attrib` are required; additional positional and keyword
+  arguments are included for compatibility with various XML backends but are
+  not used directly by this library.
 
   Args:
       tag: The tag name for the XML element.
-      attrib: Dictionary of XML attributes for the element.
-      *args: Additional positional arguments passed to the factory.
-      **kwargs: Additional keyword arguments passed to the factory.
+      attrib: An attribute mapping supporting both `get` and `__getitem__`.
+      *args: Additional positional arguments.
+      **kwargs: Additional keyword arguments.
 
   Returns:
-      R: An object that implements the `AnyXmlElement` protocol.
+      R: An object implementing the `AnyXmlElement` protocol.
   """
 
   def __call__(
@@ -103,7 +114,7 @@ class BaseTmxElement(ABC):
         The `factory` doesn't necessarily have to be the same one that
         was used to parse the XML element. It's fully valid to use `LxmlParser`
         object to parse a file and create Tmx Elements but then export them
-        using the Standard Library's `xml.etree.ElementTree` module instead.
+        using the Standard Library's `xml.etree.ElementTree.Element` class instead.
 
     Args:
         factory: A callable conforming to `AnyElementFactory`,
@@ -144,6 +155,9 @@ class BaseTmxElement(ABC):
     For all other fields, the value is converted to a string using
     `str(value)`.
 
+    For `lang` attributes, the value is converted to a string using
+    `str(value)` and prefixed with `{http://www.w3.org/XML/1998/namespace}lang`.
+
     Returns:
       A dict mapping field names to string values for XML serialization.
 
@@ -158,6 +172,9 @@ class BaseTmxElement(ABC):
           raise ValueError(f"Missing required field {key}")
         else:
           continue
+      key = (
+        "{http://www.w3.org/XML/1998/namespace}lang" if key == "lang" else key
+      )
       match val:
         case datetime():
           attrib_dict[key] = val.strftime("%Y%m%dT%H%M%SZ")

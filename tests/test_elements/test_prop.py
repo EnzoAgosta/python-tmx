@@ -10,7 +10,7 @@ from PythonTmx.errors import MalFormedElementError, SerializationError
 
 class TestPropHappyPath:
   def test_from_xml_minimal(self):
-    el = Element("prop", type="foo")
+    el = Element("prop", {"type":"foo"})
     el.text = "bar"
     prop = Prop.from_xml(el)
     assert prop.type == "foo"
@@ -19,10 +19,10 @@ class TestPropHappyPath:
     assert prop.lang is None
 
   def test_from_xml_full(self):
-    el = Element("prop", type="hello", encoding="utf-8", lang="en")
+    el = Element("prop", {"type":"foo", "encoding":"utf-8", "{http://www.w3.org/XML/1998/namespace}lang":"en"})
     el.text = "text"
     prop = Prop.from_xml(el)
-    assert prop.type == "hello"
+    assert prop.type == "foo"
     assert prop.value == "text"
     assert prop.encoding == "utf-8"
     assert prop.lang == "en"
@@ -41,7 +41,7 @@ class TestPropHappyPath:
     assert el.tag == "prop"
     assert el.attrib["type"] == "custom"
     assert el.attrib["encoding"] == "base64"
-    assert el.attrib["lang"] == "fr"
+    assert el.attrib["{http://www.w3.org/XML/1998/namespace}lang"] == "fr"
 
 
 class TestPropErrorPath:
