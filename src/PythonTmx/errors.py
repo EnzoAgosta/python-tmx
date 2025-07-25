@@ -57,3 +57,21 @@ class UnusableElementError(Exception):
 
 class MissingDefaultFactoryError(Exception):
   pass
+
+class ValidationError(Exception):
+  field: str
+  value: Any
+  original_exception: Exception
+
+  def __str__(self):
+        return f"{super().__str__()}\nField: {self.field!r}\nValue: {self.value!r}\nCaused by: {self.original_exception}"
+
+  def __init__(
+    self, msg: str, field: str, value: Any, original_exception: Exception, **extra: Any
+  ):
+    super().__init__(msg)
+    self.field = field
+    self.value = value
+    self.original_exception = original_exception
+    for key, value in extra.items():
+      setattr(self, key, value)

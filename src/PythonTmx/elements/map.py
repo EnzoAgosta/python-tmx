@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from types import NoneType
 
 from PythonTmx.core import (
   AnyElementFactory,
@@ -19,10 +20,16 @@ from PythonTmx.utils import (
 
 @dataclass(slots=True)
 class Map(BaseTmxElement):
-  unicode: str
-  code: str | None = None
-  ent: str | None = None
-  subst: str | None = None
+  unicode: str = field(metadata={"expected_types": (str,)})
+  code: str | None = field(
+    default=None, metadata={"expected_types": (str, NoneType)}
+  )
+  ent: str | None = field(
+    default=None, metadata={"expected_types": (str, NoneType)}
+  )
+  subst: str | None = field(
+    default=None, metadata={"expected_types": (str, NoneType)}
+  )
 
   @classmethod
   def from_xml(cls: type[Map], element: AnyXmlElement) -> Map:
