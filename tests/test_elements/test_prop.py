@@ -78,7 +78,6 @@ class TestPropErrorPath:
     self, ElementClass: AnyElementFactory[..., AnyXmlElement]
   ):
     el = ElementClass("prop", {"type": "foo"})
-    # No text set
     with pytest.raises(SerializationError) as excinfo:
       Prop.from_xml(el)
     assert isinstance(excinfo.value.original_exception, ValueError)
@@ -88,7 +87,6 @@ class TestPropErrorPath:
 class TestPropMalformedInputs:
   def test_missing_attrib_attribute(self):
     class NoAttrib:
-      attrib: object
       tag = "prop"
       text = "foo"
       tail = ""
@@ -101,7 +99,7 @@ class TestPropMalformedInputs:
 
     el = NoAttrib()
     with pytest.raises(UnusableElementError) as excinfo:
-      Prop.from_xml(el)
+      Prop.from_xml(el) # type: ignore # This is supposed to fail
     assert excinfo.value.missing_field == "attrib"
 
   def test_attrib_not_mapping_like(self):
@@ -109,7 +107,6 @@ class TestPropMalformedInputs:
       tag = "prop"
       text = "foo"
       tail = ""
-      attrib = object()
 
       def __iter__(self):
         return iter([])
@@ -119,7 +116,7 @@ class TestPropMalformedInputs:
 
     el = AttribNoGetitem()
     with pytest.raises(UnusableElementError) as excinfo:
-      Prop.from_xml(el)
+      Prop.from_xml(el) # type: ignore # This is supposed to fail
     assert excinfo.value.missing_field == "attrib"
 
   def test_text_wrong_type(self):
