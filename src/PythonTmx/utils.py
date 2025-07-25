@@ -1,9 +1,17 @@
 from os import PathLike
 from pathlib import Path
-from typing import Any, Never
+from typing import Any, Never, cast
 
-from PythonTmx.core import AnyXmlElement
+from PythonTmx.core import (
+  DEFAULT_XML_FACTORY,
+  AnyElementFactory,
+  AnyXmlElement,
+  BaseTmxElement,
+  P,
+  R,
+)
 from PythonTmx.errors import (
+  MissingDefaultFactoryError,
   ParsingError,
   SerializationError,
   UnusableElementError,
@@ -191,3 +199,22 @@ def ensure_required_attributes_are_present(
         element.tag,
         e,
       )
+
+
+def get_factory(
+  element: BaseTmxElement,
+  factory: AnyElementFactory[P, R] | None,
+) -> AnyElementFactory[P, R]:
+  _factory = (
+    factory
+    if factory is not None
+    else element.xml_factory
+    if element.xml_factory is not None
+    else DEFAULT_XML_FACTORY
+  )
+  if _factory is None:
+    raise MissingDefaultFactoryError(
+      "No default factory set at any level. Cannot deserialize."
+    )
+  # @Pyright @mypy trust me on this one boys
+  return cast(AnyElementFactory[P, R], _factory)

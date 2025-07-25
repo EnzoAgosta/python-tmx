@@ -17,7 +17,7 @@ class TestPropHappyPath:
     el.text = "bar"
     prop = Prop.from_xml(el)
     assert prop.type == "foo"
-    assert prop.value == "bar"
+    assert prop.text == "bar"
     assert prop.encoding is None
     assert prop.lang is None
 
@@ -35,14 +35,14 @@ class TestPropHappyPath:
     el.text = "text"
     prop = Prop.from_xml(el)
     assert prop.type == "foo"
-    assert prop.value == "text"
+    assert prop.text == "text"
     assert prop.encoding == "utf-8"
     assert prop.lang == "en"
 
   def test_to_xml_roundtrip(
     self, ElementClass: AnyElementFactory[..., AnyXmlElement]
   ):
-    prop = Prop(value="foobar", type="custom", encoding="base64", lang="fr")
+    prop = Prop(text="foobar", type="custom", encoding="base64", lang="fr")
 
     def factory(
       tag: str, attrib: dict[str, str], *_: object, **__: object
@@ -99,7 +99,7 @@ class TestPropMalformedInputs:
 
     el = NoAttrib()
     with pytest.raises(UnusableElementError) as excinfo:
-      Prop.from_xml(el) # type: ignore # This is supposed to fail
+      Prop.from_xml(el)  # type: ignore # This is supposed to fail
     assert excinfo.value.missing_field == "attrib"
 
   def test_attrib_not_mapping_like(self):
@@ -116,7 +116,7 @@ class TestPropMalformedInputs:
 
     el = AttribNoGetitem()
     with pytest.raises(UnusableElementError) as excinfo:
-      Prop.from_xml(el) # type: ignore # This is supposed to fail
+      Prop.from_xml(el)  # type: ignore # This is supposed to fail
     assert excinfo.value.missing_field == "attrib"
 
   def test_text_wrong_type(self):
@@ -135,7 +135,7 @@ class TestPropMalformedInputs:
     el = WrongText()
     prop = Prop.from_xml(el)
     assert isinstance(prop, Prop)
-    assert prop.value == 1234
+    assert prop.text == 1234
 
   def test_attrib_is_weird_mapping(self):
     class CustomAttrib(dict[str, str]):
@@ -159,7 +159,7 @@ class TestPropMalformedInputs:
     el = WeirdAttrib()
     prop = Prop.from_xml(el)
     assert prop.type == "foo"
-    assert prop.value == "val"
+    assert prop.text == "val"
 
   def test_not_iterable_method(self):
     class NoIter:

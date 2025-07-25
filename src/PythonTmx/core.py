@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import MISSING, dataclass, fields
+from dataclasses import MISSING, dataclass, field, fields
 from datetime import datetime
 from enum import Enum
 from os import PathLike
@@ -44,10 +44,27 @@ class AnyXmlElement(Protocol):
     """
     ...
 
-P = ParamSpec("P")  # Generic ParamSpec
-R = TypeVar(
-  "R", bound=AnyXmlElement, covariant=True, default=AnyXmlElement
-)  # Generic TypeVar for return type
+
+P = ParamSpec("P")
+R = TypeVar("R", bound=AnyXmlElement, covariant=True)
+
+DEFAULT_XML_FACTORY: AnyElementFactory[..., AnyXmlElement] | None = None
+
+
+def set_default_factory(
+  factory: AnyElementFactory[..., AnyXmlElement] | None,
+) -> None:
+  """
+  Set the global default XML factory for all TMX element serialization.
+
+  Can be overridden per element or on each `to_xml` call.
+
+  Args:
+      factory: Callable that creates XML elements from tag/attrib,
+          or None to unset the global default.
+  """
+  global DEFAULT_XML_FACTORY
+  DEFAULT_XML_FACTORY = factory  # type: ignore # We're intentionally mutating the global
 
 
 class AnyElementFactory(Protocol[P, R]):
@@ -96,8 +113,25 @@ class BaseTmxElement(ABC):
   that corresponds to it.
   """
 
+  # Optional per-element default (set by adapters, parsers, or user)
+  xml_factory: AnyElementFactory[..., AnyXmlElement] | None = field(
+    default=None, init=False
+  )
+
+  def set_default_factory(
+    self, factory: AnyElementFactory[P, R] | None
+  ) -> None:
+    """
+    Set or unset the default XML factory for this element instance.
+
+    Args:
+        factory: Callable that creates XML elements from tag/attrib,
+            or None to unset the instance default.
+    """
+    self.xml_factory = factory
+
   @abstractmethod
-  def to_xml(self, factory: AnyElementFactory[P, R]) -> R:
+  def to_xml(self, factory: AnyElementFactory[P, R] | None = None) -> R:
     """
     Convert this TMX element into an XML element.
 
@@ -158,6 +192,12 @@ class BaseTmxElement(ABC):
     attrib_dict: dict[str, str] = {}
     for field_data in fields(self):
       key, val = field_data.name, getattr(self, field_data.name)
+      if key in (
+        "xml_factory",
+        "text",
+        "value",
+      ):  # Skip factory and fields that will become the element's text
+        continue
       if val is None:
         if field_data.default is MISSING:
           raise ValueError(f"Missing required field {key}")
@@ -223,7 +263,10 @@ class TmxParser(ABC):
 
   @abstractmethod
   def iter(
-    self, mask: str | tuple[str, ...] | None = None, mask_exclude: bool = False
+    self,
+    mask: str | tuple[str, ...] | None = None,
+    mask_exclude: bool = False,
+    default_factory: AnyElementFactory[..., AnyXmlElement] | None = None,
   ) -> Iterator[BaseTmxElement]:
     """
     The core method for iterating over TMX elements in a source file.
@@ -244,6 +287,9 @@ class TmxParser(ABC):
     will be yielded. If `mask_exclude` is `False`, only elements in the
     `mask` will be yielded.
 
+    if `default_factory` is not None, the given factory will be set as
+    the default factory for all elements yielded by this parser.
+
     Implementations are also free to decide how to handle errors, but are
     encouraged to raise a `ParsingError` to align with the rest of the
     library's error handling.
@@ -252,6 +298,8 @@ class TmxParser(ABC):
         mask: A tag name, tuple of tag names, or None.
         mask_exclude: Whether to yield only elements in the `mask` or all
           elements except those in the `mask`.
+        default_factory: A callable that creates XML elements from tag/attrib,
+          or None to unset the instance default.
 
     Yields:
         BaseTmxElement: Parsed TMX elements from the source file based on the

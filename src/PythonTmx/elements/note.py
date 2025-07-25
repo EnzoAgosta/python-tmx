@@ -11,6 +11,7 @@ from PythonTmx.core import (
 )
 from PythonTmx.utils import (
   ensure_element_structure,
+  get_factory,
   raise_serialization_errors,
 )
 
@@ -37,8 +38,9 @@ class Note(BaseTmxElement):
     except Exception as e:
       raise_serialization_errors(element.tag, e)
 
-  def to_xml(self, factory: AnyElementFactory[P, R]) -> R:
-    element = factory(
+  def to_xml(self, factory: AnyElementFactory[P, R] | None = None) -> R:
+    _factory = get_factory(self, factory)
+    element = _factory(
       "note",
       self._make_attrib_dict(),
     )
