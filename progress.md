@@ -16,9 +16,9 @@ A living roadmap for the v0.4+ rewrite of PythonTmx
 - Structural Elements
   - ✅ `Prop`
   - ✅ `Note`
-  - 🔜 `Map`
-  - 🔜 `Ude`
-  - 🔜 `Header`
+  - ✅ `Map`
+  - ✅ `Ude`
+  - 🚧 `Header`
   - `Tu`
   - `Tuv`
   - `Segment`
@@ -41,7 +41,7 @@ A living roadmap for the v0.4+ rewrite of PythonTmx
 
 - ✅ Test structure and pytest setup
 - ✅ Full Prop element test suite (happy/error paths)
-- Test coverage for each new element
+- 🚧 Test coverage for each new element
 - Test parser backends (basic + edge cases)
 - Error-path, malformed XML, and roundtrip tests
 - Property-based/Hypothesis fuzzing (optional, local-only)
