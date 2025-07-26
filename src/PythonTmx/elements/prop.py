@@ -39,7 +39,7 @@ class Prop(BaseTmxElement):
       return cls(
         text=element.text,
         type=element.attrib["type"],
-        encoding=element.attrib.get("encoding", None),
+        encoding=element.attrib.get("o-encoding", None),
         lang=element.attrib.get(
           "{http://www.w3.org/XML/1998/namespace}lang", None
         ),

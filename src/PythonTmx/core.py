@@ -200,20 +200,29 @@ class BaseTmxElement(ABC):
     Raises:
       ValueError: If a required field is missing (i.e., has no value).
     """
+
+    def _update_key_name(key: str) -> str:
+      if key == "lang":
+        return "{http://www.w3.org/XML/1998/namespace}lang"
+      if key in ("encoding", "tmf"):
+        return f"o-{key}"
+      return key
+
     attrib_dict: dict[str, str] = {}
     exclude = ("xml_factory", *exclude)
+
     for field_data in fields(self):
       key, val = field_data.name, getattr(self, field_data.name)
-      if key in exclude:
-        continue
+      # Early exit if the field is optional or excluded
       if val is None:
         if field_data.default is MISSING:
           raise ValueError(f"Missing required field {key}")
         else:
           continue
-      key = (
-        "{http://www.w3.org/XML/1998/namespace}lang" if key == "lang" else key
-      )
+      if key in exclude:
+        continue
+      
+      key = _update_key_name(key)
       if not isinstance(val, field_data.metadata["expected_types"]):
         raise ValidationError(
           f"Validation failed. Value is not one of the expected type for the field - Field: {key!r} - Expected type: {field_data.type!r} - Actual type: {type(val)!r}",

@@ -31,7 +31,7 @@ class TestNoteHappyPath:
       "note",
       {
         "type": "foo",
-        "encoding": "utf-8",
+        "o-encoding": "utf-8",
         "{http://www.w3.org/XML/1998/namespace}lang": "en",
       },
     )
@@ -47,7 +47,7 @@ class TestNoteHappyPath:
     source_el = ElementFactory(
       "note",
       {
-        "encoding": "utf-8",
+        "o-encoding": "utf-8",
         "{http://www.w3.org/XML/1998/namespace}lang": "en",
       },
     )
@@ -56,7 +56,7 @@ class TestNoteHappyPath:
 
     return_el = note.to_xml(ElementFactory)
     assert return_el.tag == "note"
-    assert return_el.attrib["encoding"] == "utf-8"
+    assert return_el.attrib["o-encoding"] == "utf-8"
     assert (
       return_el.attrib["{http://www.w3.org/XML/1998/namespace}lang"] == "en"
     )
