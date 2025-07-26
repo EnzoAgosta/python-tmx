@@ -1,6 +1,8 @@
+from datetime import datetime
+from enum import StrEnum
 from os import PathLike
 from pathlib import Path
-from typing import Any, Never, cast
+from typing import Any, Literal, Never, TypeVar, cast, overload
 
 from PythonTmx.core import (
   DEFAULT_XML_FACTORY,
@@ -61,7 +63,7 @@ def raise_serialization_errors(
       ) from error
     case TypeError():
       raise SerializationError(
-        f"tag: {tag!r} - Expected type: {extra.get('expected', 'Unknown')!r}\nactual type: {extra.get('actual', 'Unknown')!r} - Unexpected data type encountered.",
+        f"tag: {tag!r} - Expected type: {extra.get('expected', 'Unknown')!r} - actual type: {extra.get('actual', 'Unknown')!r} - Unexpected data type encountered.",
         tag,
         error,
         **extra,
@@ -221,5 +223,50 @@ def get_factory(
     raise MissingDefaultFactoryError(
       "No default factory set at any level. Cannot deserialize."
     )
-  # @Pyright @mypy trust me on this one boys
+  # @Pyright trust me on this one
   return cast(AnyElementFactory[P, R], _factory)
+
+
+@overload
+def try_parse_datetime(
+  value: str | None, required: Literal[True] = True
+) -> datetime | str: ...
+@overload
+def try_parse_datetime(
+  value: str | None, required: Literal[False] = False
+) -> datetime | str | None: ...
+def try_parse_datetime(
+  value: str | None, required: bool = False
+) -> datetime | str | None:
+  if value is None:
+    return None
+  try:
+    return datetime.fromisoformat(value)
+  except ValueError:
+    return value
+  except TypeError as e:
+    raise e
+
+
+ET = TypeVar("ET", bound=StrEnum)
+
+
+@overload
+def try_parse_enum(
+  value: str | None, enum: type[ET], required: Literal[True] = True
+) -> ET | str: ...
+@overload
+def try_parse_enum(
+  value: str | None, enum: type[ET], required: Literal[False] = False
+) -> ET | str: ...
+def try_parse_enum(
+  value: str | None, enum: type[ET], required: bool = False
+) -> ET | str | None:
+  if value is None:
+    return None
+  if not isinstance(value, str):  # type: ignore # defensive check
+    raise TypeError(f"value must be a string, got {type(value)}")
+  try:
+    return enum(value)
+  except ValueError:
+    return value

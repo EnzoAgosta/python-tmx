@@ -1,4 +1,4 @@
-# tests/test_elements/test_ude.py
+# type: ignore
 import pytest
 
 from PythonTmx.core import AnyElementFactory, AnyXmlElement
@@ -49,7 +49,7 @@ class TestUdeHappyPath:
     children = [c for c in el]
     assert len(children) == 0
 
-  def test_to_xml_with_children_and_base(
+  def test_to_xml_with_maps_and_base(
     self, ElementFactory: AnyElementFactory[..., AnyXmlElement]
   ):
     m1 = Map(unicode="00A1")
@@ -57,7 +57,7 @@ class TestUdeHappyPath:
     m1.set_default_factory(ElementFactory)
     m2.set_default_factory(ElementFactory)
 
-    ude = Ude(name="U1", base="BASE", _children=[m1, m2])
+    ude = Ude(name="U1", base="BASE", maps=[m1, m2])
     el = ude.to_xml(ElementFactory)
 
     assert el.attrib["name"] == "U1"
@@ -105,7 +105,7 @@ class TestUdeErrorPath:
   ):
     m = Map(unicode="00AB", code="&#171;")
     m.set_default_factory(ElementFactory)
-    ude = Ude(name="X", _children=[m])
+    ude = Ude(name="X", maps=[m])
     with pytest.raises(SerializationError) as exc:
       ude.to_xml(ElementFactory)
     assert "cannot export a ude element" in str(exc.value).lower()

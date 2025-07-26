@@ -26,19 +26,15 @@ class Ude(BaseTmxElement):
   base: str | None = field(
     default=None, metadata={"expected_types": (str, NoneType)}
   )
-  _children: list[Map] = field(
-    default_factory=list, metadata={"expected_types": (Iterable,)}
+  maps: list[Map] = field(
+    default_factory=list[Map], metadata={"expected_types": (Iterable,)}
   )
 
-  @property
-  def maps(self) -> list[Map]:
-    return self._children
-
-  def __iter__(self) -> Generator[Map, None, None]:
-    yield from self._children
+  def __iter__(self) -> Generator[Map]:
+    yield from self.maps
 
   def __len__(self) -> int:
-    return len(self._children)
+    return len(self.maps)
 
   @classmethod
   def from_xml(cls: type[Ude], element: AnyXmlElement) -> Ude:
@@ -54,15 +50,15 @@ class Ude(BaseTmxElement):
       return cls(
         name=element.attrib["name"],
         base=element.attrib.get("base", None),
-        _children=[Map.from_xml(map) for map in element],
+        maps=[Map.from_xml(map) for map in element],
       )
     except Exception as e:
       raise_serialization_errors(element.tag, e)
 
   def to_xml(self, factory: AnyElementFactory[..., R] | None = None) -> R:
     _factory = get_factory(self, factory)
-    element = _factory("ude", self._make_attrib_dict(("_children",)))
-    for map in self._children:
+    element = _factory("ude", self._make_attrib_dict(("maps",)))
+    for map in self.maps:
       if not isinstance(map, Map):  # type: ignore # we're being defensive here, ignore redundant isinstance check
         raise SerializationError(
           f"Unexpected child element in ude element - Expected Map, got {type(map)}",

@@ -32,7 +32,7 @@ class TestPropHappyPath:
       "prop",
       {
         "type": "foo",
-        "encoding": "utf-8",
+        "o-encoding": "utf-8",
         "{http://www.w3.org/XML/1998/namespace}lang": "en",
       },
     )
@@ -50,7 +50,7 @@ class TestPropHappyPath:
       "prop",
       {
         "type": "foo",
-        "encoding": "utf-8",
+        "o-encoding": "utf-8",
         "{http://www.w3.org/XML/1998/namespace}lang": "en",
       },
     )
@@ -60,7 +60,7 @@ class TestPropHappyPath:
     return_el = prop.to_xml(ElementFactory)
     assert return_el.tag == "prop"
     assert return_el.attrib["type"] == "foo"
-    assert return_el.attrib["encoding"] == "utf-8"
+    assert return_el.attrib["o-encoding"] == "utf-8"
     assert (
       return_el.attrib["{http://www.w3.org/XML/1998/namespace}lang"] == "en"
     )
