@@ -89,9 +89,11 @@ def test_header_from_minimal_xml(ElementFactory):
 
 
 def test_header_from_full_xml(ElementFactory):
-  note = ElementFactory("note", {}, text="Header note")
-  prop = ElementFactory("prop", {"type": "client"}, text="Acme")
+  note = ElementFactory("note", {})
+  prop = ElementFactory("prop", {"type": "client"})
   ude = ElementFactory("ude", {"name": "u1"})
+  note.text = "Header note"
+  prop.text = "Acme"
   element = ElementFactory(
     "header",
     {
