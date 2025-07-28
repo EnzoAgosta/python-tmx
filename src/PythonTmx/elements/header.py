@@ -4,13 +4,13 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
 from types import NoneType
-from typing import Generator
 
 from PythonTmx.core import (
   AnyElementFactory,
   AnyXmlElement,
   BaseTmxElement,
   R,
+  WithChildren,
 )
 from PythonTmx.elements.note import Note
 from PythonTmx.elements.prop import Prop
@@ -23,12 +23,14 @@ from PythonTmx.utils import (
   get_factory,
   raise_serialization_errors,
   try_parse_datetime,
-  try_parse_enum,
 )
 
 
 @dataclass(slots=True)
-class Header(BaseTmxElement):
+class Header(BaseTmxElement, WithChildren[Note | Prop | Ude]):
+  _children: list[Note | Prop | Ude] = field(
+    metadata={"expected_types": (Iterable,)},
+  )
   creationtool: str = field(metadata={"expected_types": (str,)})
   creationtoolversion: str = field(metadata={"expected_types": (str,)})
   segtype: SEGTYPE | str = field(metadata={"expected_types": (SEGTYPE)})
@@ -36,6 +38,7 @@ class Header(BaseTmxElement):
   adminlang: str = field(metadata={"expected_types": (str,)})
   srclang: str = field(metadata={"expected_types": (str,)})
   datatype: str = field(metadata={"expected_types": (str,)})
+  xml_factory: AnyElementFactory[..., AnyXmlElement] | None = None
   encoding: str | None = field(
     default=None, metadata={"expected_types": (str, NoneType)}
   )
@@ -51,26 +54,35 @@ class Header(BaseTmxElement):
   changeid: str | None = field(
     default=None, metadata={"expected_types": (str, NoneType)}
   )
-  udes: list[Ude] = field(
-    default_factory=list[Ude], metadata={"expected_types": (Iterable,)}
-  )
-  props: list[Prop] = field(
-    default_factory=list[Prop], metadata={"expected_types": (Iterable,)}
-  )
-  notes: list[Note] = field(
-    default_factory=list[Note], metadata={"expected_types": (Iterable,)}
-  )
 
-  def __iter__(self) -> Generator[Note | Prop | Ude]:
-    yield from self.udes
-    yield from self.notes
-    yield from self.props
+  @property
+  def notes(self) -> list[Note]:
+    return [note for note in self._children if isinstance(note, Note)]
 
-  def __len__(self) -> int:
-    return len(self.udes) + len(self.notes) + len(self.props)
+  @property
+  def props(self) -> list[Prop]:
+    return [prop for prop in self._children if isinstance(prop, Prop)]
+
+  @property
+  def udes(self) -> list[Ude]:
+    return [ude for ude in self._children if isinstance(ude, Ude)]
 
   @classmethod
   def from_xml(cls: type[Header], element: AnyXmlElement) -> Header:
+    def _dispatch(child: AnyXmlElement) -> Note | Prop | Ude:
+      if child.tag == "ude":
+        return Ude.from_xml(child)
+      elif child.tag == "note":
+        return Note.from_xml(child)
+      elif child.tag == "prop":
+        return Prop.from_xml(child)
+      else:
+        raise SerializationError(
+          f"Unexpected child element in header element - Expected Ude, Note or Prop, got {child.tag}",
+          "header",
+          ValueError(),
+        )
+
     ensure_element_structure(element, expected_tag="header")
     if element.text:
       raise SerializationError(
@@ -84,7 +96,7 @@ class Header(BaseTmxElement):
         "creationtool",
         "creationtoolversion",
         "segtype",
-        "tmf",
+        "o-tmf",
         "adminlang",
         "srclang",
         "datatype",
@@ -100,65 +112,37 @@ class Header(BaseTmxElement):
     except TypeError as e:
       raise_serialization_errors(element.tag, e)
     try:
-      segtype = try_parse_enum(element.attrib["segtype"], SEGTYPE, True)
-    except TypeError as e:
+      segtype = SEGTYPE(element.attrib["segtype"])
+    except (TypeError, ValueError) as e:
       raise_serialization_errors(element.tag, e)
-    base_header = Header(
-      creationtool=element.attrib["creationtool"],
-      creationtoolversion=element.attrib["creationtoolversion"],
-      segtype=segtype,
-      tmf=element.attrib["o-tmf"],
-      adminlang=element.attrib["adminlang"],
-      srclang=element.attrib["srclang"],
-      datatype=element.attrib["datatype"],
-      encoding=element.attrib.get("o-encoding", None),
-      creationdate=creationdate,
-      creationid=element.attrib.get("creationid", None),
-      changedate=changedate,
-      changeid=element.attrib.get("changeid", None),
-    )
-    for child in element:
-      if child.tag == "ude":
-        base_header.udes.append(Ude.from_xml(child))
-      elif child.tag == "note":
-        base_header.notes.append(Note.from_xml(child))
-      elif child.tag == "prop":
-        base_header.props.append(Prop.from_xml(child))
-      else:
-        raise SerializationError(
-          f"Unexpected child element in header element - Expected Ude, Note or Prop, got {child.tag}",
-          "header",
-          ValueError(),
-        )
-    return base_header
+    try:
+      return cls(
+        creationtool=element.attrib["creationtool"],
+        creationtoolversion=element.attrib["creationtoolversion"],
+        segtype=segtype,
+        tmf=element.attrib["o-tmf"],
+        adminlang=element.attrib["adminlang"],
+        srclang=element.attrib["srclang"],
+        datatype=element.attrib["datatype"],
+        encoding=element.attrib.get("o-encoding", None),
+        creationdate=creationdate,
+        creationid=element.attrib.get("creationid", None),
+        changedate=changedate,
+        changeid=element.attrib.get("changeid", None),
+        _children=[_dispatch(child) for child in element],
+      )
+    except Exception as e:
+      raise_serialization_errors(element.tag, e)
 
   def to_xml(self, factory: AnyElementFactory[..., R] | None = None) -> R:
     _factory = get_factory(self, factory)
-    element = _factory(
-      "header", self._make_attrib_dict(("udes", "notes", "props"))
-    )
-    for ude in self.udes:
-      if not isinstance(ude, Ude):  # type: ignore
+    element = _factory("header", self._make_attrib_dict(("_children",)))
+    for child in self:
+      if not isinstance(child, Note | Prop | Ude):  # type: ignore
         raise SerializationError(
-          f"Unexpected child element in header element - Expected Ude, got {type(ude)}",
+          f"Unexpected child element in header element - Expected Ude, Note or Prop, got {type(child)}",
           "header",
           TypeError(),
         )
-      element.append(ude.to_xml())
-    for note in self.notes:
-      if not isinstance(note, Note):  # type: ignore
-        raise SerializationError(
-          f"Unexpected child element in header element - Expected Note, got {type(note)}",
-          "header",
-          TypeError(),
-        )
-      element.append(note.to_xml())
-    for prop in self.props:
-      if not isinstance(prop, Prop):  # type: ignore
-        raise SerializationError(
-          f"Unexpected child element in header element - Expected Prop, got {type(prop)}",
-          "header",
-          TypeError(),
-        )
-      element.append(prop.to_xml())
+      element.append(child.to_xml())
     return element

@@ -21,6 +21,7 @@ from PythonTmx.utils import (
 @dataclass(slots=True)
 class Map(BaseTmxElement):
   unicode: str = field(metadata={"expected_types": (str,)})
+  xml_factory: AnyElementFactory[..., AnyXmlElement] | None = None
   code: str | None = field(
     default=None, metadata={"expected_types": (str, NoneType)}
   )

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from types import NoneType
+from typing import Type
 
 from PythonTmx.core import (
   AnyElementFactory,
@@ -22,6 +23,7 @@ from PythonTmx.utils import (
 class Prop(BaseTmxElement):
   text: str = field(metadata={"expected_types": (str,)})
   type: str = field(metadata={"expected_types": (str,)})
+  xml_factory: AnyElementFactory[..., AnyXmlElement] | None = None
   encoding: str | None = field(
     default=None, metadata={"expected_types": (str, NoneType)}
   )
@@ -30,7 +32,7 @@ class Prop(BaseTmxElement):
   )
 
   @classmethod
-  def from_xml(cls: type[Prop], element: AnyXmlElement) -> Prop:
+  def from_xml(cls: Type[Prop], element: AnyXmlElement) -> Prop:
     ensure_element_structure(element, expected_tag="prop")
     if not element.text:
       raise_serialization_errors(element.tag, ValueError(), missing="text")

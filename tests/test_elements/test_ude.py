@@ -41,7 +41,7 @@ class TestUdeHappyPath:
   def test_to_xml_roundtrip_minimal(
     self, ElementFactory: AnyElementFactory[..., AnyXmlElement]
   ):
-    ude = Ude(name="AAA")
+    ude = Ude(name="AAA", _children=[])
     el = ude.to_xml(ElementFactory)
     assert el.tag == "ude"
     assert el.attrib["name"] == "AAA"
@@ -57,14 +57,14 @@ class TestUdeHappyPath:
     m1.set_default_factory(ElementFactory)
     m2.set_default_factory(ElementFactory)
 
-    ude = Ude(name="U1", base="BASE", maps=[m1, m2])
+    ude = Ude(name="U1", base="BASE", _children=[m1, m2])
     el = ude.to_xml(ElementFactory)
 
     assert el.attrib["name"] == "U1"
     assert el.attrib["base"] == "BASE"
-    children = [c for c in el]
+    children:list[AnyXmlElement] = [c for c in el]
     assert len(children) == 2
-    child_tags = [c.tag for c in el]
+    child_tags:list[str] = [c.tag for c in el]
     assert child_tags == ["map", "map"]
     assert children[1].attrib["code"] == "&#162;"
 
@@ -105,7 +105,7 @@ class TestUdeErrorPath:
   ):
     m = Map(unicode="00AB", code="&#171;")
     m.set_default_factory(ElementFactory)
-    ude = Ude(name="X", maps=[m])
+    ude = Ude(name="X", _children=[m])
     with pytest.raises(SerializationError) as exc:
       ude.to_xml(ElementFactory)
     assert "cannot export a ude element" in str(exc.value).lower()

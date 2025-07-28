@@ -249,24 +249,3 @@ def try_parse_datetime(
 
 
 ET = TypeVar("ET", bound=StrEnum)
-
-
-@overload
-def try_parse_enum(
-  value: str | None, enum: type[ET], required: Literal[True] = True
-) -> ET | str: ...
-@overload
-def try_parse_enum(
-  value: str | None, enum: type[ET], required: Literal[False] = False
-) -> ET | str: ...
-def try_parse_enum(
-  value: str | None, enum: type[ET], required: bool = False
-) -> ET | str | None:
-  if value is None:
-    return None
-  if not isinstance(value, str):  # type: ignore # defensive check
-    raise TypeError(f"value must be a string, got {type(value)}")
-  try:
-    return enum(value)
-  except ValueError:
-    return value

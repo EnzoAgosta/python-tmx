@@ -1,12 +1,22 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import MISSING, dataclass, field, fields
+from collections.abc import Iterable
+from dataclasses import MISSING, dataclass, fields
 from datetime import datetime
 from enum import Enum
 from os import PathLike
 from pathlib import Path
-from typing import Any, Iterator, ParamSpec, Protocol, TypeVar
+from typing import (
+  Any,
+  Generic,
+  Iterator,
+  ParamSpec,
+  Protocol,
+  SupportsIndex,
+  TypeVar,
+  overload,
+)
 
 from PythonTmx.errors import SerializationError, ValidationError
 
@@ -124,11 +134,6 @@ class BaseTmxElement(ABC):
   that corresponds to it.
   """
 
-  # Optional per-element default (set by adapters, parsers, or user)
-  xml_factory: AnyElementFactory[..., AnyXmlElement] | None = field(
-    default=None, init=False
-  )
-
   def set_default_factory(
     self, factory: AnyElementFactory[P, R] | None
   ) -> None:
@@ -221,11 +226,11 @@ class BaseTmxElement(ABC):
           continue
       if key in exclude:
         continue
-      
+
       key = _update_key_name(key)
       if not isinstance(val, field_data.metadata["expected_types"]):
         raise ValidationError(
-          f"Validation failed. Value is not one of the expected type for the field - Field: {key!r} - Expected type: {field_data.type!r} - Actual type: {type(val)!r}",
+          f"Validation failed. Value is not one of the expected type for the field - Field: {key!r} - Expected type: {field_data.metadata["expected_types"]!r} - Actual type: {type(val)!r} - Value: {val!r}",
           key,
           val,
           TypeError(),
@@ -246,6 +251,66 @@ class BaseTmxElement(ABC):
             TypeError(),
           )
     return attrib_dict
+
+
+ChildrenType = TypeVar("ChildrenType")
+
+@dataclass(init=False, repr=False, eq=False, match_args=False)
+class WithChildren(Generic[ChildrenType]):
+  __slots__ = ("_children",)
+  _children: list[ChildrenType]
+
+  def __len__(self) -> int:
+    return len(self._children)
+
+  def __iter__(self) -> Iterator[ChildrenType]:
+    return iter(self._children)
+
+  @overload
+  def __getitem__(self, idx: int) -> ChildrenType: ...
+  @overload
+  def __getitem__(self, idx: slice) -> list[ChildrenType]: ...
+  def __getitem__(self, idx: int | slice) -> ChildrenType | list[ChildrenType]:
+    return self._children[idx]
+
+  @overload
+  def __setitem__(self, idx: SupportsIndex, value: ChildrenType) -> None: ...
+  @overload
+  def __setitem__(self, idx: slice, value: Iterable[ChildrenType]) -> None: ...
+  def __setitem__(
+    self,
+    idx: SupportsIndex | slice,
+    value: ChildrenType | Iterable[ChildrenType],
+  ) -> None:
+    if isinstance(idx, slice):
+      if not isinstance(value, Iterable):
+        raise TypeError("value must be an iterable")
+      self._children[idx] = value
+    else:
+      if isinstance(value, Iterable):
+        raise TypeError("value must be a single element")
+      self._children[idx] = value
+
+  def __delitem__(self, idx: int | slice) -> None:
+    del self._children[idx]
+
+  def append(self, value: ChildrenType) -> None:
+    self._children.append(value)
+
+  def extend(self, values: Iterable[ChildrenType]) -> None:
+    self._children.extend(values)
+
+  def insert(self, idx: SupportsIndex, value: ChildrenType) -> None:
+    self._children.insert(idx, value)
+  
+  def pop(self, idx: SupportsIndex = -1) -> ChildrenType:
+    return self._children.pop(idx)
+
+  def remove(self, value: ChildrenType) -> None:
+    self._children.remove(value)
+  
+  def clear(self) -> None:
+    self._children.clear()
 
 
 class TmxParser(ABC):
