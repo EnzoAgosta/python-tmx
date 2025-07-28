@@ -2,9 +2,6 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
-from dataclasses import MISSING, dataclass, fields
-from datetime import datetime
-from enum import Enum
 from os import PathLike
 from pathlib import Path
 from typing import (
@@ -18,7 +15,11 @@ from typing import (
   overload,
 )
 
-from PythonTmx.errors import SerializationError, ValidationError
+ChildrenType = TypeVar("ChildrenType")
+P = ParamSpec("P")
+R = TypeVar("R", bound="AnyXmlElement", covariant=True)
+
+DEFAULT_XML_FACTORY: AnyElementFactory[..., AnyXmlElement] | None = None
 
 
 class AnyXmlElement(Protocol):
@@ -64,12 +65,6 @@ class AnyXmlElement(Protocol):
         element: The element to append.
     """
     ...
-
-
-P = ParamSpec("P")
-R = TypeVar("R", bound=AnyXmlElement, covariant=True)
-
-DEFAULT_XML_FACTORY: AnyElementFactory[..., AnyXmlElement] | None = None
 
 
 def set_default_factory(
@@ -120,8 +115,9 @@ class AnyElementFactory(Protocol[P, R]):
   ) -> R: ...
 
 
-@dataclass(slots=True, init=False, repr=False, eq=False, match_args=False)
 class BaseTmxElement(ABC):
+  xml_factory: AnyElementFactory[..., AnyXmlElement] | None
+  __slots__ = ("xml_factory",)
   """
   Abstract base class for all TMX elements.
 
@@ -183,7 +179,8 @@ class BaseTmxElement(ABC):
     """
     ...
 
-  def _make_attrib_dict(self, exclude: tuple[str, ...]) -> dict[str, str]:
+  @abstractmethod
+  def _make_attrib_dict(self) -> dict[str, str]:
     """
     Private method to create a dictionary of XML attributes
     from the element's fields.
@@ -205,59 +202,11 @@ class BaseTmxElement(ABC):
     Raises:
       ValueError: If a required field is missing (i.e., has no value).
     """
-
-    def _update_key_name(key: str) -> str:
-      if key == "lang":
-        return "{http://www.w3.org/XML/1998/namespace}lang"
-      if key in ("encoding", "tmf"):
-        return f"o-{key}"
-      return key
-
-    attrib_dict: dict[str, str] = {}
-    exclude = ("xml_factory", *exclude)
-
-    for field_data in fields(self):
-      key, val = field_data.name, getattr(self, field_data.name)
-      # Early exit if the field is optional or excluded
-      if val is None:
-        if field_data.default is MISSING:
-          raise ValueError(f"Missing required field {key}")
-        else:
-          continue
-      if key in exclude:
-        continue
-
-      key = _update_key_name(key)
-      if not isinstance(val, field_data.metadata["expected_types"]):
-        raise ValidationError(
-          f"Validation failed. Value is not one of the expected type for the field - Field: {key!r} - Expected type: {field_data.metadata["expected_types"]!r} - Actual type: {type(val)!r} - Value: {val!r}",
-          key,
-          val,
-          TypeError(),
-        )
-      match val:
-        case datetime():
-          attrib_dict[key] = val.strftime("%Y%m%dT%H%M%SZ")
-        case Enum():
-          attrib_dict[key] = val.value
-        case str() | int() | float():
-          attrib_dict[key] = str(val)
-        case bool():
-          attrib_dict[key] = "yes" if val else "no"
-        case _:
-          raise SerializationError(
-            f"Validation failed - Expected type: {field_data.type} - Actual type: {type(val)}",
-            self.__class__.__name__.lower(),
-            TypeError(),
-          )
-    return attrib_dict
+    ...
 
 
-ChildrenType = TypeVar("ChildrenType")
-
-@dataclass(init=False, repr=False, eq=False, match_args=False)
 class WithChildren(Generic[ChildrenType]):
-  __slots__ = ("_children",)
+  __slots__ = ()
   _children: list[ChildrenType]
 
   def __len__(self) -> int:
@@ -302,13 +251,13 @@ class WithChildren(Generic[ChildrenType]):
 
   def insert(self, idx: SupportsIndex, value: ChildrenType) -> None:
     self._children.insert(idx, value)
-  
+
   def pop(self, idx: SupportsIndex = -1) -> ChildrenType:
     return self._children.pop(idx)
 
   def remove(self, value: ChildrenType) -> None:
     self._children.remove(value)
-  
+
   def clear(self) -> None:
     self._children.clear()
 

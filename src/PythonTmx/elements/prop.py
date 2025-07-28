@@ -1,63 +1,88 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from types import NoneType
-from typing import Type
-
 from PythonTmx.core import (
   AnyElementFactory,
   AnyXmlElement,
   BaseTmxElement,
   R,
 )
-from PythonTmx.errors import ValidationError
+from PythonTmx.errors import (
+  DeserializationError,
+  NotMappingLikeError,
+  RequiredAttributeMissingError,
+  SerializationError,
+  ValidationError,
+  WrongTagError,
+)
 from PythonTmx.utils import (
-  ensure_element_structure,
-  ensure_required_attributes_are_present,
+  check_element_is_usable,
   get_factory,
-  raise_serialization_errors,
 )
 
 
-@dataclass(slots=True)
 class Prop(BaseTmxElement):
-  text: str = field(metadata={"expected_types": (str,)})
-  type: str = field(metadata={"expected_types": (str,)})
-  xml_factory: AnyElementFactory[..., AnyXmlElement] | None = None
-  encoding: str | None = field(
-    default=None, metadata={"expected_types": (str, NoneType)}
-  )
-  lang: str | None = field(
-    default=None, metadata={"expected_types": (str, NoneType)}
-  )
+  __slots__ = ("text", "type", "encoding", "lang")
+  text: str
+  type: str
+  encoding: str | None
+  lang: str | None
+
+  def __init__(
+    self,
+    text: str,
+    type: str,
+    encoding: str | None = None,
+    lang: str | None = None,
+  ) -> None:
+    self.text = text
+    self.type = type
+    self.encoding = encoding
+    self.lang = lang
 
   @classmethod
-  def from_xml(cls: Type[Prop], element: AnyXmlElement) -> Prop:
-    ensure_element_structure(element, expected_tag="prop")
-    if not element.text:
-      raise_serialization_errors(element.tag, ValueError(), missing="text")
-    ensure_required_attributes_are_present(element, ("type",))
+  def from_xml(cls: type[Prop], element: AnyXmlElement) -> Prop:
     try:
+      check_element_is_usable(element)
+      if element.tag != "prop":
+        raise WrongTagError(element.tag, "prop")
+      if element.text is None:
+        ValueError("Prop element must have text")
       return cls(
         text=element.text,
         type=element.attrib["type"],
-        encoding=element.attrib.get("o-encoding", None),
-        lang=element.attrib.get(
-          "{http://www.w3.org/XML/1998/namespace}lang", None
-        ),
+        encoding=element.attrib.get("o-encoding"),
+        lang=element.attrib.get("{http://www.w3.org/XML/1998/namespace}lang"),
       )
-    except Exception as e:
-      raise_serialization_errors(element.tag, e)
+    except (
+      WrongTagError,
+      NotMappingLikeError,
+      RequiredAttributeMissingError,
+      AttributeError,
+      KeyError,
+    ) as e:
+      raise SerializationError(cls, e) from e
 
   def to_xml(self, factory: AnyElementFactory[..., R] | None = None) -> R:
     _factory = get_factory(self, factory)
-    element = _factory("prop", self._make_attrib_dict(exclude=("text",)))
-    if not isinstance(self.text, str):  # type: ignore # we're being defensive here, ignore redundant isinstance check
-      raise ValidationError(
-        f"Validation failed - Expected type: str - Actual type: {type(self.text)}",
-        "text",
-        self.text,
-        TypeError(),
-      )
-    element.text = self.text
-    return element
+    try:
+      element = _factory("prop", self._make_attrib_dict())
+      if not isinstance(self.text, str):  # type: ignore
+        raise ValidationError("text", str, type(self.text), None)
+      element.text = self.text
+      return element
+    except ValidationError as e:
+      raise DeserializationError(self, e) from e
+
+  def _make_attrib_dict(self) -> dict[str, str]:
+    if not isinstance(self.type, str):  # type: ignore
+      raise ValidationError("type", str, type(self.type), None)
+    attrs: dict[str, str] = {"type": self.type}
+    if self.encoding is not None:
+      if not isinstance(self.encoding, str):  # type: ignore
+        raise ValidationError("encoding", str, type(self.encoding), None)
+      attrs["o-encoding"] = self.encoding
+    if self.lang is not None:
+      if not isinstance(self.lang, str):  # type: ignore
+        raise ValidationError("lang", str, type(self.lang), None)
+      attrs["{http://www.w3.org/XML/1998/namespace}lang"] = self.lang
+    return attrs

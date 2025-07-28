@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
-from dataclasses import dataclass, field
+from collections.abc import Sequence
 from datetime import datetime
-from types import NoneType
 
 from PythonTmx.core import (
   AnyElementFactory,
@@ -16,44 +14,82 @@ from PythonTmx.elements.note import Note
 from PythonTmx.elements.prop import Prop
 from PythonTmx.elements.ude import Ude
 from PythonTmx.enums import SEGTYPE
-from PythonTmx.errors import SerializationError
+from PythonTmx.errors import (
+  DeserializationError,
+  NotMappingLikeError,
+  RequiredAttributeMissingError,
+  SerializationError,
+  ValidationError,
+  WrongTagError,
+)
 from PythonTmx.utils import (
-  ensure_element_structure,
-  ensure_required_attributes_are_present,
+  check_element_is_usable,
   get_factory,
-  raise_serialization_errors,
   try_parse_datetime,
 )
 
 
-@dataclass(slots=True)
 class Header(BaseTmxElement, WithChildren[Note | Prop | Ude]):
-  _children: list[Note | Prop | Ude] = field(
-    metadata={"expected_types": (Iterable,)},
+  __slots__ = (
+    "creationtool",
+    "creationtoolversion",
+    "segtype",
+    "tmf",
+    "adminlang",
+    "srclang",
+    "datatype",
+    "encoding",
+    "creationdate",
+    "creationid",
+    "changedate",
+    "changeid",
+    "_children",
   )
-  creationtool: str = field(metadata={"expected_types": (str,)})
-  creationtoolversion: str = field(metadata={"expected_types": (str,)})
-  segtype: SEGTYPE | str = field(metadata={"expected_types": (SEGTYPE)})
-  tmf: str = field(metadata={"expected_types": (str,)})
-  adminlang: str = field(metadata={"expected_types": (str,)})
-  srclang: str = field(metadata={"expected_types": (str,)})
-  datatype: str = field(metadata={"expected_types": (str,)})
-  xml_factory: AnyElementFactory[..., AnyXmlElement] | None = None
-  encoding: str | None = field(
-    default=None, metadata={"expected_types": (str, NoneType)}
-  )
-  creationdate: datetime | str | None = field(
-    default=None, metadata={"expected_types": (datetime, NoneType)}
-  )
-  creationid: str | None = field(
-    default=None, metadata={"expected_types": (str, NoneType)}
-  )
-  changedate: str | datetime | None = field(
-    default=None, metadata={"expected_types": (datetime, NoneType)}
-  )
-  changeid: str | None = field(
-    default=None, metadata={"expected_types": (str, NoneType)}
-  )
+  creationtool: str
+  creationtoolversion: str
+  segtype: SEGTYPE
+  tmf: str
+  adminlang: str
+  srclang: str
+  datatype: str
+  encoding: str | None
+  creationdate: datetime | None
+  creationid: str | None
+  changedate: datetime | None
+  changeid: str | None
+  _children: list[Note | Prop | Ude]
+
+  def __init__(
+    self,
+    creationtool: str,
+    creationtoolversion: str,
+    segtype: SEGTYPE | str,
+    tmf: str,
+    adminlang: str,
+    srclang: str,
+    datatype: str,
+    encoding: str | None = None,
+    creationdate: str | datetime | None = None,
+    creationid: str | None = None,
+    changedate: str | datetime | None = None,
+    changeid: str | None = None,
+    children: Sequence[Note | Prop | Ude] | None = None,
+  ) -> None:
+    self.creationtool = creationtool
+    self.creationtoolversion = creationtoolversion
+    self.tmf = tmf
+    self.adminlang = adminlang
+    self.segtype = SEGTYPE(segtype)
+    self.srclang = srclang
+    self.datatype = datatype
+    self.encoding = encoding
+    self.creationid = creationid
+    self.creationdate = try_parse_datetime(creationdate, False)
+    self.changeid = changeid
+    self.changedate = try_parse_datetime(changedate, False)
+    self._children = (
+      [child for child in children] if children is not None else []
+    )
 
   @property
   def notes(self) -> list[Note]:
@@ -77,72 +113,103 @@ class Header(BaseTmxElement, WithChildren[Note | Prop | Ude]):
       elif child.tag == "prop":
         return Prop.from_xml(child)
       else:
-        raise SerializationError(
-          f"Unexpected child element in header element - Expected Ude, Note or Prop, got {child.tag}",
-          "header",
-          ValueError(),
-        )
+        raise WrongTagError(child.tag, "ude, note or prop")
 
-    ensure_element_structure(element, expected_tag="header")
-    if element.text:
-      raise SerializationError(
-        f"Unexpected text in header element: {element.text!r}",
-        "header",
-        ValueError(),
-      )
-    ensure_required_attributes_are_present(
-      element,
-      (
-        "creationtool",
-        "creationtoolversion",
-        "segtype",
-        "o-tmf",
-        "adminlang",
-        "srclang",
-        "datatype",
-      ),
-    )
     try:
-      creationdate = try_parse_datetime(
-        element.attrib.get("creationdate", None), False
-      )
-      changedate = try_parse_datetime(
-        element.attrib.get("changedate", None), False
-      )
-    except TypeError as e:
-      raise_serialization_errors(element.tag, e)
-    try:
-      segtype = SEGTYPE(element.attrib["segtype"])
-    except (TypeError, ValueError) as e:
-      raise_serialization_errors(element.tag, e)
-    try:
-      return cls(
+      check_element_is_usable(element)
+      if element.tag != "header":
+        raise WrongTagError(element.tag, "header")
+      if element.text is not None:
+        ValueError("Header element cannot have text")
+
+      header: Header = cls(
         creationtool=element.attrib["creationtool"],
         creationtoolversion=element.attrib["creationtoolversion"],
-        segtype=segtype,
+        segtype=SEGTYPE(element.attrib["segtype"]),
         tmf=element.attrib["o-tmf"],
         adminlang=element.attrib["adminlang"],
         srclang=element.attrib["srclang"],
         datatype=element.attrib["datatype"],
         encoding=element.attrib.get("o-encoding", None),
-        creationdate=creationdate,
+        creationdate=element.attrib.get("creationdate", None),
         creationid=element.attrib.get("creationid", None),
-        changedate=changedate,
+        changedate=element.attrib.get("changedate", None),
         changeid=element.attrib.get("changeid", None),
-        _children=[_dispatch(child) for child in element],
+        children=[_dispatch(child) for child in element],
       )
-    except Exception as e:
-      raise_serialization_errors(element.tag, e)
+      return header
+    except (
+      WrongTagError,
+      NotMappingLikeError,
+      RequiredAttributeMissingError,
+      AttributeError,
+      KeyError,
+    ) as e:
+      raise SerializationError(cls, e) from e
 
   def to_xml(self, factory: AnyElementFactory[..., R] | None = None) -> R:
     _factory = get_factory(self, factory)
-    element = _factory("header", self._make_attrib_dict(("_children",)))
-    for child in self:
-      if not isinstance(child, Note | Prop | Ude):  # type: ignore
-        raise SerializationError(
-          f"Unexpected child element in header element - Expected Ude, Note or Prop, got {type(child)}",
-          "header",
-          TypeError(),
+    try:
+      element = _factory("header", self._make_attrib_dict())
+      for child in self:
+        if not isinstance(child, Note | Prop | Ude):  # type: ignore
+          raise TypeError(
+            f"Unexpected child element in header element - Expected Ude, Note or Prop, got {type(child)}",
+          )
+        element.append(child.to_xml(factory=factory))
+      return element
+    except (TypeError, ValidationError) as e:
+      raise DeserializationError(self, e) from e
+
+  # Defensive coding, lots of type: ignore to shut up type checkers
+  def _make_attrib_dict(self) -> dict[str, str]:
+    if not isinstance(self.creationtool, str):  # type: ignore
+      raise ValidationError("creationtool", str, type(self.creationtool), None)
+    if not isinstance(self.creationtoolversion, str):  # type: ignore
+      raise ValidationError(
+        "creationtoolversion", str, type(self.creationtoolversion), None
+      )
+    if not isinstance(self.segtype, SEGTYPE):  # type: ignore
+      raise ValidationError("segtype", SEGTYPE, type(self.segtype), None)
+    if not isinstance(self.tmf, str):  # type: ignore
+      raise ValidationError("tmf", str, type(self.tmf), None)
+    if not isinstance(self.adminlang, str):  # type: ignore
+      raise ValidationError("adminlang", str, type(self.adminlang), None)
+    if not isinstance(self.srclang, str):  # type: ignore
+      raise ValidationError("srclang", str, type(self.srclang), None)
+    if not isinstance(self.datatype, str):  # type: ignore
+      raise ValidationError("datatype", str, type(self.datatype), None)
+    attrs: dict[str, str] = {
+      "creationtool": self.creationtool,
+      "creationtoolversion": self.creationtoolversion,
+      "segtype": self.segtype.value,
+      "o-tmf": self.tmf,
+      "adminlang": self.adminlang,
+      "srclang": self.srclang,
+      "datatype": self.datatype,
+    }
+    if self.encoding is not None:
+      if not isinstance(self.encoding, str):  # type: ignore
+        raise ValidationError("encoding", str, type(self.encoding), None)
+      attrs["o-encoding"] = self.encoding
+    if self.creationdate is not None:
+      if not isinstance(self.creationdate, datetime):  # type: ignore
+        raise ValidationError(
+          "creationdate", datetime, type(self.creationdate), None
         )
-      element.append(child.to_xml())
-    return element
+      attrs["creationdate"] = self.creationdate.strftime("%Y%m%dT%H%M%SZ")
+    if self.creationid is not None:
+      if not isinstance(self.creationid, str):  # type: ignore
+        raise ValidationError("creationid", str, type(self.creationid), None)
+      attrs["creationid"] = self.creationid
+    if self.changedate is not None:
+      if not isinstance(self.changedate, datetime):  # type: ignore
+        raise ValidationError(
+          "changedate", datetime, type(self.changedate), None
+        )
+      attrs["changedate"] = self.changedate.strftime("%Y%m%dT%H%M%SZ")
+    if self.changeid is not None:
+      if not isinstance(self.changeid, str):  # type: ignore
+        raise ValidationError("changeid", str, type(self.changeid), None)
+      attrs["changeid"] = self.changeid
+    return attrs

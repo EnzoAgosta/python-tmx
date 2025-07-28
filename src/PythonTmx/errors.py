@@ -1,77 +1,142 @@
 from typing import Any
 
+from PythonTmx.core import BaseTmxElement
 
-class ParsingError(Exception):
+
+class XmlParsingError(Exception):
   tag: str
-  line: str
-  original_exception: Exception
-
-  def __str__(self):
-        return f"{super().__str__()}\nTag: {self.tag}\nLine: {self.line}\nCaused by: {self.original_exception}"
+  line: int | None
+  original_exception: Exception | None
 
   def __init__(
     self,
-    msg: str,
     tag: str,
-    line: str,
-    original_exception: Exception,
-    **extra: Any,
-  ):
-    super().__init__(msg)
+    line: int | None = None,
+    original_exception: Exception | None = None,
+  ) -> None:
     self.tag = tag
     self.line = line
     self.original_exception = original_exception
-    for key, value in extra.items():
-      setattr(self, key, value)
+    msg = f"Cannot parse Xml Element - Tag: {tag!r}"
+    if line is not None:
+      msg += f" - Line: {line!r}"
+    if original_exception is not None:
+      msg += f" - Caused by: {original_exception!r}"
+    super().__init__(msg)
+
+
+class WrongTagError(Exception):
+  tag: str
+  expected_tag: str
+
+  def __init__(self, tag: str, expected_tag: str) -> None:
+    self.tag = tag
+    self.expected_tag = expected_tag
+    msg = f"Wrong tag: {tag!r}. Expected: {expected_tag!r}"
+    super().__init__(msg)
 
 
 class SerializationError(Exception):
-  tag: str
-  original_exception: Exception
-
-  def __str__(self):
-        return f"{super().__str__()}\nTag: {self.tag}\nCaused by: {self.original_exception}"
+  tmx_element: type[BaseTmxElement]
+  original_exception: Exception | None
 
   def __init__(
-    self, msg: str, tag: str, original_exception: Exception, **extra: Any
-  ):
-    super().__init__(msg)
-    self.tag = tag
+    self,
+    tmx_element: type[BaseTmxElement],
+    original_exception: Exception | None = None,
+  ) -> None:
+    self.tmx_element = tmx_element
     self.original_exception = original_exception
-    for key, value in extra.items():
-      setattr(self, key, value)
-
-class UnusableElementError(Exception):
-  missing_field: str
-
-  def __str__(self):
-        if hasattr(self, "missing_field"):
-            return f"{super().__str__()}\nMissing required field {self.missing_field}"
-        else:
-            return super().__str__()
-
-  def __init__(self, msg: str, **extra: Any):
+    msg = f"Cannot serialize Xml Element to Tmx Element - Element: {self.tmx_element!r}"
+    if self.original_exception is not None:
+      msg += f" - Caused by: {original_exception!r}"
     super().__init__(msg)
-    for key, value in extra.items():
-      setattr(self, key, value)
 
-class MissingDefaultFactoryError(Exception):
-  pass
+
+class DeserializationError(Exception):
+  tmx_element: BaseTmxElement
+  original_exception: Exception | None
+
+  def __init__(
+    self,
+    tmx_element: BaseTmxElement,
+    original_exception: Exception | None = None,
+  ) -> None:
+    self.tmx_element = tmx_element
+    self.original_exception = original_exception
+    msg = f"Cannot deserialize Tmx Element to Xml Element - Element: {self.tmx_element!r}"
+    if self.original_exception is not None:
+      msg += f" - Caused by: {original_exception!r}"
+    super().__init__(msg)
+
+
+class RequiredAttributeMissingError(Exception):
+  missing_field: str
+  original_exception: Exception | None
+
+  def __init__(
+    self, missing_field: str, original_exception: Exception | None = None
+  ) -> None:
+    self.missing_field = missing_field
+    self.original_exception = original_exception
+    msg = f"Unexpected required attribute missing - Missing field: {missing_field!r}"
+    if original_exception is not None:
+      msg += f" - Caused by: {original_exception!r}"
+    super().__init__(msg)
+
+
+class NotMappingLikeError(Exception):
+  mapping: object
+  original_exception: Exception | None
+
+  def __init__(
+    self, mapping: object, original_exception: Exception | None = None
+  ) -> None:
+    self.mapping = mapping
+    self.original_exception = original_exception
+    msg = f"{mapping!r} is not usable as Mapping"
+    if original_exception is not None:
+      msg += f" - Caused by: {original_exception!r}"
+    super().__init__(msg)
+
 
 class ValidationError(Exception):
   field: str
-  value: Any
-  original_exception: Exception
-
-  def __str__(self):
-        return f"{super().__str__()}\nField: {self.field!r}\nValue: {self.value!r}\nCaused by: {self.original_exception}"
+  expected: Any
+  actual: Any
+  original_exception: Exception | None
 
   def __init__(
-    self, msg: str, field: str, value: Any, original_exception: Exception, **extra: Any
+    self,
+    field: str,
+    expected: Any,
+    actual: Any,
+    original_exception: Exception | None = None,
   ):
-    super().__init__(msg)
     self.field = field
-    self.value = value
+    self.actual = actual
+    self.expected = expected
     self.original_exception = original_exception
-    for key, value in extra.items():
-      setattr(self, key, value)
+    msg = (
+      f"Validation failed! - Field: {self.field!r} "
+      + f"- Expected: {self.expected!r} -  "
+      + f"Actual: {self.actual!r}"
+    )
+    if original_exception is not None:
+      msg += f" - Caused by: {self.original_exception!r}"
+    super().__init__(msg)
+
+
+class MissingDefaultFactoryError(Exception):
+  element: BaseTmxElement
+  original_exception: Exception | None
+
+  def __init__(
+    self, element: BaseTmxElement, original_exception: Exception | None = None
+  ) -> None:
+    self.element = element
+    self.original_exception = original_exception
+    msg = f"Missing default factory for element {element!r}"
+    if original_exception is not None:
+      msg += f" - Caused by: {original_exception!r}"
+    super().__init__(msg)

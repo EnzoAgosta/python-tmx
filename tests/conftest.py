@@ -2,6 +2,7 @@
 # We're intentionally creating broken stuff for testing
 # so we can test the error handling, so no type checking
 # possible here.
+from collections.abc import Callable
 from typing import Any
 from xml.etree.ElementTree import Element as StdElement
 
@@ -17,9 +18,14 @@ def ElementFactory(request: Any) -> AnyElementFactory[..., AnyXmlElement]:
 
 
 @pytest.fixture(scope="session")
-def FakeAndBrokenElement() -> AnyElementFactory[..., AnyXmlElement]:
+def CustomElementLike() -> Callable[..., object]:
   class FakeAndBrokenElement:
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, tag=None, attrib=None, **kwargs) -> None:
+      if tag is not None:
+        self.tag = tag
+      if attrib is not None:
+        self.attrib = attrib
+      self.tail = None
       for k, v in kwargs.items():
         setattr(self, k, v)
 
