@@ -43,7 +43,7 @@ class Note(BaseTmxElement):
       if element.tag != "note":
         raise WrongTagError(element.tag, "note")
       if element.text is None:
-        ValueError("Note element must have text")
+        raise ValueError("Note element must have text")
       return cls(
         text=element.text,
         encoding=element.attrib.get("o-encoding"),

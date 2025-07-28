@@ -10,7 +10,9 @@ from typing import (
   Iterator,
   ParamSpec,
   Protocol,
+  Self,
   SupportsIndex,
+  Type,
   TypeVar,
   overload,
 )
@@ -57,7 +59,7 @@ class AnyXmlElement(Protocol):
     """
     ...
 
-  def append(self, element: AnyXmlElement) -> None:
+  def append(self, element: Any, /) -> None:
     """
     Appends the given element to the end of the child elements.
 
@@ -165,7 +167,7 @@ class BaseTmxElement(ABC):
 
   @classmethod
   @abstractmethod
-  def from_xml(cls, element: AnyXmlElement) -> BaseTmxElement:
+  def from_xml(cls:Type[Self], element: AnyXmlElement) -> BaseTmxElement:
     """
     Class method used to construct a TMX element from a raw XML element.
     This method is the primary way to create TMX elements from XML
