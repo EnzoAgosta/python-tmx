@@ -32,7 +32,7 @@ A living roadmap for the v0.4+ rewrite of PythonTmx
 
 ## Parser Backends
 
-- ✅ `LazyLxmlParser`
+- 🔜 `LazyLxmlParser`
 - `LxmlParser` (non-lazy, loads full XML tree)
 - `LazyStandardParser` (std lib, lazy)
 - `StandardParser` (std lib, non-lazy)
