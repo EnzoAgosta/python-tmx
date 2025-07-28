@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-from collections.abc import Generator, Iterable
 from dataclasses import dataclass, field
 from types import NoneType
+from typing import Iterable
 
 from PythonTmx.core import (
   AnyElementFactory,
   AnyXmlElement,
   BaseTmxElement,
   R,
+  WithChildren,
 )
 from PythonTmx.elements.map import Map
 from PythonTmx.errors import SerializationError
@@ -21,20 +22,19 @@ from PythonTmx.utils import (
 
 
 @dataclass(slots=True)
-class Ude(BaseTmxElement):
+class Ude(BaseTmxElement, WithChildren[Map]):
+  _children: list[Map] = field(
+    metadata={"expected_types": (Iterable,)},
+  )
   name: str = field(metadata={"expected_types": (str,)})
+  xml_factory: AnyElementFactory[..., AnyXmlElement] | None = None
   base: str | None = field(
     default=None, metadata={"expected_types": (str, NoneType)}
   )
-  maps: list[Map] = field(
-    default_factory=list[Map], metadata={"expected_types": (Iterable,)}
-  )
 
-  def __iter__(self) -> Generator[Map]:
-    yield from self.maps
-
-  def __len__(self) -> int:
-    return len(self.maps)
+  @property
+  def maps(self) -> list[Map]:
+    return self._children
 
   @classmethod
   def from_xml(cls: type[Ude], element: AnyXmlElement) -> Ude:
@@ -50,16 +50,16 @@ class Ude(BaseTmxElement):
       return cls(
         name=element.attrib["name"],
         base=element.attrib.get("base", None),
-        maps=[Map.from_xml(map) for map in element],
+        _children=[Map.from_xml(map) for map in element],
       )
     except Exception as e:
       raise_serialization_errors(element.tag, e)
 
   def to_xml(self, factory: AnyElementFactory[..., R] | None = None) -> R:
     _factory = get_factory(self, factory)
-    element = _factory("ude", self._make_attrib_dict(("maps",)))
-    for map in self.maps:
-      if not isinstance(map, Map):  # type: ignore # we're being defensive here, ignore redundant isinstance check
+    element = _factory("ude", self._make_attrib_dict(("_children",)))
+    for map in self:
+      if not isinstance(map, Map):  # type: ignore
         raise SerializationError(
           f"Unexpected child element in ude element - Expected Map, got {type(map)}",
           "ude",
