@@ -13,22 +13,22 @@ A living roadmap for the v0.4+ rewrite of PythonTmx
 
 ## TMX Element Implementations
 
-- Structural Elements
+- 🚧 Structural Elements
   - ✅ `Prop`
   - ✅ `Note`
   - ✅ `Map`
   - ✅ `Ude`
-  - 🚧 `Header`
+  - ✅ `Header`
   - `Tu`
   - `Tuv`
-  - `Segment`
-- 🔜 Inline Elements 
-  - `Bpt`
-  - `Ept`
-  - `Ph`
-  - `Hi`
-  - `It`
-  - `Ut`
+  - 🔜 `Segment`
+- 🚧 Inline Elements 
+  - 🚧 `Bpt`
+  - 🚧 `Ept`
+  - 🚧 `Ph`
+  - 🚧 `Hi`
+  - 🚧 `It`
+  - 🚧 `Ut`
 
 ## Parser Backends
 
