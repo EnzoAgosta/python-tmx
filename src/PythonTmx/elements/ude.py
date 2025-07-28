@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from types import NoneType
-from typing import Iterable
-
 from PythonTmx.core import (
   AnyElementFactory,
   AnyXmlElement,
@@ -12,25 +8,32 @@ from PythonTmx.core import (
   WithChildren,
 )
 from PythonTmx.elements.map import Map
-from PythonTmx.errors import SerializationError
+from PythonTmx.errors import (
+  DeserializationError,
+  NotMappingLikeError,
+  RequiredAttributeMissingError,
+  SerializationError,
+  ValidationError,
+  WrongTagError,
+)
 from PythonTmx.utils import (
-  ensure_element_structure,
-  ensure_required_attributes_are_present,
+  check_element_is_usable,
   get_factory,
-  raise_serialization_errors,
 )
 
 
-@dataclass(slots=True)
 class Ude(BaseTmxElement, WithChildren[Map]):
-  _children: list[Map] = field(
-    metadata={"expected_types": (Iterable,)},
-  )
-  name: str = field(metadata={"expected_types": (str,)})
-  xml_factory: AnyElementFactory[..., AnyXmlElement] | None = None
-  base: str | None = field(
-    default=None, metadata={"expected_types": (str, NoneType)}
-  )
+  __slots__ = ("name", "base", "_children")
+  _children: list[Map]
+  name: str
+  base: str | None
+
+  def __init__(
+    self, name: str, base: str | None = None, maps: list[Map] | None = None
+  ) -> None:
+    self.name = name
+    self.base = base
+    self._children = maps if maps is not None else []
 
   @property
   def maps(self) -> list[Map]:
@@ -38,39 +41,52 @@ class Ude(BaseTmxElement, WithChildren[Map]):
 
   @classmethod
   def from_xml(cls: type[Ude], element: AnyXmlElement) -> Ude:
-    ensure_element_structure(element, expected_tag="ude")
-    if element.text:
-      raise SerializationError(
-        f"Unexpected text in ude element: {element.text!r}",
-        "ude",
-        ValueError(),
-      )
-    ensure_required_attributes_are_present(element, ("name",))
     try:
+      check_element_is_usable(element)
+      if element.tag != "ude":
+        raise WrongTagError(element.tag, "ude")
+      if element.text is not None:
+        raise ValueError("Ude element cannot have text")
       return cls(
         name=element.attrib["name"],
         base=element.attrib.get("base", None),
-        _children=[Map.from_xml(map) for map in element],
+        maps=[Map.from_xml(map) for map in element],
       )
-    except Exception as e:
-      raise_serialization_errors(element.tag, e)
+    except (
+      WrongTagError,
+      NotMappingLikeError,
+      RequiredAttributeMissingError,
+      AttributeError,
+      KeyError,
+      ValueError,
+    ) as e:
+      raise SerializationError(cls, e) from e
 
   def to_xml(self, factory: AnyElementFactory[..., R] | None = None) -> R:
     _factory = get_factory(self, factory)
-    element = _factory("ude", self._make_attrib_dict(("_children",)))
-    for map in self:
-      if not isinstance(map, Map):  # type: ignore
-        raise SerializationError(
-          f"Unexpected child element in ude element - Expected Map, got {type(map)}",
-          "ude",
-          TypeError(),
-        )
-      if map.code is not None:
-        if self.base is None:
-          raise SerializationError(
-            "Cannot export a ude element if at least one of its map elements has a code attribute",
-            "ude",
-            ValueError(),
+    try:
+      element = _factory("ude", self._make_attrib_dict())
+      for map in self.maps:
+        if not isinstance(map, Map):  # type: ignore
+          raise TypeError(
+            f"All children of ude element must be of type Map, got {type(map)}"
           )
-      element.append(map.to_xml())
+        if map.code is not None:
+          if self.base is None:
+            raise ValueError(
+              "Cannot export a ude element if at least one of its map elements has a code attribute"
+            )
+        element.append(map.to_xml(factory=factory))
+    except (TypeError, ValueError, ValidationError) as e:
+      raise DeserializationError(self, e) from e
     return element
+
+  def _make_attrib_dict(self) -> dict[str, str]:
+    if not isinstance(self.name, str):  # type: ignore
+      raise ValidationError("name", str, type(self.name), None)
+    attrs: dict[str, str] = {"name": self.name}
+    if self.base is not None:
+      if not isinstance(self.base, str):  # type: ignore
+        raise ValidationError("base", str, type(self.base), None)
+      attrs["base"] = self.base
+    return attrs

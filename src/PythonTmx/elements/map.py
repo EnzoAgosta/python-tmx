@@ -1,57 +1,86 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from types import NoneType
-
 from PythonTmx.core import (
   AnyElementFactory,
   AnyXmlElement,
   BaseTmxElement,
   R,
 )
-from PythonTmx.errors import SerializationError
+from PythonTmx.errors import (
+  DeserializationError,
+  NotMappingLikeError,
+  RequiredAttributeMissingError,
+  SerializationError,
+  ValidationError,
+  WrongTagError,
+)
 from PythonTmx.utils import (
-  ensure_element_structure,
-  ensure_required_attributes_are_present,
+  check_element_is_usable,
   get_factory,
-  raise_serialization_errors,
 )
 
 
-@dataclass(slots=True)
 class Map(BaseTmxElement):
-  unicode: str = field(metadata={"expected_types": (str,)})
-  xml_factory: AnyElementFactory[..., AnyXmlElement] | None = None
-  code: str | None = field(
-    default=None, metadata={"expected_types": (str, NoneType)}
-  )
-  ent: str | None = field(
-    default=None, metadata={"expected_types": (str, NoneType)}
-  )
-  subst: str | None = field(
-    default=None, metadata={"expected_types": (str, NoneType)}
-  )
+  __slots__ = ("unicode", "code", "ent", "subst")
+  unicode: str
+  code: str | None
+  ent: str | None
+  subst: str | None
+
+  def __init__(
+    self,
+    unicode: str,
+    code: str | None = None,
+    ent: str | None = None,
+    subst: str | None = None,
+  ) -> None:
+    self.unicode = unicode
+    self.code = code
+    self.ent = ent
+    self.subst = subst
 
   @classmethod
   def from_xml(cls: type[Map], element: AnyXmlElement) -> Map:
-    ensure_element_structure(element, expected_tag="map")
-    if element.text:
-      raise SerializationError(
-        f"Unexpected text in map element: {element.text!r}",
-        "map",
-        Exception(),
-      )
-    ensure_required_attributes_are_present(element, ("unicode",))
     try:
+      check_element_is_usable(element)
+      if element.tag != "map":
+        raise WrongTagError(element.tag, "map")
+      if element.text is not None:
+        raise ValueError("Map element cannot have text")
       return cls(
         unicode=element.attrib["unicode"],
         code=element.attrib.get("code", None),
         ent=element.attrib.get("ent", None),
         subst=element.attrib.get("subst", None),
       )
-    except Exception as e:
-      raise_serialization_errors(element.tag, e)
+    except (
+      WrongTagError,
+      NotMappingLikeError,
+      RequiredAttributeMissingError,
+      AttributeError,
+      KeyError,
+      ValueError,
+    ) as e:
+      raise SerializationError(cls, e) from e
 
   def to_xml(self, factory: AnyElementFactory[..., R] | None = None) -> R:
     _factory = get_factory(self, factory)
-    return _factory("map", self._make_attrib_dict(tuple()))
+    try:
+      return _factory("map", self._make_attrib_dict())
+    except ValidationError as e:
+      raise DeserializationError(self, e) from e
+
+  def _make_attrib_dict(
+    self,
+  ) -> dict[str, str]:
+    if not isinstance(self.unicode, str):  # type: ignore
+      raise ValidationError("unicode", str, type(self.unicode), None)
+    attrs: dict[str, str] = {"unicode": self.unicode}
+    for k in ("code", "ent", "subst"):
+      v = getattr(self, k)
+      if v is None:
+        continue
+      if not isinstance(v, str):  # type: ignore
+        raise ValidationError(k, str, type(v), None)
+      attrs[k] = v
+    return attrs

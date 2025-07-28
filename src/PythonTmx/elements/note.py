@@ -1,58 +1,82 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from types import NoneType
-
 from PythonTmx.core import (
   AnyElementFactory,
   AnyXmlElement,
   BaseTmxElement,
   R,
 )
-from PythonTmx.errors import ValidationError
+from PythonTmx.errors import (
+  DeserializationError,
+  NotMappingLikeError,
+  RequiredAttributeMissingError,
+  SerializationError,
+  ValidationError,
+  WrongTagError,
+)
 from PythonTmx.utils import (
-  ensure_element_structure,
+  check_element_is_usable,
   get_factory,
-  raise_serialization_errors,
 )
 
 
-@dataclass(slots=True)
 class Note(BaseTmxElement):
-  text: str = field(metadata={"expected_types": (str,)})
-  xml_factory: AnyElementFactory[..., AnyXmlElement] | None = None
-  encoding: str | None = field(
-    default=None, metadata={"expected_types": (str, NoneType)}
-  )
-  lang: str | None = field(
-    default=None, metadata={"expected_types": (str, NoneType)}
-  )
+  __slots__ = ("text", "encoding", "lang")
+  text: str
+  encoding: str | None
+  lang: str | None
+
+  def __init__(
+    self,
+    text: str,
+    encoding: str | None = None,
+    lang: str | None = None,
+  ) -> None:
+    self.text = text
+    self.encoding = encoding
+    self.lang = lang
 
   @classmethod
   def from_xml(cls: type[Note], element: AnyXmlElement) -> Note:
-    ensure_element_structure(element, expected_tag="note")
-    if not element.text:
-      raise_serialization_errors(element.tag, ValueError(), missing="text")
     try:
+      check_element_is_usable(element)
+      if element.tag != "note":
+        raise WrongTagError(element.tag, "note")
+      if element.text is None:
+        ValueError("Note element must have text")
       return cls(
         text=element.text,
-        encoding=element.attrib.get("o-encoding", None),
-        lang=element.attrib.get(
-          "{http://www.w3.org/XML/1998/namespace}lang", None
-        ),
+        encoding=element.attrib.get("o-encoding"),
+        lang=element.attrib.get("{http://www.w3.org/XML/1998/namespace}lang"),
       )
-    except Exception as e:
-      raise_serialization_errors(element.tag, e)
+    except (
+      WrongTagError,
+      NotMappingLikeError,
+      RequiredAttributeMissingError,
+      AttributeError,
+      KeyError,
+    ) as e:
+      raise SerializationError(cls, e) from e
 
   def to_xml(self, factory: AnyElementFactory[..., R] | None = None) -> R:
     _factory = get_factory(self, factory)
-    element = _factory("note", self._make_attrib_dict(exclude=("text",)))
-    if not isinstance(self.text, str):  # type: ignore # we're being defensive here, ignore redundant isinstance check
-      raise ValidationError(
-        f"Validation failed - Expected type: str - Actual type: {type(self.text)}",
-        "text",
-        self.text,
-        TypeError(),
-      )
-    element.text = self.text
-    return element
+    try:
+      element = _factory("note", self._make_attrib_dict())
+      if not isinstance(self.text, str):  # type: ignore
+        raise ValidationError("note", str, type(self.text), None)
+      element.text = self.text
+      return element
+    except ValidationError as e:
+      raise DeserializationError(self, e) from e
+
+  def _make_attrib_dict(self) -> dict[str, str]:
+    attrs: dict[str, str] = {}
+    if self.encoding is not None:
+      if not isinstance(self.encoding, str):  # type: ignore
+        raise ValidationError("encoding", str, type(self.encoding), None)
+      attrs["o-encoding"] = self.encoding
+    if self.lang is not None:
+      if not isinstance(self.lang, str):  # type: ignore
+        raise ValidationError("lang", str, type(self.lang), None)
+      attrs["{http://www.w3.org/XML/1998/namespace}lang"] = self.lang
+    return attrs
