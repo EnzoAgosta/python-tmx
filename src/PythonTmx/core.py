@@ -70,9 +70,7 @@ class BaseTmxElement(ABC):
   xml_factory: AnyElementFactory[..., AnyXmlElement] | None
   __slots__ = ("xml_factory",)
 
-  def set_default_factory(
-    self, factory: AnyElementFactory[P, R] | None
-  ) -> None:
+  def set_default_factory(self, factory: AnyElementFactory[P, R] | None) -> None:
     self.xml_factory = factory
 
   @abstractmethod
@@ -164,11 +162,5 @@ class SupportsTrunc(Protocol):
 
 
 type ConvertibleToInt = (
-  str
-  | bytes
-  | bytearray
-  | memoryview
-  | SupportsInt
-  | SupportsIndex
-  | SupportsTrunc
+  str | bytes | bytearray | memoryview | SupportsInt | SupportsIndex | SupportsTrunc
 )

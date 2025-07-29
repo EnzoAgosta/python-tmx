@@ -13,6 +13,7 @@ class ASSOC(Enum):
   F = "f"
   B = "b"
 
+
 class POS(Enum):
   BEGIN = "begin"
   END = "end"

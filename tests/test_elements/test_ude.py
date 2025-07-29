@@ -93,9 +93,7 @@ def test_ude_to_xml_minimal(ElementFactory):
 
 
 def test_ude_to_xml_full(ElementFactory):
-  ude = Ude(
-    name="name", base="base", maps=[Map(unicode="map1"), Map(unicode="map2")]
-  )
+  ude = Ude(name="name", base="base", maps=[Map(unicode="map1"), Map(unicode="map2")])
   element = ude.to_xml(ElementFactory)
   assert element.tag == "ude"
   assert element.text is None

@@ -80,6 +80,7 @@ def test_prop_to_xml_minimal(ElementFactory):
   assert "o-encoding" not in element.attrib
   assert "{http://www.w3.org/XML/1998/namespace}lang" not in element.attrib
 
+
 def test_prop_from_xml_wrong_tag(ElementFactory):
   element = ElementFactory("notprop", {})
   with pytest.raises(SerializationError) as e:

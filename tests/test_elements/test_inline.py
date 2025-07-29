@@ -504,7 +504,7 @@ def test_bpt_validation_errors(ElementFactory):
 
 def test_it_validation_errors(ElementFactory):
   it = It(pos=POS.BEGIN)
-  it.pos = "invalid_pos" 
+  it.pos = "invalid_pos"
   with pytest.raises(DeserializationError) as exc_info:
     it.to_xml(ElementFactory)
   assert isinstance(exc_info.value.__cause__, ValidationError)
