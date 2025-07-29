@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Type
+
 from PythonTmx.core import (
   AnyElementFactory,
   AnyXmlElement,
@@ -46,7 +48,7 @@ class Prop(BaseTmxElement):
       self.type = type
 
   @classmethod
-  def from_xml(cls: type[Prop], element: AnyXmlElement) -> Prop:
+  def from_xml(cls: Type[Prop], element: AnyXmlElement) -> Prop:
     try:
       check_element_is_usable(element)
       if element.tag != "prop":

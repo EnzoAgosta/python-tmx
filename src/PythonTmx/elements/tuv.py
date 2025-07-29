@@ -191,25 +191,25 @@ class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
       for child in self:
         if not isinstance(child, (Note, Prop)):  # type: ignore
           raise TypeError(
-            f"Unexpected child element in tuv element - Expected Note or Prop, got {type(child)}",
+            f"Unexpected child element in tuv element - Expected Note or Prop, got {type(child):r}",
           )
         element.append(child.to_xml(factory=factory))
       seg = _factory("seg", {})
       current = seg
-      for child in self.segment:
-        if isinstance(child, str):
+      for elem in self.segment:
+        if isinstance(elem, str):
           if seg.text is None:
-            seg.text = child
+            seg.text = elem
           elif current is seg:
-            seg.text += child
+            seg.text += elem
           else:
-            current.tail = child
-        elif isinstance(child, (Bpt, Ept, It, Ph, Hi, Ut)):  # type: ignore
-          current = child.to_xml(factory=_factory)
+            current.tail = elem
+        elif isinstance(elem, (Bpt, Ept, It, Ph, Hi, Ut)):  # type: ignore
+          current = elem.to_xml(factory=_factory)
           seg.append(current)
         else:
           raise TypeError(
-            f"Unexpected child element in tuv element - Expected str, Bpt, Ept, It, Ph, Hi or Ut, got {type(child)}"
+            f"Unexpected child element in segment - Expected str, Bpt, Ept, It, Ph, Hi or Ut, got {type(elem)!r}"
           )
       element.append(seg)
       return element
