@@ -32,6 +32,32 @@ __all__ = ["Header"]
 
 
 class Header(BaseTmxElement, WithChildren[Note | Prop | Ude]):
+  """Represents a header element in a TMX file.
+
+  A header element contains metadata and configuration information about the TMX file
+  and the translation process. The header provides essential information such as
+  the creation tool, language settings, data type, and segment type that apply
+  to the entire translation memory.
+
+  Headers can contain optional child elements including notes, properties, and
+  user-defined entities that provide additional context or configuration.
+
+  Attributes:
+    creationtool: The name of the tool that created the TMX file.
+    creationtoolversion: The version of the creation tool.
+    segtype: The type of segmentation used (sentence, paragraph, etc.).
+    tmf: The translation memory format identifier.
+    adminlang: The administrative language code.
+    srclang: The source language code.
+    datatype: The data type of the content (plaintext, html, etc.).
+    encoding: Optional encoding specification for the content.
+    creationdate: Optional timestamp when the TMX was created.
+    creationid: Optional identifier for the creator.
+    changedate: Optional timestamp when the TMX was last modified.
+    changeid: Optional identifier for the last modifier.
+    _children: List of Note, Prop, or Ude child elements.
+  """
+
   __slots__ = (
     "creationtool",
     "creationtoolversion",
@@ -77,6 +103,23 @@ class Header(BaseTmxElement, WithChildren[Note | Prop | Ude]):
     changeid: str | None = None,
     children: Sequence[Note | Prop | Ude] | None = None,
   ) -> None:
+    """Initialize a Header element.
+
+    Args:
+      creationtool: The name of the tool that created the TMX file.
+      creationtoolversion: The version of the creation tool.
+      segtype: The type of segmentation used. Can be a SEGTYPE enum or string.
+      tmf: The translation memory format identifier.
+      adminlang: The administrative language code (e.g., "en", "fr").
+      srclang: The source language code (e.g., "en", "fr").
+      datatype: The data type of the content. Can be a DATATYPE enum or string.
+      encoding: Optional encoding specification (e.g., "UTF-8", "ISO-8859-1").
+      creationdate: Optional creation timestamp. Can be string or datetime.
+      creationid: Optional identifier for the creator.
+      changedate: Optional modification timestamp. Can be string or datetime.
+      changeid: Optional identifier for the last modifier.
+      children: Optional sequence of Note, Prop, or Ude child elements.
+    """
     self.creationtool = creationtool
     self.creationtoolversion = creationtoolversion
     self.tmf = tmf
@@ -96,18 +139,52 @@ class Header(BaseTmxElement, WithChildren[Note | Prop | Ude]):
 
   @property
   def notes(self) -> list[Note]:
+    """Get the list of Note elements in this header.
+
+    Returns:
+      A list of Note elements that provide additional information about the TMX.
+    """
     return [note for note in self._children if isinstance(note, Note)]
 
   @property
   def props(self) -> list[Prop]:
+    """Get the list of Prop elements in this header.
+
+    Returns:
+      A list of Prop elements that provide metadata about the TMX.
+    """
     return [prop for prop in self._children if isinstance(prop, Prop)]
 
   @property
   def udes(self) -> list[Ude]:
+    """Get the list of Ude elements in this header.
+
+    Returns:
+      A list of Ude elements that define custom character mappings.
+    """
     return [ude for ude in self._children if isinstance(ude, Ude)]
 
   @classmethod
   def from_xml(cls: type[Header], element: AnyXmlElement) -> Header:
+    """Create a Header instance from an XML element.
+
+    This method parses a TMX header element and creates a corresponding Header object.
+    The XML element must have the tag "header" and cannot contain text content.
+
+    Args:
+      element: The XML element to parse. Must have tag "header" and no text content.
+
+    Returns:
+      A new Header instance with the parsed data.
+
+    Raises:
+      WrongTagError: If the element tag is not "header".
+      RequiredAttributeMissingError: If the element lacks required attributes.
+      NotMappingLikeError: If the element's attrib is not a mapping.
+      ValueError: If the header element has text content or multiple headers/bodies.
+      SerializationError: If any other parsing error occurs.
+    """
+
     def _dispatch(child: AnyXmlElement) -> Note | Prop | Ude:
       if child.tag == "ude":
         return Ude.from_xml(child)
@@ -156,6 +233,24 @@ class Header(BaseTmxElement, WithChildren[Note | Prop | Ude]):
       raise SerializationError(cls, e) from e
 
   def to_xml(self, factory: AnyElementFactory[..., R] | None = None) -> R:
+    """Convert this Header instance to an XML element.
+
+    Creates an XML element with tag "header" and the appropriate attributes.
+    All child elements (notes, props, udes) are serialized and appended.
+
+    Args:
+      factory: Optional XML element factory. If None, uses the default factory
+               or the instance's xml_factory.
+
+    Returns:
+      An XML element representing this Header.
+
+    Raises:
+      TypeError: If any child element is not a Note, Prop, or Ude instance.
+      ValidationError: If any attribute has an invalid type.
+      MissingDefaultFactoryError: If no factory is available.
+      DeserializationError: If any other serialization error occurs.
+    """
     _factory = get_factory(self, factory)
     try:
       element = _factory("header", self._make_attrib_dict())
@@ -171,6 +266,17 @@ class Header(BaseTmxElement, WithChildren[Note | Prop | Ude]):
 
   # Defensive coding, lots of type: ignore to shut up type checkers
   def _make_attrib_dict(self) -> dict[str, str]:
+    """Create a dictionary of XML attributes for this Header.
+
+    Builds the attribute dictionary that will be used when serializing
+    this Header to XML. Only includes attributes that have non-None values.
+
+    Returns:
+      A dictionary mapping attribute names to string values.
+
+    Raises:
+      ValidationError: If any attribute has an invalid type.
+    """
     if not isinstance(self.creationtool, str):  # type: ignore
       raise ValidationError("creationtool", str, type(self.creationtool), None)
     if not isinstance(self.creationtoolversion, str):  # type: ignore

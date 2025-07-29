@@ -26,6 +26,23 @@ __all__ = ["Prop"]
 
 
 class Prop(BaseTmxElement):
+  """Represents a property element in a TMX file.
+
+  A property element contains metadata or configuration information about
+  translation units or other TMX elements. Properties are key-value pairs
+  that can store additional information not covered by standard TMX attributes.
+
+  Properties are commonly used to store tool-specific settings, workflow
+  information, or custom metadata that needs to be preserved during
+  translation processes.
+
+  Attributes:
+    text: The property value/content.
+    type: The property type/category (e.g., "project", "client", "domain").
+    encoding: Optional encoding specification for the property text.
+    lang: Optional language specification for the property content.
+  """
+
   __slots__ = ("text", "type", "encoding", "lang")
   text: str
   type: str | TYPE
@@ -39,6 +56,20 @@ class Prop(BaseTmxElement):
     encoding: str | None = None,
     lang: str | None = None,
   ) -> None:
+    """Initialize a Prop element.
+
+    Args:
+      text: The property value/content. Must be a non-empty string.
+      type: The property type/category. Can be a string or TYPE enum value.
+            Examples: "project", "client", "domain", "priority".
+      encoding: Optional encoding specification (e.g., "UTF-8", "ISO-8859-1").
+                If provided, will be serialized as the "o-encoding" attribute.
+      lang: Optional language code for the property content (e.g., "en", "fr").
+            If provided, will be serialized as the "xml:lang" attribute.
+
+    Raises:
+      ValueError: If text is empty or None.
+    """
     self.text = text
     self.encoding = encoding
     self.lang = lang
@@ -49,6 +80,24 @@ class Prop(BaseTmxElement):
 
   @classmethod
   def from_xml(cls: Type[Prop], element: AnyXmlElement) -> Prop:
+    """Create a Prop instance from an XML element.
+
+    This method parses a TMX property element and creates a corresponding Prop object.
+    The XML element must have the tag "prop" and contain text content.
+
+    Args:
+      element: The XML element to parse. Must have tag "prop" and contain text.
+
+    Returns:
+      A new Prop instance with the parsed data.
+
+    Raises:
+      WrongTagError: If the element tag is not "prop".
+      RequiredAttributeMissingError: If the element lacks required attributes.
+      NotMappingLikeError: If the element's attrib is not a mapping.
+      ValueError: If the prop element has no text content.
+      SerializationError: If any other parsing error occurs.
+    """
     try:
       check_element_is_usable(element)
       if element.tag != "prop":
@@ -72,6 +121,23 @@ class Prop(BaseTmxElement):
       raise SerializationError(cls, e) from e
 
   def to_xml(self, factory: AnyElementFactory[..., R] | None = None) -> R:
+    """Convert this Prop instance to an XML element.
+
+    Creates an XML element with tag "prop" and the appropriate attributes.
+    The property text becomes the element's text content.
+
+    Args:
+      factory: Optional XML element factory. If None, uses the default factory
+               or the instance's xml_factory.
+
+    Returns:
+      An XML element representing this Prop.
+
+    Raises:
+      ValidationError: If any attribute has an invalid type.
+      MissingDefaultFactoryError: If no factory is available.
+      DeserializationError: If any other serialization error occurs.
+    """
     _factory = get_factory(self, factory)
     try:
       element = _factory("prop", self._make_attrib_dict())
@@ -83,6 +149,17 @@ class Prop(BaseTmxElement):
       raise DeserializationError(self, e) from e
 
   def _make_attrib_dict(self) -> dict[str, str]:
+    """Create a dictionary of XML attributes for this Prop.
+
+    Builds the attribute dictionary that will be used when serializing
+    this Prop to XML. Only includes attributes that have non-None values.
+
+    Returns:
+      A dictionary mapping attribute names to string values.
+
+    Raises:
+      ValidationError: If any attribute has an invalid type.
+    """
     if not isinstance(self.type, (TYPE, str)):  # type: ignore
       raise ValidationError("type", TYPE, type(self.type), None)
     attrs: dict[str, str] = {
