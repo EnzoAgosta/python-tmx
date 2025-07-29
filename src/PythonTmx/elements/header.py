@@ -162,7 +162,7 @@ class Header(BaseTmxElement, WithChildren[Note | Prop | Ude]):
       for child in self:
         if not isinstance(child, Note | Prop | Ude):  # type: ignore
           raise TypeError(
-            f"Unexpected child element in header element - Expected Ude, Note or Prop, got {type(child)}",
+            f"Unexpected child element in header element - Expected Ude, Note or Prop, got {type(child)!r}",
           )
         element.append(child.to_xml(factory=factory))
       return element

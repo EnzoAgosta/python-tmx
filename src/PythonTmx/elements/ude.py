@@ -71,7 +71,7 @@ class Ude(BaseTmxElement, WithChildren[Map]):
       for map in self.maps:
         if not isinstance(map, Map):  # type: ignore
           raise TypeError(
-            f"All children of ude element must be of type Map, got {type(map)}"
+            f"All children of ude element must be of type Map, got {type(map)!r}"
           )
         if map.code is not None:
           if self.base is None:

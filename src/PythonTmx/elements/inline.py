@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Type, TypeVar
+
 from PythonTmx.core import (
   AnyElementFactory,
   AnyXmlElement,
@@ -71,11 +73,18 @@ def _xml_to_inline(
   return result
 
 
+T = TypeVar("T", bound=AnyXmlElement)
+
+
 def inline_tmx_to_xml(
   tmx_obj: Sub | Ph | Bpt | Ept | It | Hi | Ut,
-  element: R,
-  factory: AnyElementFactory[P, R],
-) -> R:
+  element: T,
+  factory: AnyElementFactory[P, T],
+) -> T:
+  expected: (
+    tuple[Type[Sub], ...]
+    | tuple[Type[Ph], Type[Bpt], Type[Ept], Type[It], Type[Hi], Type[Ut]]
+  )
   if isinstance(tmx_obj, (Sub, Hi)):
     expected = (Ph, Bpt, Ept, It, Hi, Ut)
   else:
@@ -94,7 +103,7 @@ def inline_tmx_to_xml(
       element.append(current)
     else:
       raise TypeError(
-        f"Unexpected child element in sub element - Expected str, Bpt, Ept, It, Ph, Hi or Ut, got {type(child)}",
+        f"Unexpected child element in sub element - Expected str, Bpt, Ept, It, Ph, Hi or Ut, got {type(child)!r}",
       )
   return element
 
@@ -128,7 +137,7 @@ class Sub(BaseTmxElement, WithChildren["str | Bpt | Ept | It | Ph | Hi | Ut"]):
       self.type = type
 
   @classmethod
-  def from_xml(cls: type[Sub], element: AnyXmlElement) -> Sub:
+  def from_xml(cls: Type[Sub], element: AnyXmlElement) -> Sub:
     try:
       check_element_is_usable(element)
       if element.tag != "sub":
@@ -197,7 +206,7 @@ class Ph(BaseTmxElement, WithChildren[Sub | str]):
       self.type = type
 
   @classmethod
-  def from_xml(cls: type[Ph], element: AnyXmlElement) -> Ph:
+  def from_xml(cls: Type[Ph], element: AnyXmlElement) -> Ph:
     try:
       check_element_is_usable(element)
       if element.tag != "ph":
@@ -266,7 +275,7 @@ class Bpt(BaseTmxElement, WithChildren[Sub | str]):
       self.type = type
 
   @classmethod
-  def from_xml(cls: type[Bpt], element: AnyXmlElement) -> Bpt:
+  def from_xml(cls: Type[Bpt], element: AnyXmlElement) -> Bpt:
     try:
       check_element_is_usable(element)
       if element.tag != "bpt":
@@ -324,7 +333,7 @@ class Ept(BaseTmxElement, WithChildren[Sub | str]):
     self._children = [child for child in children] if children is not None else []
 
   @classmethod
-  def from_xml(cls: type[Ept], element: AnyXmlElement) -> Ept:
+  def from_xml(cls: Type[Ept], element: AnyXmlElement) -> Ept:
     try:
       check_element_is_usable(element)
       if element.tag != "ept":
@@ -383,7 +392,7 @@ class It(BaseTmxElement, WithChildren[Sub | str]):
       self.type = type
 
   @classmethod
-  def from_xml(cls: type[It], element: AnyXmlElement) -> It:
+  def from_xml(cls: Type[It], element: AnyXmlElement) -> It:
     try:
       check_element_is_usable(element)
       if element.tag != "it":
@@ -443,7 +452,7 @@ class Ut(BaseTmxElement, WithChildren[Sub | str]):
     self._children = [child for child in children] if children is not None else []
 
   @classmethod
-  def from_xml(cls: type[Ut], element: AnyXmlElement) -> Ut:
+  def from_xml(cls: Type[Ut], element: AnyXmlElement) -> Ut:
     try:
       check_element_is_usable(element)
       if element.tag != "ut":
@@ -499,7 +508,7 @@ class Hi(BaseTmxElement, WithChildren["Bpt | Ept | It | Ph | Hi | Ut | str"]):
       self.type = type
 
   @classmethod
-  def from_xml(cls: type[Hi], element: AnyXmlElement) -> Hi:
+  def from_xml(cls: Type[Hi], element: AnyXmlElement) -> Hi:
     try:
       check_element_is_usable(element)
       if element.tag != "hi":
