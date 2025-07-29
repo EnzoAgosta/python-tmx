@@ -17,15 +17,6 @@ from PythonTmx.errors import (
 
 
 def check_element_is_usable(element: object) -> TypeGuard[AnyXmlElement]:
-  """
-  Ensures that the provided element has the expected structure for TMX elements.
-
-  Args:
-    element: The element to check.
-
-  Raises:
-    UnusableElementError: If the element does not have any of the expected attributes.
-  """
   for attr in ("tag", "attrib", "text", "tail"):
     if not hasattr(element, attr):
       raise RequiredAttributeMissingError(attr)
