@@ -15,6 +15,7 @@ from PythonTmx.elements.inline import Bpt, Ept, Hi, It, Ph, Ut
 from PythonTmx.elements.note import Note
 from PythonTmx.elements.prop import Prop
 from PythonTmx.errors import (
+  DeserializationError,
   NotMappingLikeError,
   RequiredAttributeMissingError,
   SerializationError,
@@ -127,7 +128,7 @@ class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
       if element.tag != "tuv":
         raise WrongTagError(element.tag, "tuv")
       if element.text is not None:
-        ValueError("tuv element cannot have text")
+        raise ValueError("tuv element cannot have text")
       segment: list[Bpt | Ept | It | Ph | Hi | Ut | str] = []
       children: list[Prop | Note] = []
       for child in element:
@@ -164,6 +165,7 @@ class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
       RequiredAttributeMissingError,
       AttributeError,
       KeyError,
+      ValueError,
     ) as e:
       raise SerializationError(cls, e) from e
 
@@ -189,19 +191,20 @@ class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
             current.tail = child
         elif isinstance(child, (Bpt, Ept, It, Ph, Hi, Ut)):  # type: ignore
           current = child.to_xml(factory=_factory)
-          element.append(current)
+          seg.append(current)
         else:
           raise TypeError(
             f"Unexpected child element in tuv element - Expected str, Bpt, Ept, It, Ph, Hi or Ut, got {type(child)}"
           )
+      element.append(seg)
       return element
-    except Exception as e:
-      raise SerializationError(Tuv, e)
+    except ValidationError as e:
+      raise DeserializationError(self, e) from e
 
   def _make_attrib_dict(self) -> dict[str, str]:
     if not isinstance(self.lang, str):  # type: ignore
       raise ValidationError("lang", str, type(self.lang), None)
-    attrib: dict[str, str] = {"xml:lang": self.lang}
+    attrib: dict[str, str] = {"{http://www.w3.org/XML/1998/namespace}lang": self.lang}
     if self.encoding is not None:
       if not isinstance(self.encoding, str):  # type: ignore
         raise ValidationError("encoding", str, type(self.encoding), None)
