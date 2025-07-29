@@ -1,5 +1,20 @@
-from PythonTmx.elements import Header, Map, Note, Prop, Ude
-from PythonTmx.enums import SEGTYPE
+from PythonTmx.elements import (
+  Bpt,
+  Ept,
+  Header,
+  Hi,
+  InlineElement,
+  It,
+  Map,
+  Note,
+  Ph,
+  Prop,
+  StructuralElement,
+  Sub,
+  Ude,
+  Ut,
+)
+from PythonTmx.enums import ASSOC, POS, SEGTYPE
 from PythonTmx.errors import (
   DeserializationError,
   MissingDefaultFactoryError,
@@ -12,12 +27,23 @@ from PythonTmx.errors import (
 )
 
 __all__ = [
+  "Header",
   "Map",
   "Note",
   "Prop",
   "Ude",
-  "Header",
+  "InlineElement",
+  "StructuralElement",
+  "Bpt",
+  "Ept",
+  "Hi",
+  "It",
+  "Ph",
+  "Sub",
+  "Ut",
   "SEGTYPE",
+  "ASSOC",
+  "POS",
   "DeserializationError",
   "MissingDefaultFactoryError",
   "NotMappingLikeError",
