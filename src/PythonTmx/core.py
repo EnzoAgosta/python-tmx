@@ -12,9 +12,11 @@ from typing import (
   Protocol,
   Self,
   SupportsIndex,
+  SupportsInt,
   Type,
   TypeVar,
   overload,
+  runtime_checkable,
 )
 
 ChildrenType = TypeVar("ChildrenType")
@@ -22,6 +24,17 @@ P = ParamSpec("P")
 R = TypeVar("R", bound="AnyXmlElement", covariant=True)
 
 DEFAULT_XML_FACTORY: AnyElementFactory[..., AnyXmlElement] | None = None
+
+__all__ = (
+  "AnyXmlElement",
+  "BaseTmxElement",
+  "WithChildren",
+  "TmxParser",
+  "set_default_factory",
+  "DEFAULT_XML_FACTORY",
+  "AnyElementFactory",
+  "ConvertibleToInt"
+)
 
 
 class AnyXmlElement(Protocol):
@@ -167,7 +180,7 @@ class BaseTmxElement(ABC):
 
   @classmethod
   @abstractmethod
-  def from_xml(cls:Type[Self], element: AnyXmlElement) -> BaseTmxElement:
+  def from_xml(cls: Type[Self], element: AnyXmlElement) -> BaseTmxElement:
     """
     Class method used to construct a TMX element from a raw XML element.
     This method is the primary way to create TMX elements from XML
@@ -358,3 +371,19 @@ class TmxParser(ABC):
         ValueError: If the provided mask includes unsupported tag names.
     """
     ...
+
+
+@runtime_checkable
+class SupportsTrunc(Protocol):
+  def __trunc__(self) -> int: ...
+
+
+type ConvertibleToInt = (
+  str
+  | bytes
+  | bytearray
+  | memoryview
+  | SupportsInt
+  | SupportsIndex
+  | SupportsTrunc
+)

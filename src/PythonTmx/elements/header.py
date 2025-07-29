@@ -79,7 +79,6 @@ class Header(BaseTmxElement, WithChildren[Note | Prop | Ude]):
     self.creationtoolversion = creationtoolversion
     self.tmf = tmf
     self.adminlang = adminlang
-    self.segtype = SEGTYPE(segtype)
     self.srclang = srclang
     self.datatype = datatype
     self.encoding = encoding
@@ -90,6 +89,7 @@ class Header(BaseTmxElement, WithChildren[Note | Prop | Ude]):
     self._children = (
       [child for child in children] if children is not None else []
     )
+    self.segtype = SEGTYPE(segtype)
 
   @property
   def notes(self) -> list[Note]:
