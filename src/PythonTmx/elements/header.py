@@ -120,7 +120,7 @@ class Header(BaseTmxElement, WithChildren[Note | Prop | Ude]):
       if element.tag != "header":
         raise WrongTagError(element.tag, "header")
       if element.text is not None:
-        ValueError("Header element cannot have text")
+        raise ValueError("Header element cannot have text")
 
       header: Header = cls(
         creationtool=element.attrib["creationtool"],
@@ -144,6 +144,7 @@ class Header(BaseTmxElement, WithChildren[Note | Prop | Ude]):
       RequiredAttributeMissingError,
       AttributeError,
       KeyError,
+      ValueError,
     ) as e:
       raise SerializationError(cls, e) from e
 

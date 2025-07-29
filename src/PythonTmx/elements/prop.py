@@ -46,7 +46,7 @@ class Prop(BaseTmxElement):
       if element.tag != "prop":
         raise WrongTagError(element.tag, "prop")
       if element.text is None:
-        ValueError("Prop element must have text")
+        raise ValueError("Prop element must have text")
       return cls(
         text=element.text,
         type=element.attrib["type"],
@@ -59,6 +59,7 @@ class Prop(BaseTmxElement):
       RequiredAttributeMissingError,
       AttributeError,
       KeyError,
+      ValueError,
     ) as e:
       raise SerializationError(cls, e) from e
 

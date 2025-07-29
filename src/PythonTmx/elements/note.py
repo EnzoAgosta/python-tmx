@@ -55,6 +55,7 @@ class Note(BaseTmxElement):
       RequiredAttributeMissingError,
       AttributeError,
       KeyError,
+      ValueError,
     ) as e:
       raise SerializationError(cls, e) from e
 
