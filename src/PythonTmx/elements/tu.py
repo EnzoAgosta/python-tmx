@@ -11,9 +11,9 @@ from PythonTmx.core import (
   R,
   WithChildren,
 )
-from PythonTmx.elements.inline import Bpt, Ept, Hi, It, Ph, Ut
 from PythonTmx.elements.note import Note
 from PythonTmx.elements.prop import Prop
+from PythonTmx.elements.tuv import Tuv
 from PythonTmx.errors import (
   DeserializationError,
   NotMappingLikeError,
@@ -29,9 +29,9 @@ from PythonTmx.utils import (
 )
 
 
-class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
+class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
   __slots__ = (
-    "lang",
+    "tuid",
     "encoding",
     "datatype",
     "usagecount",
@@ -41,12 +41,13 @@ class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
     "creationdate",
     "creationid",
     "changedate",
+    "segtype",
     "changeid",
     "tmf",
+    "srclang",
     "_children",
-    "segment",
   )
-  lang: str
+  tuid: str | None
   encoding: str | None
   datatype: str | None
   usagecount: int | None
@@ -56,14 +57,15 @@ class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
   creationdate: datetime | None
   creationid: str | None
   changedate: datetime | None
+  segtype: str | None
   changeid: str | None
   tmf: str | None
-  _children: list[Prop | Note]
-  segment: list[Bpt | Ept | It | Ph | Hi | Ut | str]
+  srclang: str | None
+  _children: list[Prop | Note | Tuv]
 
   def __init__(
     self,
-    lang: str,
+    tuid: str | None = None,
     encoding: str | None = None,
     datatype: str | None = None,
     usagecount: ConvertibleToInt | None = None,
@@ -73,12 +75,13 @@ class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
     creationdate: str | datetime | None = None,
     creationid: str | None = None,
     changedate: str | datetime | None = None,
+    segtype: str | None = None,
     changeid: str | None = None,
     tmf: str | None = None,
-    children: Sequence[Note | Prop] | None = None,
-    segment: Sequence[Bpt | Ept | It | Ph | Hi | Ut | str] | None = None,
+    srclang: str | None = None,
+    children: Sequence[Note | Prop | Tuv] | None = None,
   ) -> None:
-    self.lang = lang
+    self.tuid = tuid
     self.encoding = encoding
     self.datatype = datatype
     self.usagecount = int(usagecount) if usagecount is not None else usagecount
@@ -88,12 +91,13 @@ class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
     self.creationdate = try_parse_datetime(creationdate, False)
     self.creationid = creationid
     self.changedate = try_parse_datetime(changedate, False)
+    self.segtype = segtype
     self.changeid = changeid
     self.tmf = tmf
+    self.srclang = srclang
     self._children = (
       [child for child in children] if children is not None else []
     )
-    self.segment = [child for child in segment] if segment is not None else []
 
   @property
   def props(self) -> list[Prop]:
@@ -103,55 +107,30 @@ class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
   def notes(self) -> list[Note]:
     return [child for child in self if isinstance(child, Note)]
 
-  @classmethod
-  def from_xml(cls: type[Tuv], element: AnyXmlElement) -> Tuv:
-    def parse_seg(
-      seg: AnyXmlElement,
-    ) -> list[Bpt | Ept | It | Ph | Hi | Ut | str]:
-      result: list[Bpt | Ept | It | Ph | Hi | Ut | str] = []
-      if seg.text is not None:
-        result.append(seg.text)
-      for child in seg:
-        match child.tag:
-          case "bpt":
-            result.append(Bpt.from_xml(child))
-          case "ept":
-            result.append(Ept.from_xml(child))
-          case "it":
-            result.append(It.from_xml(child))
-          case "ph":
-            result.append(Ph.from_xml(child))
-          case "hi":
-            result.append(Hi.from_xml(child))
-          case "ut":
-            result.append(Ut.from_xml(child))
-          case _:
-            raise WrongTagError(child.tag, "bpt|ept|it|ph|hi|ut")
-        if child.tail is not None:
-          result.append(child.tail)
-      return result
+  @property
+  def tuvs(self) -> list[Tuv]:
+    return [child for child in self if isinstance(child, Tuv)]
 
+  @classmethod
+  def from_xml(cls: type[Tu], element: AnyXmlElement) -> Tu:
     try:
       check_element_is_usable(element)
-      if element.tag != "tuv":
-        raise WrongTagError(element.tag, "tuv")
-      if element.text is not None:
-        raise ValueError("tuv element cannot have text")
-      segment: list[Bpt | Ept | It | Ph | Hi | Ut | str] = []
-      children: list[Prop | Note] = []
+      if element.tag != "tu":
+        raise WrongTagError(element.tag, "tu")
+      
+      children: list[Prop | Note | Tuv] = []
       for child in element:
-        match child.tag:
-          case "prop":
-            children.append(Prop.from_xml(child))
-          case "note":
-            children.append(Note.from_xml(child))
-          case "seg":
-            segment.extend(parse_seg(child))
-          case _:
-            raise WrongTagError(child.tag, "prop, note or seg")
-
+        if child.tag == "prop":
+          children.append(Prop.from_xml(child))
+        elif child.tag == "note":
+          children.append(Note.from_xml(child))
+        elif child.tag == "tuv":
+          children.append(Tuv.from_xml(child))
+        else:
+          raise WrongTagError(child.tag, "prop, note or tuv")
+      
       return cls(
-        lang=element.attrib["{http://www.w3.org/XML/1998/namespace}lang"],
+        tuid=element.attrib.get("tuid"),
         encoding=element.attrib.get("o-encoding"),
         datatype=element.attrib.get("datatype"),
         usagecount=element.attrib.get("usagecount"),
@@ -161,110 +140,87 @@ class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
         creationdate=element.attrib.get("creationdate"),
         creationid=element.attrib.get("creationid"),
         changedate=element.attrib.get("changedate"),
+        segtype=element.attrib.get("segtype"),
         changeid=element.attrib.get("changeid"),
         tmf=element.attrib.get("o-tmf"),
+        srclang=element.attrib.get("srclang"),
         children=children,
-        segment=segment,
       )
-
     except (
       WrongTagError,
       NotMappingLikeError,
       RequiredAttributeMissingError,
       AttributeError,
       KeyError,
-      ValueError,
     ) as e:
       raise SerializationError(cls, e) from e
 
   def to_xml(self, factory: AnyElementFactory[..., R] | None = None) -> R:
+    _factory = get_factory(self, factory)
     try:
-      _factory = get_factory(self, factory)
-      element = _factory("tuv", self._make_attrib_dict())
+      element = _factory("tu", self._make_attrib_dict())
       for child in self:
-        if not isinstance(child, (Note, Prop)):  # type: ignore
-          raise TypeError(
-            f"Unexpected child element in tuv element - Expected Note or Prop, got {type(child)}",
-          )
-        element.append(child.to_xml(factory=factory))
-      seg = _factory("seg", {})
-      current = seg
-      for child in self.segment:
-        if isinstance(child, str):
-          if seg.text is None:
-            seg.text = child
-          elif current is seg:
-            seg.text += child
-          else:
-            current.tail = child
-        elif isinstance(child, (Bpt, Ept, It, Ph, Hi, Ut)):  # type: ignore
-          current = child.to_xml(factory=_factory)
-          seg.append(current)
-        else:
-          raise TypeError(
-            f"Unexpected child element in tuv element - Expected str, Bpt, Ept, It, Ph, Hi or Ut, got {type(child)}"
-          )
-      element.append(seg)
+        element.append(child.to_xml(_factory))
       return element
     except ValidationError as e:
       raise DeserializationError(self, e) from e
 
   def _make_attrib_dict(self) -> dict[str, str]:
-    if not isinstance(self.lang, str):  # type: ignore
-      raise ValidationError("lang", str, type(self.lang), None)
-    attrib: dict[str, str] = {"{http://www.w3.org/XML/1998/namespace}lang": self.lang}
+    attrs: dict[str, str] = {}
+    if self.tuid is not None:
+      if not isinstance(self.tuid, str):  # type: ignore
+        raise ValidationError("tuid", str, type(self.tuid), None)
+      attrs["tuid"] = self.tuid
     if self.encoding is not None:
       if not isinstance(self.encoding, str):  # type: ignore
         raise ValidationError("encoding", str, type(self.encoding), None)
-      attrib["o-encoding"] = self.encoding
+      attrs["o-encoding"] = self.encoding
     if self.datatype is not None:
       if not isinstance(self.datatype, str):  # type: ignore
         raise ValidationError("datatype", str, type(self.datatype), None)
-      attrib["datatype"] = self.datatype
+      attrs["datatype"] = self.datatype
     if self.usagecount is not None:
       if not isinstance(self.usagecount, int):  # type: ignore
         raise ValidationError("usagecount", int, type(self.usagecount), None)
-      attrib["usagecount"] = str(self.usagecount)
+      attrs["usagecount"] = str(self.usagecount)
     if self.lastusagedate is not None:
       if not isinstance(self.lastusagedate, datetime):  # type: ignore
-        raise ValidationError(
-          "lastusagedate", datetime, type(self.lastusagedate), None
-        )
-      attrib["lastusagedate"] = self.lastusagedate.strftime("%Y%m%dT%H%M%SZ")
+        raise ValidationError("lastusagedate", datetime, type(self.lastusagedate), None)
+      attrs["lastusagedate"] = self.lastusagedate.strftime("%Y%m%dT%H%M%S%Z")
     if self.creationtool is not None:
       if not isinstance(self.creationtool, str):  # type: ignore
-        raise ValidationError(
-          "creationtool", str, type(self.creationtool), None
-        )
-      attrib["creationtool"] = self.creationtool
+        raise ValidationError("creationtool", str, type(self.creationtool), None)
+      attrs["creationtool"] = self.creationtool
     if self.creationtoolversion is not None:
       if not isinstance(self.creationtoolversion, str):  # type: ignore
-        raise ValidationError(
-          "creationtoolversion", str, type(self.creationtoolversion), None
-        )
-      attrib["creationtoolversion"] = self.creationtoolversion
+        raise ValidationError("creationtoolversion", str, type(self.creationtoolversion), None)
+      attrs["creationtoolversion"] = self.creationtoolversion
     if self.creationdate is not None:
       if not isinstance(self.creationdate, datetime):  # type: ignore
-        raise ValidationError(
-          "creationdate", datetime, type(self.creationdate), None
-        )
-      attrib["creationdate"] = self.creationdate.strftime("%Y%m%dT%H%M%SZ")
+        raise ValidationError("creationdate", datetime, type(self.creationdate), None)
+      attrs["creationdate"] = self.creationdate.strftime("%Y%m%dT%H%M%S%Z")
     if self.creationid is not None:
       if not isinstance(self.creationid, str):  # type: ignore
         raise ValidationError("creationid", str, type(self.creationid), None)
-      attrib["creationid"] = self.creationid
+      attrs["creationid"] = self.creationid
     if self.changedate is not None:
       if not isinstance(self.changedate, datetime):  # type: ignore
-        raise ValidationError(
-          "changedate", datetime, type(self.changedate), None
-        )
-      attrib["changedate"] = self.changedate.strftime("%Y%m%dT%H%M%SZ")
+        raise ValidationError("changedate", datetime, type(self.changedate), None)
+      attrs["changedate"] = self.changedate.strftime("%Y%m%dT%H%M%S%Z")
+    if self.segtype is not None:
+      if not isinstance(self.segtype, str):  # type: ignore
+        raise ValidationError("segtype", str, type(self.segtype), None)
+      attrs["segtype"] = self.segtype
     if self.changeid is not None:
       if not isinstance(self.changeid, str):  # type: ignore
         raise ValidationError("changeid", str, type(self.changeid), None)
-      attrib["changeid"] = self.changeid
+      attrs["changeid"] = self.changeid
     if self.tmf is not None:
       if not isinstance(self.tmf, str):  # type: ignore
         raise ValidationError("tmf", str, type(self.tmf), None)
-      attrib["o-tmf"] = self.tmf
-    return attrib
+      attrs["o-tmf"] = self.tmf
+    if self.srclang is not None:
+      if not isinstance(self.srclang, str):  # type: ignore
+        raise ValidationError("srclang", str, type(self.srclang), None)
+      attrs["srclang"] = self.srclang
+    return attrs 
