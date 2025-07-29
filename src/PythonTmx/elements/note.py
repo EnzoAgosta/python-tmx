@@ -19,6 +19,8 @@ from PythonTmx.utils import (
   get_factory,
 )
 
+__all__ = ["Note"]
+
 
 class Note(BaseTmxElement):
   __slots__ = ("text", "encoding", "lang")

@@ -2,7 +2,7 @@
 import pytest
 
 from PythonTmx.elements.inline import Bpt, Ept, Hi, It, Ph, Sub, Ut
-from PythonTmx.enums import ASSOC, POS
+from PythonTmx.enums import ASSOC, BPTITTYPE, DATATYPE, POS
 from PythonTmx.errors import (
   DeserializationError,
   NotMappingLikeError,
@@ -14,7 +14,7 @@ from PythonTmx.errors import (
 
 def test_create_minimal_sub():
   sub = Sub()
-  assert sub.datatype is None
+  assert sub.datatype is DATATYPE.UNKNOWN
   assert sub.type is None
   assert sub._children == []
 
@@ -29,7 +29,7 @@ def test_create_full_sub():
 def test_sub_from_minimal_xml(ElementFactory):
   element = ElementFactory("sub", {})
   sub = Sub.from_xml(element)
-  assert sub.datatype is None
+  assert sub.datatype is DATATYPE.UNKNOWN
   assert sub.type is None
   assert sub._children == []
 
@@ -54,7 +54,7 @@ def test_sub_to_xml_minimal(ElementFactory):
   sub = Sub()
   element = sub.to_xml(ElementFactory)
   assert element.tag == "sub"
-  assert element.attrib == {}
+  assert element.attrib == {"datatype": "unknown"}
 
 
 def test_sub_to_xml_full(ElementFactory):
@@ -140,7 +140,7 @@ def test_create_full_bpt():
   bpt = Bpt(i=1, x=2, type="bold", children=["begin"])
   assert bpt.i == 1
   assert bpt.x == 2
-  assert bpt.type == "bold"
+  assert bpt.type == BPTITTYPE.BOLD
   assert bpt._children == ["begin"]
 
 
@@ -158,7 +158,7 @@ def test_bpt_from_full_xml(ElementFactory):
   bpt = Bpt.from_xml(element)
   assert bpt.i == 1
   assert bpt.x == 2
-  assert bpt.type == "bold"
+  assert bpt.type == BPTITTYPE.BOLD
   assert bpt._children == ["begin"]
 
 
@@ -259,7 +259,7 @@ def test_create_full_it():
   it = It(pos=POS.END, x=1, type="italic", children=["isolated"])
   assert it.pos == POS.END
   assert it.x == 1
-  assert it.type == "italic"
+  assert it.type == BPTITTYPE.ITALIC
   assert it._children == ["isolated"]
 
 
@@ -277,7 +277,7 @@ def test_it_from_full_xml(ElementFactory):
   it = It.from_xml(element)
   assert it.pos == POS.END
   assert it.x == 1
-  assert it.type == "italic"
+  assert it.type == BPTITTYPE.ITALIC
   assert it._children == ["isolated"]
 
 
@@ -504,7 +504,7 @@ def test_bpt_validation_errors(ElementFactory):
 
 def test_it_validation_errors(ElementFactory):
   it = It(pos=POS.BEGIN)
-  it.pos = "invalid_pos"
+  it.pos = 13
   with pytest.raises(DeserializationError) as exc_info:
     it.to_xml(ElementFactory)
   assert isinstance(exc_info.value.__cause__, ValidationError)

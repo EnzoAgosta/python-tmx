@@ -7,6 +7,7 @@ from PythonTmx.elements.inline import Bpt, Ept, Ph
 from PythonTmx.elements.note import Note
 from PythonTmx.elements.prop import Prop
 from PythonTmx.elements.tuv import Tuv
+from PythonTmx.enums import DATATYPE
 from PythonTmx.errors import (
   DeserializationError,
   NotMappingLikeError,
@@ -20,7 +21,7 @@ def test_create_minimal_tuv():
   tuv = Tuv("en")
   assert tuv.lang == "en"
   assert tuv.encoding is None
-  assert tuv.datatype is None
+  assert tuv.datatype is DATATYPE.UNKNOWN
   assert tuv.usagecount is None
   assert tuv.lastusagedate is None
   assert tuv.creationtool is None
@@ -61,7 +62,7 @@ def test_create_full_tuv():
 
   assert tuv.lang == "en"
   assert tuv.encoding == "utf-8"
-  assert tuv.datatype == "plaintext"
+  assert tuv.datatype == DATATYPE.PLAINTEXT
   assert tuv.usagecount == 5
   assert tuv.lastusagedate == last_usage_date
   assert tuv.creationtool == "TestTool"
@@ -85,7 +86,7 @@ def test_tuv_from_minimal_xml(ElementFactory):
   tuv = Tuv.from_xml(element)
   assert tuv.lang == "en"
   assert tuv.encoding is None
-  assert tuv.datatype is None
+  assert tuv.datatype is DATATYPE.UNKNOWN
   assert tuv.usagecount is None
   assert tuv.lastusagedate is None
   assert tuv.creationtool is None
@@ -137,7 +138,7 @@ def test_tuv_from_full_xml(ElementFactory):
   tuv = Tuv.from_xml(element)
   assert tuv.lang == "en"
   assert tuv.encoding == "utf-8"
-  assert tuv.datatype == "plaintext"
+  assert tuv.datatype == DATATYPE.PLAINTEXT
   assert tuv.usagecount == 5
   assert tuv.lastusagedate == datetime(2023, 1, 3, 12, 0, 0, tzinfo=timezone.utc)
   assert tuv.creationtool == "TestTool"
@@ -244,7 +245,8 @@ def test_tuv_to_xml_minimal(ElementFactory):
   element = tuv.to_xml(ElementFactory)
   assert element.tag == "tuv"
   assert element.attrib["{http://www.w3.org/XML/1998/namespace}lang"] == "en"
-  assert len(element.attrib) == 1
+  assert element.attrib["datatype"] == "unknown"
+  assert len(element.attrib) == 2
   assert len(list(element)) == 1
 
 

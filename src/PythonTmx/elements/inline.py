@@ -9,7 +9,7 @@ from PythonTmx.core import (
   R,
   WithChildren,
 )
-from PythonTmx.enums import ASSOC, POS
+from PythonTmx.enums import ASSOC, BPTITTYPE, DATATYPE, PHTYPE, POS, TYPE
 from PythonTmx.errors import (
   DeserializationError,
   NotMappingLikeError,
@@ -19,6 +19,16 @@ from PythonTmx.errors import (
   WrongTagError,
 )
 from PythonTmx.utils import check_element_is_usable, get_factory
+
+__all__ = [
+  "Bpt",
+  "Ept",
+  "Hi",
+  "It",
+  "Ph",
+  "Sub",
+  "Ut",
+]
 
 
 def _xml_to_inline_sub_only(element: AnyXmlElement) -> list[str | Sub]:
@@ -34,7 +44,9 @@ def _xml_to_inline_sub_only(element: AnyXmlElement) -> list[str | Sub]:
   return result
 
 
-def _xml_to_inline(element: AnyXmlElement) -> list[Ph | Bpt | Ept | It | Hi | Ut | str]:
+def _xml_to_inline(
+  element: AnyXmlElement,
+) -> list[Ph | Bpt | Ept | It | Hi | Ut | str]:
   result: list[Ph | Bpt | Ept | It | Hi | Ut | str] = []
   if element.text is not None:
     result.append(element.text)
@@ -90,18 +102,30 @@ def inline_tmx_to_xml(
 class Sub(BaseTmxElement, WithChildren["str | Bpt | Ept | It | Ph | Hi | Ut"]):
   __slots__ = ("_children", "datatype", "type")
   _children: list[str | Bpt | Ept | It | Ph | Hi | Ut]
-  datatype: str | None
-  type: str | None
+  datatype: str | DATATYPE | None
+  type: str | TYPE | None
 
   def __init__(
     self,
-    datatype: str | None = None,
-    type: str | None = None,
+    datatype: str | DATATYPE | None = None,
+    type: str | TYPE | None = None,
     children: list[str | Bpt | Ept | It | Ph | Hi | Ut] | None = None,
   ) -> None:
-    self.datatype = datatype
-    self.type = type
     self._children = children if children is not None else []
+    if datatype is not None:
+      try:
+        self.datatype = DATATYPE(datatype)
+      except ValueError:
+        self.datatype = datatype
+    else:
+      self.datatype = DATATYPE.UNKNOWN
+    if type is not None:
+      try:
+        self.type = TYPE(type)
+      except ValueError:
+        self.type = type
+    else:
+      self.type = type
 
   @classmethod
   def from_xml(cls: type[Sub], element: AnyXmlElement) -> Sub:
@@ -135,34 +159,42 @@ class Sub(BaseTmxElement, WithChildren["str | Bpt | Ept | It | Ph | Hi | Ut"]):
   def _make_attrib_dict(self) -> dict[str, str]:
     attrs: dict[str, str] = {}
     if self.type is not None:
-      if not isinstance(self.type, str):  # type: ignore
-        raise ValidationError("type", str, type(self.type), None)
-      attrs["type"] = self.type
+      if not isinstance(self.type, (str, TYPE)):  # type: ignore
+        raise ValidationError("type", (str, TYPE), type(self.type), None)
+      attrs["type"] = self.type.value if isinstance(self.type, TYPE) else self.type
     if self.datatype is not None:
-      if not isinstance(self.datatype, str):  # type: ignore
-        raise ValidationError("datatype", str, type(self.datatype), None)
-      attrs["datatype"] = self.datatype
+      if not isinstance(self.datatype, (str, DATATYPE)):  # type: ignore
+        raise ValidationError("datatype", (str, DATATYPE), type(self.datatype), None)
+      attrs["datatype"] = (
+        self.datatype.value if isinstance(self.datatype, DATATYPE) else self.datatype
+      )
     return attrs
 
 
 class Ph(BaseTmxElement, WithChildren[Sub | str]):
   __slots__ = ("x", "assoc", "type", "_children")
   x: int | None
-  assoc: ASSOC | None
-  type: str | None
+  assoc: ASSOC | str | None
+  type: str | PHTYPE | None
   _children: list[Sub | str]
 
   def __init__(
     self,
     x: ConvertibleToInt | None = None,
     assoc: ASSOC | str | None = None,
-    type: str | None = None,
+    type: str | PHTYPE | None = None,
     children: list[Sub | str] | None = None,
   ) -> None:
-    self.type = type
-    self.assoc = ASSOC(assoc) if assoc is not None else assoc
     self.x = int(x) if x is not None else x
     self._children = [child for child in children] if children is not None else []
+    try:
+      self.assoc = ASSOC(assoc) if assoc is not None else assoc
+    except ValueError:
+      self.assoc = assoc
+    try:
+      self.type = PHTYPE(type) if type is not None else type
+    except ValueError:
+      self.type = type
 
   @classmethod
   def from_xml(cls: type[Ph], element: AnyXmlElement) -> Ph:
@@ -196,18 +228,18 @@ class Ph(BaseTmxElement, WithChildren[Sub | str]):
 
   def _make_attrib_dict(self) -> dict[str, str]:
     attrs: dict[str, str] = {}
+    if self.type is not None:
+      if not isinstance(self.type, (str, PHTYPE)):  # type: ignore
+        raise ValidationError("type", (str, PHTYPE), type(self.type), None)
+      attrs["type"] = self.type.value if isinstance(self.type, PHTYPE) else self.type
+    if self.assoc is not None:
+      if not isinstance(self.assoc, (str, ASSOC)):  # type: ignore
+        raise ValidationError("assoc", (str, ASSOC), type(self.assoc), None)
+      attrs["assoc"] = self.assoc.value if isinstance(self.assoc, ASSOC) else self.assoc
     if self.x is not None:
       if not isinstance(self.x, int):  # type: ignore
-        raise ValidationError("x", int, type(self.x), None)
+        raise ValidationError("x", int, type(self.type), None)
       attrs["x"] = str(self.x)
-    if self.assoc is not None:
-      if not isinstance(self.assoc, ASSOC):  # type: ignore
-        raise ValidationError("assoc", ASSOC, type(self.assoc), None)
-      attrs["assoc"] = self.assoc.value
-    if self.type is not None:
-      if not isinstance(self.type, str):  # type: ignore
-        raise ValidationError("type", str, type(self.type), None)
-      attrs["type"] = self.type
     return attrs
 
 
@@ -216,7 +248,7 @@ class Bpt(BaseTmxElement, WithChildren[Sub | str]):
   _children: list[Sub | str]
   i: int
   x: int | None
-  type: str | None
+  type: str | BPTITTYPE | None
 
   def __init__(
     self,
@@ -227,8 +259,11 @@ class Bpt(BaseTmxElement, WithChildren[Sub | str]):
   ) -> None:
     self.i = int(i)
     self.x = int(x) if x is not None else x
-    self.type = type
     self._children = [child for child in children] if children is not None else []
+    try:
+      self.type = BPTITTYPE(type) if type is not None else type
+    except ValueError:
+      self.type = type
 
   @classmethod
   def from_xml(cls: type[Bpt], element: AnyXmlElement) -> Bpt:
@@ -269,9 +304,9 @@ class Bpt(BaseTmxElement, WithChildren[Sub | str]):
         raise ValidationError("x", int, type(self.x), None)
       attrs["x"] = str(self.x)
     if self.type is not None:
-      if not isinstance(self.type, str):  # type: ignore
-        raise ValidationError("type", str, type(self.type), None)
-      attrs["type"] = self.type
+      if not isinstance(self.type, (str, BPTITTYPE)):  # type: ignore
+        raise ValidationError("type", (str, BPTITTYPE), type(self.type), None)
+      attrs["type"] = self.type.value if isinstance(self.type, BPTITTYPE) else self.type
     return attrs
 
 
@@ -325,9 +360,9 @@ class Ept(BaseTmxElement, WithChildren[Sub | str]):
 class It(BaseTmxElement, WithChildren[Sub | str]):
   __slots__ = ("_children", "pos", "x", "type")
   _children: list[Sub | str]
-  pos: POS
+  pos: POS | str
   x: int | None
-  type: str | None
+  type: str | BPTITTYPE | None
 
   def __init__(
     self,
@@ -336,10 +371,16 @@ class It(BaseTmxElement, WithChildren[Sub | str]):
     type: str | None = None,
     children: list[Sub | str] | None = None,
   ) -> None:
-    self.pos = POS(pos)
     self.x = int(x) if x is not None else x
-    self.type = type
     self._children = [child for child in children] if children is not None else []
+    try:
+      self.pos = POS(pos)
+    except ValueError:
+      self.pos = pos
+    try:
+      self.type = BPTITTYPE(type) if type is not None else type
+    except ValueError:
+      self.type = type
 
   @classmethod
   def from_xml(cls: type[It], element: AnyXmlElement) -> It:
@@ -372,17 +413,19 @@ class It(BaseTmxElement, WithChildren[Sub | str]):
       raise DeserializationError(self, e) from e
 
   def _make_attrib_dict(self) -> dict[str, str]:
-    if not isinstance(self.pos, POS):  # type: ignore
+    if not isinstance(self.pos, (POS, str)):  # type: ignore
       raise ValidationError("pos", POS, type(self.pos), None)
-    attrs: dict[str, str] = {"pos": self.pos.value}
+    attrs: dict[str, str] = {
+      "pos": self.pos.value if isinstance(self.pos, POS) else self.pos
+    }
     if self.x is not None:
       if not isinstance(self.x, int):  # type: ignore
         raise ValidationError("x", int, type(self.x), None)
       attrs["x"] = str(self.x)
     if self.type is not None:
-      if not isinstance(self.type, str):  # type: ignore
-        raise ValidationError("type", str, type(self.type), None)
-      attrs["type"] = self.type
+      if not isinstance(self.type, (str, BPTITTYPE)):  # type: ignore
+        raise ValidationError("type", (str, BPTITTYPE), type(self.type), None)
+      attrs["type"] = self.type.value if isinstance(self.type, BPTITTYPE) else self.type
     return attrs
 
 
@@ -440,7 +483,7 @@ class Hi(BaseTmxElement, WithChildren["Bpt | Ept | It | Ph | Hi | Ut | str"]):
   __slots__ = ("_children", "x", "type")
   _children: list[Bpt | Ept | It | Ph | Hi | Ut | str]
   x: int | None
-  type: str | None
+  type: str | TYPE | None
 
   def __init__(
     self,
@@ -449,8 +492,11 @@ class Hi(BaseTmxElement, WithChildren["Bpt | Ept | It | Ph | Hi | Ut | str"]):
     children: list[Bpt | Ept | It | Ph | Hi | Ut | str] | None = None,
   ) -> None:
     self.x = int(x) if x is not None else x
-    self.type = type
     self._children = [child for child in children] if children is not None else []
+    try:
+      self.type = TYPE(type) if type is not None else type
+    except ValueError:
+      self.type = type
 
   @classmethod
   def from_xml(cls: type[Hi], element: AnyXmlElement) -> Hi:
@@ -488,7 +534,7 @@ class Hi(BaseTmxElement, WithChildren["Bpt | Ept | It | Ph | Hi | Ut | str"]):
         raise ValidationError("x", int, type(self.x), None)
       attrs["x"] = str(self.x)
     if self.type is not None:
-      if not isinstance(self.type, str):  # type: ignore
-        raise ValidationError("type", str, type(self.type), None)
-      attrs["type"] = self.type
+      if not isinstance(self.type, (str, TYPE)):  # type: ignore
+        raise ValidationError("type", (str, TYPE), type(self.type), None)
+      attrs["type"] = self.type.value if isinstance(self.type, TYPE) else self.type
     return attrs

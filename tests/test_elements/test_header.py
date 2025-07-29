@@ -1,3 +1,4 @@
+# type: ignore
 from datetime import datetime
 
 import pytest
@@ -6,7 +7,7 @@ from PythonTmx.elements.header import Header
 from PythonTmx.elements.note import Note
 from PythonTmx.elements.prop import Prop
 from PythonTmx.elements.ude import Ude
-from PythonTmx.enums import SEGTYPE
+from PythonTmx.enums import DATATYPE, SEGTYPE
 from PythonTmx.errors import (
   DeserializationError,
   NotMappingLikeError,
@@ -32,7 +33,7 @@ def test_create_minimal_header():
   assert header.tmf == "tmf"
   assert header.adminlang == "en"
   assert header.srclang == "en-US"
-  assert header.datatype == "plaintext"
+  assert header.datatype == DATATYPE.PLAINTEXT
   assert header.encoding is None
   assert header.creationdate is None
   assert header.creationid is None

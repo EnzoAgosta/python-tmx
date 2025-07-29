@@ -21,6 +21,8 @@ from PythonTmx.utils import (
   get_factory,
 )
 
+__all__ = ["Ude"]
+
 
 class Ude(BaseTmxElement, WithChildren[Map]):
   __slots__ = ("name", "base", "_children")

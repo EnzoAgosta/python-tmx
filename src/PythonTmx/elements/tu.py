@@ -14,6 +14,7 @@ from PythonTmx.core import (
 from PythonTmx.elements.note import Note
 from PythonTmx.elements.prop import Prop
 from PythonTmx.elements.tuv import Tuv
+from PythonTmx.enums import DATATYPE, SEGTYPE
 from PythonTmx.errors import (
   DeserializationError,
   NotMappingLikeError,
@@ -27,6 +28,8 @@ from PythonTmx.utils import (
   get_factory,
   try_parse_datetime,
 )
+
+__all__ = ["Tu"]
 
 
 class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
@@ -49,7 +52,7 @@ class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
   )
   tuid: str | None
   encoding: str | None
-  datatype: str | None
+  datatype: str | DATATYPE | None
   usagecount: int | None
   lastusagedate: datetime | None
   creationtool: str | None
@@ -57,7 +60,7 @@ class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
   creationdate: datetime | None
   creationid: str | None
   changedate: datetime | None
-  segtype: str | None
+  segtype: SEGTYPE | None
   changeid: str | None
   tmf: str | None
   srclang: str | None
@@ -67,7 +70,7 @@ class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
     self,
     tuid: str | None = None,
     encoding: str | None = None,
-    datatype: str | None = None,
+    datatype: str | DATATYPE | None = None,
     usagecount: ConvertibleToInt | None = None,
     lastusagedate: str | datetime | None = None,
     creationtool: str | None = None,
@@ -75,7 +78,7 @@ class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
     creationdate: str | datetime | None = None,
     creationid: str | None = None,
     changedate: str | datetime | None = None,
-    segtype: str | None = None,
+    segtype: str | SEGTYPE | None = None,
     changeid: str | None = None,
     tmf: str | None = None,
     srclang: str | None = None,
@@ -83,7 +86,6 @@ class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
   ) -> None:
     self.tuid = tuid
     self.encoding = encoding
-    self.datatype = datatype
     self.usagecount = int(usagecount) if usagecount is not None else usagecount
     self.lastusagedate = try_parse_datetime(lastusagedate, False)
     self.creationtool = creationtool
@@ -91,11 +93,18 @@ class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
     self.creationdate = try_parse_datetime(creationdate, False)
     self.creationid = creationid
     self.changedate = try_parse_datetime(changedate, False)
-    self.segtype = segtype
+    self.segtype = SEGTYPE(segtype) if segtype is not None else segtype
     self.changeid = changeid
     self.tmf = tmf
     self.srclang = srclang
     self._children = [child for child in children] if children is not None else []
+    if datatype is not None:
+      try:
+        self.datatype = DATATYPE(datatype)
+      except ValueError:
+        self.datatype = datatype
+    else:
+      self.datatype = DATATYPE.UNKNOWN
 
   @property
   def props(self) -> list[Prop]:
@@ -174,9 +183,11 @@ class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
         raise ValidationError("encoding", str, type(self.encoding), None)
       attrs["o-encoding"] = self.encoding
     if self.datatype is not None:
-      if not isinstance(self.datatype, str):  # type: ignore
-        raise ValidationError("datatype", str, type(self.datatype), None)
-      attrs["datatype"] = self.datatype
+      if not isinstance(self.datatype, (str, DATATYPE)):  # type: ignore
+        raise ValidationError("datatype", (str, DATATYPE), type(self.datatype), None)
+      attrs["datatype"] = (
+        self.datatype.value if isinstance(self.datatype, DATATYPE) else self.datatype
+      )
     if self.usagecount is not None:
       if not isinstance(self.usagecount, int):  # type: ignore
         raise ValidationError("usagecount", int, type(self.usagecount), None)
@@ -208,9 +219,9 @@ class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
         raise ValidationError("changedate", datetime, type(self.changedate), None)
       attrs["changedate"] = self.changedate.strftime("%Y%m%dT%H%M%S%Z")
     if self.segtype is not None:
-      if not isinstance(self.segtype, str):  # type: ignore
-        raise ValidationError("segtype", str, type(self.segtype), None)
-      attrs["segtype"] = self.segtype
+      if not isinstance(self.segtype, SEGTYPE):  # type: ignore
+        raise ValidationError("segtype", SEGTYPE, type(self.segtype), None)
+      attrs["segtype"] = self.segtype.value
     if self.changeid is not None:
       if not isinstance(self.changeid, str):  # type: ignore
         raise ValidationError("changeid", str, type(self.changeid), None)

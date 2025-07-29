@@ -2,6 +2,7 @@
 import pytest
 
 from PythonTmx.elements.prop import Prop
+from PythonTmx.enums import TYPE
 from PythonTmx.errors import (
   DeserializationError,
   NotMappingLikeError,
@@ -29,11 +30,11 @@ def test_create_prop_full():
 
 
 def test_prop_from_minimal_xml(ElementFactory):
-  element = ElementFactory("prop", {"type": "test"})
+  element = ElementFactory("prop", {"type": "image"})
   element.text = "test text"
   prop = Prop.from_xml(element)
   assert prop.text == "test text"
-  assert prop.type == "test"
+  assert prop.type == TYPE.IMAGE
   assert prop.encoding is None
   assert prop.lang is None
 
@@ -42,7 +43,7 @@ def test_prop_from_full_xml(ElementFactory):
   element = ElementFactory(
     "prop",
     {
-      "type": "test",
+      "type": "image",
       "o-encoding": "utf-8",
       "{http://www.w3.org/XML/1998/namespace}lang": "en",
     },
@@ -50,13 +51,13 @@ def test_prop_from_full_xml(ElementFactory):
   element.text = "test text"
   prop = Prop.from_xml(element)
   assert prop.text == "test text"
-  assert prop.type == "test"
+  assert prop.type == TYPE.IMAGE
   assert prop.encoding == "utf-8"
   assert prop.lang == "en"
 
 
 def test_prop_from_xml_missing_text(CustomElementLike):
-  element = CustomElementLike("prop", {"type": "test"})
+  element = CustomElementLike("prop", {"type": "image"})
   with pytest.raises(SerializationError) as e:
     Prop.from_xml(element)
   assert e.value.tmx_element is Prop
@@ -72,11 +73,11 @@ def test_prop_from_xml_unusable_attrib(CustomElementLike):
 
 
 def test_prop_to_xml_minimal(ElementFactory):
-  prop = Prop("test text", "test type")
+  prop = Prop("test text", "image")
   element = prop.to_xml(ElementFactory)
   assert element.tag == "prop"
   assert element.text == "test text"
-  assert element.attrib["type"] == "test type"
+  assert element.attrib["type"] == "image"
   assert "o-encoding" not in element.attrib
   assert "{http://www.w3.org/XML/1998/namespace}lang" not in element.attrib
 
