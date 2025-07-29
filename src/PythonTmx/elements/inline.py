@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Self
-
 from PythonTmx.core import (
   AnyElementFactory,
   AnyXmlElement,
@@ -23,23 +21,41 @@ from PythonTmx.errors import (
 from PythonTmx.utils import check_element_is_usable, get_factory
 
 
-def xml_inline_to_tmx(
-  element: AnyXmlElement,
-) -> list[Sub | Ph | Bpt | Ept | It | Hi | Ut | str]:
-  children: list[Sub | Ph | Bpt | Ept | It | Hi | Ut | str] = []
-  if element.tag == "sub":
-    expected = ("ph", "bpt", "ept", "it", "hi", "ut")
-  else:
-    expected = ("sub",)
-  if element.tag not in expected:
-    raise WrongTagError(element.tag, ",".join(expected))
+def _xml_to_inline_sub_only(element: AnyXmlElement) -> list[str | Sub]:
+  result:list[str | Sub] = []
   if element.text is not None:
-    children.append(element.text)
+    result.append(element.text)
   for child in element:
-    children.extend(xml_inline_to_tmx(child))
+    if child.tag != "sub":
+      raise WrongTagError(child.tag, "sub")
+    result.append(Sub.from_xml(child))
     if child.tail is not None:
-      children.append(child.tail)
-  return children
+      result.append(child.tail)
+  return result
+
+def _xml_to_inline(element: AnyXmlElement) -> list[Ph | Bpt | Ept | It | Hi | Ut | str]:
+  result:list[Ph | Bpt | Ept | It | Hi | Ut | str] = []
+  if element.text is not None:
+    result.append(element.text)
+  for child in element:
+    match child.tag:
+      case "ph":
+        result.append(Ph.from_xml(child))
+      case "bpt":
+        result.append(Bpt.from_xml(child))
+      case "ept":
+        result.append(Ept.from_xml(child))
+      case "it":
+        result.append(It.from_xml(child))
+      case "hi":
+        result.append(Hi.from_xml(child))
+      case "ut":
+        result.append(Ut.from_xml(child))
+      case _:
+        raise ValueError(f"Unexpected tag {child.tag!r}")
+    if child.tail is not None:
+      result.append(child.tail)
+  return result
 
 
 def inline_tmx_to_xml(
@@ -47,7 +63,7 @@ def inline_tmx_to_xml(
   element: R,
   factory: AnyElementFactory[P, R],
 ) -> R:
-  if isinstance(tmx_obj, Sub):
+  if isinstance(tmx_obj, (Sub, Hi)):
     expected = (Ph, Bpt, Ept, It, Hi, Ut)
   else:
     expected = (Sub,)
@@ -60,7 +76,7 @@ def inline_tmx_to_xml(
         current.text += child
       else:
         current.tail = child
-    elif isinstance(child, expected):
+    elif isinstance(child, expected): # type: ignore
       current = child.to_xml(factory=factory)
       element.append(current)
     else:
@@ -95,7 +111,7 @@ class Sub(BaseTmxElement, WithChildren["str | Bpt | Ept | It | Ph | Hi | Ut"]):
       return cls(
         datatype=element.attrib.get("datatype", None),
         type=element.attrib.get("type", None),
-        children=xml_inline_to_tmx(element),
+        children=_xml_to_inline(element),
       )
     except (
       WrongTagError,
@@ -159,7 +175,7 @@ class Ph(BaseTmxElement, WithChildren[Sub | str]):
         x=element.attrib["x"],
         assoc=element.attrib.get("assoc", None),
         type=element.attrib.get("type", None),
-        children=xml_inline_to_tmx(element),
+        children=_xml_to_inline_sub_only(element),
       )
     except (
       WrongTagError,
@@ -173,7 +189,7 @@ class Ph(BaseTmxElement, WithChildren[Sub | str]):
   def to_xml(self, factory: AnyElementFactory[P, R] | None = None) -> R:
     _factory = get_factory(self, factory)
     try:
-      element = _factory("sub", self._make_attrib_dict())
+      element = _factory("ph", self._make_attrib_dict())
       element = inline_tmx_to_xml(self, element, _factory)
       return element
     except (TypeError, ValidationError) as e:
@@ -227,7 +243,7 @@ class Bpt(BaseTmxElement, WithChildren[Sub | str]):
         i=element.attrib["i"],
         x=element.attrib.get("x", None),
         type=element.attrib.get("type", None),
-        children=xml_inline_to_tmx(element),
+        children=_xml_to_inline_sub_only(element),
       )
     except (
       WrongTagError,
@@ -285,7 +301,7 @@ class Ept(BaseTmxElement, WithChildren[Sub | str]):
         raise WrongTagError(element.tag, "ept")
       return cls(
         i=element.attrib["i"],
-        children=xml_inline_to_tmx(element),
+        children=_xml_to_inline_sub_only(element),
       )
     except (
       WrongTagError,
@@ -342,7 +358,7 @@ class It(BaseTmxElement, WithChildren[Sub | str]):
         pos=element.attrib["pos"],
         x=element.attrib.get("x", None),
         type=element.attrib.get("type", None),
-        children=xml_inline_to_tmx(element),
+        children=_xml_to_inline_sub_only(element),
       )
     except (
       WrongTagError,
@@ -399,8 +415,8 @@ class Ut(BaseTmxElement, WithChildren[Sub | str]):
       if element.tag != "ut":
         raise WrongTagError(element.tag, "ut")
       return cls(
-        x=element.attrib["x"],
-        children=xml_inline_to_tmx(element),
+        x=element.attrib.get("x"),
+        children=_xml_to_inline_sub_only(element),
       )
     except (
       WrongTagError,
@@ -429,9 +445,9 @@ class Ut(BaseTmxElement, WithChildren[Sub | str]):
       return {}
 
 
-class Hi(BaseTmxElement, WithChildren[Bpt | Ept | It | Ph | Self | Ut | str]):
+class Hi(BaseTmxElement, WithChildren["Bpt | Ept | It | Ph | Hi | Ut | str"]):
   __slots__ = ("_children", "x", "type")
-  _children: list[Bpt | Ept | It | Ph | Self | Ut | str]
+  _children: list[Bpt | Ept | It | Ph | Hi | Ut | str]
   x: int | None
   type: str | None
 
@@ -439,7 +455,7 @@ class Hi(BaseTmxElement, WithChildren[Bpt | Ept | It | Ph | Self | Ut | str]):
     self,
     x: ConvertibleToInt | None = None,
     type: str | None = None,
-    children: list[Bpt | Ept | It | Ph | Self | Ut | str] | None = None,
+    children: list[Bpt | Ept | It | Ph | Hi | Ut | str] | None = None,
   ) -> None:
     self.x = int(x) if x is not None else x
     self.type = type
@@ -456,7 +472,7 @@ class Hi(BaseTmxElement, WithChildren[Bpt | Ept | It | Ph | Self | Ut | str]):
       return cls(
         x=element.attrib.get("x", None),
         type=element.attrib.get("type", None),
-        children=xml_inline_to_tmx(element),
+        children=_xml_to_inline(element),
       )
     except (
       WrongTagError,
@@ -477,10 +493,11 @@ class Hi(BaseTmxElement, WithChildren[Bpt | Ept | It | Ph | Self | Ut | str]):
       raise DeserializationError(self, e) from e
 
   def _make_attrib_dict(self) -> dict[str, str]:
+    attrs: dict[str, str] = {}
     if self.x is not None:
       if not isinstance(self.x, int):  # type: ignore
         raise ValidationError("x", int, type(self.x), None)
-    attrs: dict[str, str] = {"x": str(self.x)}
+      attrs["x"] = str(self.x)
     if self.type is not None:
       if not isinstance(self.type, str):  # type: ignore
         raise ValidationError("type", str, type(self.type), None)
