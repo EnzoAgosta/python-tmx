@@ -19,6 +19,8 @@ from PythonTmx.utils import (
   get_factory,
 )
 
+__all__ = ["Map"]
+
 
 class Map(BaseTmxElement):
   __slots__ = ("unicode", "code", "ent", "subst")

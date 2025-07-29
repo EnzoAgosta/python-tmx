@@ -7,6 +7,7 @@ from PythonTmx.elements.note import Note
 from PythonTmx.elements.prop import Prop
 from PythonTmx.elements.tu import Tu
 from PythonTmx.elements.tuv import Tuv
+from PythonTmx.enums import DATATYPE, SEGTYPE
 from PythonTmx.errors import (
   DeserializationError,
   NotMappingLikeError,
@@ -20,7 +21,7 @@ def test_create_minimal_tu():
   tu = Tu()
   assert tu.tuid is None
   assert tu.encoding is None
-  assert tu.datatype is None
+  assert tu.datatype is DATATYPE.UNKNOWN
   assert tu.usagecount is None
   assert tu.lastusagedate is None
   assert tu.creationtool is None
@@ -64,7 +65,7 @@ def test_create_full_tu():
 
   assert tu.tuid == "tu123"
   assert tu.encoding == "utf-8"
-  assert tu.datatype == "plaintext"
+  assert tu.datatype == DATATYPE.PLAINTEXT
   assert tu.usagecount == 5
   assert tu.lastusagedate == last_usage_date
   assert tu.creationtool == "TestTool"
@@ -72,7 +73,7 @@ def test_create_full_tu():
   assert tu.creationdate == creation_date
   assert tu.creationid == "user123"
   assert tu.changedate == change_date
-  assert tu.segtype == "block"
+  assert tu.segtype == SEGTYPE.BLOCK
   assert tu.changeid == "user456"
   assert tu.tmf == "test-tmf"
   assert tu.srclang == "en"
@@ -106,7 +107,7 @@ def test_tu_from_minimal_xml(ElementFactory):
   tu = Tu.from_xml(element)
   assert tu.tuid is None
   assert tu.encoding is None
-  assert tu.datatype is None
+  assert tu.datatype is DATATYPE.UNKNOWN
   assert tu.usagecount is None
   assert tu.lastusagedate is None
   assert tu.creationtool is None
@@ -166,7 +167,7 @@ def test_tu_from_full_xml(ElementFactory):
   tu = Tu.from_xml(element)
   assert tu.tuid == "tu123"
   assert tu.encoding == "utf-8"
-  assert tu.datatype == "plaintext"
+  assert tu.datatype == DATATYPE.PLAINTEXT
   assert tu.usagecount == 5
   assert tu.lastusagedate == last_usage_date
   assert tu.creationtool == "TestTool"
@@ -174,7 +175,7 @@ def test_tu_from_full_xml(ElementFactory):
   assert tu.creationdate == creation_date
   assert tu.creationid == "user123"
   assert tu.changedate == change_date
-  assert tu.segtype == "block"
+  assert tu.segtype == SEGTYPE.BLOCK
   assert tu.changeid == "user456"
   assert tu.tmf == "test-tmf"
   assert tu.srclang == "en"
@@ -215,7 +216,8 @@ def test_tu_to_xml_minimal(ElementFactory):
   tu = Tu()
   element = tu.to_xml(ElementFactory)
   assert element.tag == "tu"
-  assert len(element.attrib) == 0
+  assert len(element.attrib) == 1
+  assert element.attrib["datatype"] == "unknown"
   assert len(list(element)) == 0
 
 

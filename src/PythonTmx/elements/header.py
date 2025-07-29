@@ -13,7 +13,7 @@ from PythonTmx.core import (
 from PythonTmx.elements.note import Note
 from PythonTmx.elements.prop import Prop
 from PythonTmx.elements.ude import Ude
-from PythonTmx.enums import SEGTYPE
+from PythonTmx.enums import DATATYPE, SEGTYPE
 from PythonTmx.errors import (
   DeserializationError,
   NotMappingLikeError,
@@ -27,6 +27,8 @@ from PythonTmx.utils import (
   get_factory,
   try_parse_datetime,
 )
+
+__all__ = ["Header"]
 
 
 class Header(BaseTmxElement, WithChildren[Note | Prop | Ude]):
@@ -51,7 +53,7 @@ class Header(BaseTmxElement, WithChildren[Note | Prop | Ude]):
   tmf: str
   adminlang: str
   srclang: str
-  datatype: str
+  datatype: str | DATATYPE
   encoding: str | None
   creationdate: datetime | None
   creationid: str | None
@@ -67,7 +69,7 @@ class Header(BaseTmxElement, WithChildren[Note | Prop | Ude]):
     tmf: str,
     adminlang: str,
     srclang: str,
-    datatype: str,
+    datatype: str | DATATYPE,
     encoding: str | None = None,
     creationdate: str | datetime | None = None,
     creationid: str | None = None,
@@ -80,7 +82,6 @@ class Header(BaseTmxElement, WithChildren[Note | Prop | Ude]):
     self.tmf = tmf
     self.adminlang = adminlang
     self.srclang = srclang
-    self.datatype = datatype
     self.encoding = encoding
     self.creationid = creationid
     self.creationdate = try_parse_datetime(creationdate, False)
@@ -88,6 +89,10 @@ class Header(BaseTmxElement, WithChildren[Note | Prop | Ude]):
     self.changedate = try_parse_datetime(changedate, False)
     self._children = [child for child in children] if children is not None else []
     self.segtype = SEGTYPE(segtype)
+    try:
+      self.datatype = DATATYPE(datatype)
+    except ValueError:
+      self.datatype = datatype
 
   @property
   def notes(self) -> list[Note]:
@@ -135,6 +140,10 @@ class Header(BaseTmxElement, WithChildren[Note | Prop | Ude]):
         changeid=element.attrib.get("changeid", None),
         children=[_dispatch(child) for child in element],
       )
+      try:
+        header.datatype = DATATYPE(header.datatype)
+      except ValueError:
+        pass
       return header
     except (
       WrongTagError,
@@ -176,8 +185,6 @@ class Header(BaseTmxElement, WithChildren[Note | Prop | Ude]):
       raise ValidationError("adminlang", str, type(self.adminlang), None)
     if not isinstance(self.srclang, str):  # type: ignore
       raise ValidationError("srclang", str, type(self.srclang), None)
-    if not isinstance(self.datatype, str):  # type: ignore
-      raise ValidationError("datatype", str, type(self.datatype), None)
     attrs: dict[str, str] = {
       "creationtool": self.creationtool,
       "creationtoolversion": self.creationtoolversion,
@@ -185,8 +192,12 @@ class Header(BaseTmxElement, WithChildren[Note | Prop | Ude]):
       "o-tmf": self.tmf,
       "adminlang": self.adminlang,
       "srclang": self.srclang,
-      "datatype": self.datatype,
     }
+    if not isinstance(self.datatype, (str, DATATYPE)):  # type: ignore
+      raise ValidationError("datatype", str, type(self.datatype), None)
+    attrs["datatype"] = (
+      self.datatype if isinstance(self.datatype, str) else self.datatype.value
+    )
     if self.encoding is not None:
       if not isinstance(self.encoding, str):  # type: ignore
         raise ValidationError("encoding", str, type(self.encoding), None)

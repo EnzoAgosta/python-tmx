@@ -6,6 +6,7 @@ from PythonTmx.core import (
   BaseTmxElement,
   R,
 )
+from PythonTmx.enums import TYPE
 from PythonTmx.errors import (
   DeserializationError,
   NotMappingLikeError,
@@ -19,25 +20,30 @@ from PythonTmx.utils import (
   get_factory,
 )
 
+__all__ = ["Prop"]
+
 
 class Prop(BaseTmxElement):
   __slots__ = ("text", "type", "encoding", "lang")
   text: str
-  type: str
+  type: str | TYPE
   encoding: str | None
   lang: str | None
 
   def __init__(
     self,
     text: str,
-    type: str,
+    type: str | TYPE,
     encoding: str | None = None,
     lang: str | None = None,
   ) -> None:
     self.text = text
-    self.type = type
     self.encoding = encoding
     self.lang = lang
+    try:
+      self.type = TYPE(type)
+    except ValueError:
+      self.type = type
 
   @classmethod
   def from_xml(cls: type[Prop], element: AnyXmlElement) -> Prop:
@@ -75,9 +81,11 @@ class Prop(BaseTmxElement):
       raise DeserializationError(self, e) from e
 
   def _make_attrib_dict(self) -> dict[str, str]:
-    if not isinstance(self.type, str):  # type: ignore
-      raise ValidationError("type", str, type(self.type), None)
-    attrs: dict[str, str] = {"type": self.type}
+    if not isinstance(self.type, (TYPE, str)):  # type: ignore
+      raise ValidationError("type", TYPE, type(self.type), None)
+    attrs: dict[str, str] = {
+      "type": self.type.value if isinstance(self.type, TYPE) else self.type
+    }
     if self.encoding is not None:
       if not isinstance(self.encoding, str):  # type: ignore
         raise ValidationError("encoding", str, type(self.encoding), None)

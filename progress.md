@@ -13,14 +13,14 @@ A living roadmap for the v0.4+ rewrite of PythonTmx
 
 ## TMX Element Implementations
 
-- 🚧 Structural Elements
+- ✅ Structural Elements
   - ✅ `Prop`
   - ✅ `Note`
   - ✅ `Map`
   - ✅ `Ude`
   - ✅ `Header`
-  - `Tu`
-  - 🚧 `Tuv`
+  - ✅ `Tu`
+  - ✅ `Tuv`
 - ✅ Inline Elements 
   - ✅ `Bpt`
   - ✅ `Ept`
@@ -29,9 +29,9 @@ A living roadmap for the v0.4+ rewrite of PythonTmx
   - ✅ `It`
   - ✅ `Ut`
 
-## Parser Backends
+## 🚧 Parser Backends
 
-- `LazyLxmlParser`
+- 🚧 `LazyLxmlParser`
 - `LxmlParser` (non-lazy, loads full XML tree)
 - `LazyStandardParser` (std lib, lazy)
 - `StandardParser` (std lib, non-lazy)
@@ -40,10 +40,9 @@ A living roadmap for the v0.4+ rewrite of PythonTmx
 
 - ✅ Test structure and pytest setup
 - ✅ Full Prop element test suite (happy/error paths)
-- 🚧 Test coverage for each new element
+- ✅ Test coverage for each new element
 - Test parser backends (basic + edge cases)
-- Error-path, malformed XML, and roundtrip tests
-- Property-based/Hypothesis fuzzing (optional, local-only)
+- ✅ Error-path, malformed XML, and roundtrip tests
 
 ## Documentation
 

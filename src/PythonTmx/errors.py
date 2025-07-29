@@ -2,6 +2,17 @@ from typing import Any
 
 from PythonTmx.core import BaseTmxElement
 
+__all__ = [
+  "XmlParsingError",
+  "WrongTagError",
+  "SerializationError",
+  "DeserializationError",
+  "RequiredAttributeMissingError",
+  "NotMappingLikeError",
+  "ValidationError",
+  "MissingDefaultFactoryError",
+]
+
 
 class XmlParsingError(Exception):
   tag: str
