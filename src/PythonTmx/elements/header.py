@@ -86,9 +86,7 @@ class Header(BaseTmxElement, WithChildren[Note | Prop | Ude]):
     self.creationdate = try_parse_datetime(creationdate, False)
     self.changeid = changeid
     self.changedate = try_parse_datetime(changedate, False)
-    self._children = (
-      [child for child in children] if children is not None else []
-    )
+    self._children = [child for child in children] if children is not None else []
     self.segtype = SEGTYPE(segtype)
 
   @property
@@ -195,9 +193,7 @@ class Header(BaseTmxElement, WithChildren[Note | Prop | Ude]):
       attrs["o-encoding"] = self.encoding
     if self.creationdate is not None:
       if not isinstance(self.creationdate, datetime):  # type: ignore
-        raise ValidationError(
-          "creationdate", datetime, type(self.creationdate), None
-        )
+        raise ValidationError("creationdate", datetime, type(self.creationdate), None)
       attrs["creationdate"] = self.creationdate.strftime("%Y%m%dT%H%M%SZ")
     if self.creationid is not None:
       if not isinstance(self.creationid, str):  # type: ignore
@@ -205,9 +201,7 @@ class Header(BaseTmxElement, WithChildren[Note | Prop | Ude]):
       attrs["creationid"] = self.creationid
     if self.changedate is not None:
       if not isinstance(self.changedate, datetime):  # type: ignore
-        raise ValidationError(
-          "changedate", datetime, type(self.changedate), None
-        )
+        raise ValidationError("changedate", datetime, type(self.changedate), None)
       attrs["changedate"] = self.changedate.strftime("%Y%m%dT%H%M%SZ")
     if self.changeid is not None:
       if not isinstance(self.changeid, str):  # type: ignore

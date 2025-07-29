@@ -64,7 +64,9 @@ class DeserializationError(Exception):
   ) -> None:
     self.tmx_element = tmx_element
     self.original_exception = original_exception
-    msg = f"Cannot deserialize Tmx Element to Xml Element - Element: {self.tmx_element!r}"
+    msg = (
+      f"Cannot deserialize Tmx Element to Xml Element - Element: {self.tmx_element!r}"
+    )
     if self.original_exception is not None:
       msg += f" - Caused by: {original_exception!r}"
     super().__init__(msg)

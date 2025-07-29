@@ -90,9 +90,7 @@ class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
     self.changedate = try_parse_datetime(changedate, False)
     self.changeid = changeid
     self.tmf = tmf
-    self._children = (
-      [child for child in children] if children is not None else []
-    )
+    self._children = [child for child in children] if children is not None else []
     self.segment = [child for child in segment] if segment is not None else []
 
   @property
@@ -227,15 +225,11 @@ class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
       attrib["usagecount"] = str(self.usagecount)
     if self.lastusagedate is not None:
       if not isinstance(self.lastusagedate, datetime):  # type: ignore
-        raise ValidationError(
-          "lastusagedate", datetime, type(self.lastusagedate), None
-        )
+        raise ValidationError("lastusagedate", datetime, type(self.lastusagedate), None)
       attrib["lastusagedate"] = self.lastusagedate.strftime("%Y%m%dT%H%M%SZ")
     if self.creationtool is not None:
       if not isinstance(self.creationtool, str):  # type: ignore
-        raise ValidationError(
-          "creationtool", str, type(self.creationtool), None
-        )
+        raise ValidationError("creationtool", str, type(self.creationtool), None)
       attrib["creationtool"] = self.creationtool
     if self.creationtoolversion is not None:
       if not isinstance(self.creationtoolversion, str):  # type: ignore
@@ -245,9 +239,7 @@ class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
       attrib["creationtoolversion"] = self.creationtoolversion
     if self.creationdate is not None:
       if not isinstance(self.creationdate, datetime):  # type: ignore
-        raise ValidationError(
-          "creationdate", datetime, type(self.creationdate), None
-        )
+        raise ValidationError("creationdate", datetime, type(self.creationdate), None)
       attrib["creationdate"] = self.creationdate.strftime("%Y%m%dT%H%M%SZ")
     if self.creationid is not None:
       if not isinstance(self.creationid, str):  # type: ignore
@@ -255,9 +247,7 @@ class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
       attrib["creationid"] = self.creationid
     if self.changedate is not None:
       if not isinstance(self.changedate, datetime):  # type: ignore
-        raise ValidationError(
-          "changedate", datetime, type(self.changedate), None
-        )
+        raise ValidationError("changedate", datetime, type(self.changedate), None)
       attrib["changedate"] = self.changedate.strftime("%Y%m%dT%H%M%SZ")
     if self.changeid is not None:
       if not isinstance(self.changeid, str):  # type: ignore

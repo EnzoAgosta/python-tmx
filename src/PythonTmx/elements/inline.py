@@ -22,7 +22,7 @@ from PythonTmx.utils import check_element_is_usable, get_factory
 
 
 def _xml_to_inline_sub_only(element: AnyXmlElement) -> list[str | Sub]:
-  result:list[str | Sub] = []
+  result: list[str | Sub] = []
   if element.text is not None:
     result.append(element.text)
   for child in element:
@@ -33,8 +33,9 @@ def _xml_to_inline_sub_only(element: AnyXmlElement) -> list[str | Sub]:
       result.append(child.tail)
   return result
 
+
 def _xml_to_inline(element: AnyXmlElement) -> list[Ph | Bpt | Ept | It | Hi | Ut | str]:
-  result:list[Ph | Bpt | Ept | It | Hi | Ut | str] = []
+  result: list[Ph | Bpt | Ept | It | Hi | Ut | str] = []
   if element.text is not None:
     result.append(element.text)
   for child in element:
@@ -76,7 +77,7 @@ def inline_tmx_to_xml(
         current.text += child
       else:
         current.tail = child
-    elif isinstance(child, expected): # type: ignore
+    elif isinstance(child, expected):  # type: ignore
       current = child.to_xml(factory=factory)
       element.append(current)
     else:
@@ -161,9 +162,7 @@ class Ph(BaseTmxElement, WithChildren[Sub | str]):
     self.type = type
     self.assoc = ASSOC(assoc) if assoc is not None else assoc
     self.x = int(x) if x is not None else x
-    self._children = (
-      [child for child in children] if children is not None else []
-    )
+    self._children = [child for child in children] if children is not None else []
 
   @classmethod
   def from_xml(cls: type[Ph], element: AnyXmlElement) -> Ph:
@@ -229,9 +228,7 @@ class Bpt(BaseTmxElement, WithChildren[Sub | str]):
     self.i = int(i)
     self.x = int(x) if x is not None else x
     self.type = type
-    self._children = (
-      [child for child in children] if children is not None else []
-    )
+    self._children = [child for child in children] if children is not None else []
 
   @classmethod
   def from_xml(cls: type[Bpt], element: AnyXmlElement) -> Bpt:
@@ -289,9 +286,7 @@ class Ept(BaseTmxElement, WithChildren[Sub | str]):
     children: list[Sub | str] | None = None,
   ) -> None:
     self.i = int(i)
-    self._children = (
-      [child for child in children] if children is not None else []
-    )
+    self._children = [child for child in children] if children is not None else []
 
   @classmethod
   def from_xml(cls: type[Ept], element: AnyXmlElement) -> Ept:
@@ -344,9 +339,7 @@ class It(BaseTmxElement, WithChildren[Sub | str]):
     self.pos = POS(pos)
     self.x = int(x) if x is not None else x
     self.type = type
-    self._children = (
-      [child for child in children] if children is not None else []
-    )
+    self._children = [child for child in children] if children is not None else []
 
   @classmethod
   def from_xml(cls: type[It], element: AnyXmlElement) -> It:
@@ -404,9 +397,7 @@ class Ut(BaseTmxElement, WithChildren[Sub | str]):
     children: list[Sub | str] | None = None,
   ) -> None:
     self.x = int(x) if x is not None else x
-    self._children = (
-      [child for child in children] if children is not None else []
-    )
+    self._children = [child for child in children] if children is not None else []
 
   @classmethod
   def from_xml(cls: type[Ut], element: AnyXmlElement) -> Ut:
@@ -459,9 +450,7 @@ class Hi(BaseTmxElement, WithChildren["Bpt | Ept | It | Ph | Hi | Ut | str"]):
   ) -> None:
     self.x = int(x) if x is not None else x
     self.type = type
-    self._children = (
-      [child for child in children] if children is not None else []
-    )
+    self._children = [child for child in children] if children is not None else []
 
   @classmethod
   def from_xml(cls: type[Hi], element: AnyXmlElement) -> Hi:

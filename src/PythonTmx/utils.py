@@ -58,9 +58,7 @@ def try_parse_datetime(
 def try_parse_datetime(
   value: str | datetime | None, required: Literal[False]
 ) -> datetime | None: ...
-def try_parse_datetime(
-  value: str | datetime | None, required: bool
-) -> datetime | None:
+def try_parse_datetime(value: str | datetime | None, required: bool) -> datetime | None:
   if isinstance(value, datetime):
     return value
   if value is None:

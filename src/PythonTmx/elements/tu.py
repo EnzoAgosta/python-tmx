@@ -95,9 +95,7 @@ class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
     self.changeid = changeid
     self.tmf = tmf
     self.srclang = srclang
-    self._children = (
-      [child for child in children] if children is not None else []
-    )
+    self._children = [child for child in children] if children is not None else []
 
   @property
   def props(self) -> list[Prop]:
@@ -117,7 +115,7 @@ class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
       check_element_is_usable(element)
       if element.tag != "tu":
         raise WrongTagError(element.tag, "tu")
-      
+
       children: list[Prop | Note | Tuv] = []
       for child in element:
         if child.tag == "prop":
@@ -128,7 +126,7 @@ class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
           children.append(Tuv.from_xml(child))
         else:
           raise WrongTagError(child.tag, "prop, note or tuv")
-      
+
       return cls(
         tuid=element.attrib.get("tuid"),
         encoding=element.attrib.get("o-encoding"),
@@ -193,7 +191,9 @@ class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
       attrs["creationtool"] = self.creationtool
     if self.creationtoolversion is not None:
       if not isinstance(self.creationtoolversion, str):  # type: ignore
-        raise ValidationError("creationtoolversion", str, type(self.creationtoolversion), None)
+        raise ValidationError(
+          "creationtoolversion", str, type(self.creationtoolversion), None
+        )
       attrs["creationtoolversion"] = self.creationtoolversion
     if self.creationdate is not None:
       if not isinstance(self.creationdate, datetime):  # type: ignore
@@ -223,4 +223,4 @@ class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
       if not isinstance(self.srclang, str):  # type: ignore
         raise ValidationError("srclang", str, type(self.srclang), None)
       attrs["srclang"] = self.srclang
-    return attrs 
+    return attrs

@@ -78,9 +78,7 @@ def test_create_full_tuv():
 
 
 def test_tuv_from_minimal_xml(ElementFactory):
-  element = ElementFactory(
-    "tuv", {"{http://www.w3.org/XML/1998/namespace}lang": "en"}
-  )
+  element = ElementFactory("tuv", {"{http://www.w3.org/XML/1998/namespace}lang": "en"})
   seg_element = ElementFactory("seg", {})
   element.append(seg_element)
 
@@ -141,9 +139,7 @@ def test_tuv_from_full_xml(ElementFactory):
   assert tuv.encoding == "utf-8"
   assert tuv.datatype == "plaintext"
   assert tuv.usagecount == 5
-  assert tuv.lastusagedate == datetime(
-    2023, 1, 3, 12, 0, 0, tzinfo=timezone.utc
-  )
+  assert tuv.lastusagedate == datetime(2023, 1, 3, 12, 0, 0, tzinfo=timezone.utc)
   assert tuv.creationtool == "TestTool"
   assert tuv.creationtoolversion == "1.0"
   assert tuv.creationdate == datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
@@ -158,9 +154,7 @@ def test_tuv_from_full_xml(ElementFactory):
 
 
 def test_tuv_from_xml_with_inline_elements(ElementFactory):
-  element = ElementFactory(
-    "tuv", {"{http://www.w3.org/XML/1998/namespace}lang": "en"}
-  )
+  element = ElementFactory("tuv", {"{http://www.w3.org/XML/1998/namespace}lang": "en"})
 
   seg_element = ElementFactory("seg", {})
   seg_element.text = "Hello "
@@ -202,9 +196,7 @@ def test_tuv_from_xml_missing_lang(ElementFactory):
 
 
 def test_tuv_from_xml_with_text(ElementFactory):
-  element = ElementFactory(
-    "tuv", {"{http://www.w3.org/XML/1998/namespace}lang": "en"}
-  )
+  element = ElementFactory("tuv", {"{http://www.w3.org/XML/1998/namespace}lang": "en"})
   element.text = "This should not be here"
   seg_element = ElementFactory("seg", {})
   element.append(seg_element)
@@ -224,9 +216,7 @@ def test_tuv_from_xml_unusable_attrib(CustomElementLike):
 
 
 def test_tuv_from_xml_wrong_child_tag(ElementFactory):
-  element = ElementFactory(
-    "tuv", {"{http://www.w3.org/XML/1998/namespace}lang": "en"}
-  )
+  element = ElementFactory("tuv", {"{http://www.w3.org/XML/1998/namespace}lang": "en"})
   wrong_element = ElementFactory("wrong", {})
   element.append(wrong_element)
 
@@ -237,9 +227,7 @@ def test_tuv_from_xml_wrong_child_tag(ElementFactory):
 
 
 def test_tuv_from_xml_wrong_seg_child_tag(ElementFactory):
-  element = ElementFactory(
-    "tuv", {"{http://www.w3.org/XML/1998/namespace}lang": "en"}
-  )
+  element = ElementFactory("tuv", {"{http://www.w3.org/XML/1998/namespace}lang": "en"})
   seg_element = ElementFactory("seg", {})
   wrong_element = ElementFactory("wrong", {})
   seg_element.append(wrong_element)
