@@ -20,19 +20,18 @@ A living roadmap for the v0.4+ rewrite of PythonTmx
   - ✅ `Ude`
   - ✅ `Header`
   - `Tu`
-  - `Tuv`
-  - 🔜 `Segment`
-- 🚧 Inline Elements 
-  - 🚧 `Bpt`
-  - 🚧 `Ept`
-  - 🚧 `Ph`
-  - 🚧 `Hi`
-  - 🚧 `It`
-  - 🚧 `Ut`
+  - 🚧 `Tuv`
+- ✅ Inline Elements 
+  - ✅ `Bpt`
+  - ✅ `Ept`
+  - ✅ `Ph`
+  - ✅ `Hi`
+  - ✅ `It`
+  - ✅ `Ut`
 
 ## Parser Backends
 
-- 🔜 `LazyLxmlParser`
+- `LazyLxmlParser`
 - `LxmlParser` (non-lazy, loads full XML tree)
 - `LazyStandardParser` (std lib, lazy)
 - `StandardParser` (std lib, non-lazy)
