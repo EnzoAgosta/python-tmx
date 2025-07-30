@@ -33,6 +33,31 @@ __all__ = ["Tuv"]
 
 
 class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
+  """Represents a translation unit variant (tuv) element in a TMX file.
+  
+  A translation unit variant contains the actual text content for a specific
+  language within a translation unit. Each tuv represents a source or target
+  text in a particular language, along with its associated metadata.
+  
+  Tuv elements can contain inline formatting elements (bpt, ept, it, ph, hi, ut)
+  and text segments that together form the complete translation content.
+  
+  Attributes:
+    lang: The language code for this translation variant.
+    encoding: Optional encoding specification for the content.
+    datatype: The data type of the content (plaintext, html, etc.).
+    usagecount: Optional count of how many times this variant has been used.
+    lastusagedate: Optional timestamp of the last usage.
+    creationtool: Optional name of the tool that created this variant.
+    creationtoolversion: Optional version of the creation tool.
+    creationdate: Optional timestamp when this variant was created.
+    creationid: Optional identifier for the creator.
+    changedate: Optional timestamp when this variant was last modified.
+    changeid: Optional identifier for the last modifier.
+    tmf: Optional translation memory format identifier.
+    _children: List of Prop or Note child elements.
+    segment: List of inline elements and text that form the translation content.
+  """
   __slots__ = (
     "lang",
     "encoding",
@@ -81,6 +106,24 @@ class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
     children: Sequence[Note | Prop] | None = None,
     segment: Sequence[Bpt | Ept | It | Ph | Hi | Ut | str] | None = None,
   ) -> None:
+    """Initialize a Tuv element.
+    
+    Args:
+      lang: The language code for this translation variant (e.g., "en", "fr").
+      encoding: Optional encoding specification (e.g., "UTF-8", "ISO-8859-1").
+      datatype: The data type of the content. Can be a DATATYPE enum or string.
+      usagecount: Optional count of how many times this variant has been used.
+      lastusagedate: Optional timestamp of the last usage. Can be string or datetime.
+      creationtool: Optional name of the tool that created this variant.
+      creationtoolversion: Optional version of the creation tool.
+      creationdate: Optional timestamp when this variant was created. Can be string or datetime.
+      creationid: Optional identifier for the creator.
+      changedate: Optional timestamp when this variant was last modified. Can be string or datetime.
+      changeid: Optional identifier for the last modifier.
+      tmf: Optional translation memory format identifier.
+      children: Optional sequence of Note or Prop child elements.
+      segment: Optional sequence of inline elements and text that form the translation content.
+    """
     self.lang = lang
     self.encoding = encoding
     self.usagecount = int(usagecount) if usagecount is not None else usagecount
@@ -104,14 +147,43 @@ class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
 
   @property
   def props(self) -> list[Prop]:
+    """Get the list of Prop elements in this translation variant.
+    
+    Returns:
+      A list of Prop elements that provide metadata about this translation variant.
+    """
     return [child for child in self if isinstance(child, Prop)]
 
   @property
   def notes(self) -> list[Note]:
+    """Get the list of Note elements in this translation variant.
+    
+    Returns:
+      A list of Note elements that provide additional information about this variant.
+    """
     return [child for child in self if isinstance(child, Note)]
 
   @classmethod
   def from_xml(cls: type[Tuv], element: AnyXmlElement) -> Tuv:
+    """Create a Tuv instance from an XML element.
+    
+    This method parses a TMX translation unit variant element and creates a
+    corresponding Tuv object. The XML element must have the tag "tuv" and
+    cannot contain text content.
+    
+    Args:
+      element: The XML element to parse. Must have tag "tuv" and no text content.
+    
+    Returns:
+      A new Tuv instance with the parsed data.
+    
+    Raises:
+      WrongTagError: If the element tag is not "tuv".
+      RequiredAttributeMissingError: If the element lacks required attributes.
+      NotMappingLikeError: If the element's attrib is not a mapping.
+      ValueError: If the tuv element has text content.
+      SerializationError: If any other parsing error occurs.
+    """
     def parse_seg(
       seg: AnyXmlElement,
     ) -> list[Bpt | Ept | It | Ph | Hi | Ut | str]:
@@ -185,6 +257,25 @@ class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
       raise SerializationError(cls, e) from e
 
   def to_xml(self, factory: AnyElementFactory[..., R] | None = None) -> R:
+    """Convert this Tuv instance to an XML element.
+    
+    Creates an XML element with tag "tuv" and the appropriate attributes.
+    All child elements (props, notes) are serialized and appended.
+    The segment content is serialized into a "seg" child element.
+    
+    Args:
+      factory: Optional XML element factory. If None, uses the default factory
+               or the instance's xml_factory.
+    
+    Returns:
+      An XML element representing this Tuv.
+    
+    Raises:
+      TypeError: If any child element is not a Note or Prop instance.
+      ValidationError: If any attribute has an invalid type.
+      MissingDefaultFactoryError: If no factory is available.
+      DeserializationError: If any other serialization error occurs.
+    """
     try:
       _factory = get_factory(self, factory)
       element = _factory("tuv", self._make_attrib_dict())
@@ -217,6 +308,17 @@ class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
       raise DeserializationError(self, e) from e
 
   def _make_attrib_dict(self) -> dict[str, str]:
+    """Create a dictionary of XML attributes for this Tuv.
+    
+    Builds the attribute dictionary that will be used when serializing
+    this Tuv to XML. Only includes attributes that have non-None values.
+    
+    Returns:
+      A dictionary mapping attribute names to string values.
+    
+    Raises:
+      ValidationError: If any attribute has an invalid type.
+    """
     if not isinstance(self.lang, str):  # type: ignore
       raise ValidationError("lang", str, type(self.lang), None)
     attrs: dict[str, str] = {"{http://www.w3.org/XML/1998/namespace}lang": self.lang}
