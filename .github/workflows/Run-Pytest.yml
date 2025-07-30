@@ -27,5 +27,5 @@ jobs:
     - name: "Install project"
       run: "uv sync --group test --frozen"
 
-    - name: "Run Pytests"
-      run: "uv run pytest test"
+    - name: "Run Pytest"
+      run: "uv run pytest tests"
