@@ -34,14 +34,12 @@ class Tmx(BaseTmxElement, WithChildren[Tu]):
   
   A TMX file must have exactly one header element and one body element, with the
   body containing zero or more translation units.
-  
-  Attributes:
-    header: The header element containing TMX metadata and configuration.
-    _children: List of Tu elements representing the translation units.
   """
   __slots__ = ("header", "_children")
   header: Header
+  """The header element containing TMX metadata and configuration."""
   _children: list[Tu]
+  """List of Tu elements representing the translation units."""
 
   def __init__(
     self,

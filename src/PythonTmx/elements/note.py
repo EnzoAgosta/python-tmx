@@ -28,17 +28,15 @@ class Note(BaseTmxElement):
   A note element contains additional information or comments about translation units.
   Notes can be attached to various TMX elements to provide context, instructions,
   or other metadata that doesn't fit into the standard translation structure.
-
-  Attributes:
-    text: The content of the note.
-    encoding: Optional encoding specification for the note text.
-    lang: Optional language specification for the note content.
   """
 
   __slots__ = ("text", "encoding", "lang")
   text: str
+  """The text content of the note."""
   encoding: str | None
+  """Optional encoding specification for the note text."""
   lang: str | None
+  """Optional language specification for the note content."""
 
   def __init__(
     self,
