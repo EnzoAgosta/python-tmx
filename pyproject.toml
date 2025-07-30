@@ -14,12 +14,7 @@ classifiers = [
   "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
 ]
-dependencies = [
-    "lxml>=6.0.0",
-    "pytest>=8.4.1",
-    "sphinx>=8.2.3",
-    "types-lxml>=2025.3.30",
-]
+dependencies = ["lxml>=6.0.0", "types-lxml>=2025.3.30"]
 
 [project.urls]
 Homepage = "https://github.com/ChonkyYoshi/python-tmx"
@@ -27,6 +22,10 @@ Issues = "https://github.com/ChonkyYoshi/python-tmx/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[dependency-groups]
+docs = ["sphinx>=8.2.3", "sphinx-rtd-theme>=3.0.2"]
+test = ["pytest>=8.4.1"]
 
 
 [tool.setuptools]
