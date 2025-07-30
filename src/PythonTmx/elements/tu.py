@@ -33,6 +33,32 @@ __all__ = ["Tu"]
 
 
 class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
+  """Represents a translation unit (tu) element in a TMX file.
+  
+  A translation unit is the core element of a TMX file that contains a source
+  text and one or more target translations. Each tu represents a single
+  translatable segment or unit of text along with its translations.
+  
+  Translation units can contain metadata (properties, notes) and multiple
+  translation variants (tuv elements) for different target languages.
+  
+  Attributes:
+    tuid: Optional unique identifier for this translation unit.
+    encoding: Optional encoding specification for the content.
+    datatype: The data type of the content (plaintext, html, etc.).
+    usagecount: Optional count of how many times this unit has been used.
+    lastusagedate: Optional timestamp of the last usage.
+    creationtool: Optional name of the tool that created this unit.
+    creationtoolversion: Optional version of the creation tool.
+    creationdate: Optional timestamp when this unit was created.
+    creationid: Optional identifier for the creator.
+    changedate: Optional timestamp when this unit was last modified.
+    segtype: Optional type of segmentation used for this unit.
+    changeid: Optional identifier for the last modifier.
+    tmf: Optional translation memory format identifier.
+    srclang: Optional source language code.
+    _children: List of Prop, Note, or Tuv child elements.
+  """
   __slots__ = (
     "tuid",
     "encoding",
@@ -84,6 +110,25 @@ class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
     srclang: str | None = None,
     children: Sequence[Note | Prop | Tuv] | None = None,
   ) -> None:
+    """Initialize a Tu element.
+    
+    Args:
+      tuid: Optional unique identifier for this translation unit.
+      encoding: Optional encoding specification (e.g., "UTF-8", "ISO-8859-1").
+      datatype: The data type of the content. Can be a DATATYPE enum or string.
+      usagecount: Optional count of how many times this unit has been used.
+      lastusagedate: Optional timestamp of the last usage. Can be string or datetime.
+      creationtool: Optional name of the tool that created this unit.
+      creationtoolversion: Optional version of the creation tool.
+      creationdate: Optional timestamp when this unit was created. Can be string or datetime.
+      creationid: Optional identifier for the creator.
+      changedate: Optional timestamp when this unit was last modified. Can be string or datetime.
+      segtype: Optional type of segmentation used. Can be a SEGTYPE enum or string.
+      changeid: Optional identifier for the last modifier.
+      tmf: Optional translation memory format identifier.
+      srclang: Optional source language code (e.g., "en", "fr").
+      children: Optional sequence of Note, Prop, or Tuv child elements.
+    """
     self.tuid = tuid
     self.encoding = encoding
     self.usagecount = int(usagecount) if usagecount is not None else usagecount
@@ -108,18 +153,50 @@ class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
 
   @property
   def props(self) -> list[Prop]:
+    """Get the list of Prop elements in this translation unit.
+    
+    Returns:
+      A list of Prop elements that provide metadata about this translation unit.
+    """
     return [child for child in self if isinstance(child, Prop)]
 
   @property
   def notes(self) -> list[Note]:
+    """Get the list of Note elements in this translation unit.
+    
+    Returns:
+      A list of Note elements that provide additional information about this unit.
+    """
     return [child for child in self if isinstance(child, Note)]
 
   @property
   def tuvs(self) -> list[Tuv]:
+    """Get the list of Tuv elements in this translation unit.
+    
+    Returns:
+      A list of Tuv elements that contain the source and target translations.
+    """
     return [child for child in self if isinstance(child, Tuv)]
 
   @classmethod
   def from_xml(cls: type[Tu], element: AnyXmlElement) -> Tu:
+    """Create a Tu instance from an XML element.
+    
+    This method parses a TMX translation unit element and creates a corresponding
+    Tu object. The XML element must have the tag "tu".
+    
+    Args:
+      element: The XML element to parse. Must have tag "tu".
+    
+    Returns:
+      A new Tu instance with the parsed data.
+    
+    Raises:
+      WrongTagError: If the element tag is not "tu".
+      RequiredAttributeMissingError: If the element lacks required attributes.
+      NotMappingLikeError: If the element's attrib is not a mapping.
+      SerializationError: If any other parsing error occurs.
+    """
     try:
       check_element_is_usable(element)
       if element.tag != "tu":
@@ -163,6 +240,23 @@ class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
       raise SerializationError(cls, e) from e
 
   def to_xml(self, factory: AnyElementFactory[..., R] | None = None) -> R:
+    """Convert this Tu instance to an XML element.
+    
+    Creates an XML element with tag "tu" and the appropriate attributes.
+    All child elements (props, notes, tuvs) are serialized and appended.
+    
+    Args:
+      factory: Optional XML element factory. If None, uses the default factory
+               or the instance's xml_factory.
+    
+    Returns:
+      An XML element representing this Tu.
+    
+    Raises:
+      ValidationError: If any attribute has an invalid type.
+      MissingDefaultFactoryError: If no factory is available.
+      DeserializationError: If any other serialization error occurs.
+    """
     _factory = get_factory(self, factory)
     try:
       element = _factory("tu", self._make_attrib_dict())
@@ -173,6 +267,17 @@ class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
       raise DeserializationError(self, e) from e
 
   def _make_attrib_dict(self) -> dict[str, str]:
+    """Create a dictionary of XML attributes for this Tu.
+    
+    Builds the attribute dictionary that will be used when serializing
+    this Tu to XML. Only includes attributes that have non-None values.
+    
+    Returns:
+      A dictionary mapping attribute names to string values.
+    
+    Raises:
+      ValidationError: If any attribute has an invalid type.
+    """
     attrs: dict[str, str] = {}
     if self.tuid is not None:
       if not isinstance(self.tuid, str):  # type: ignore
