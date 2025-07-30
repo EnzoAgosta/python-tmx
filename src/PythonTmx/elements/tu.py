@@ -41,23 +41,6 @@ class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
   
   Translation units can contain metadata (properties, notes) and multiple
   translation variants (tuv elements) for different target languages.
-  
-  Attributes:
-    tuid: Optional unique identifier for this translation unit.
-    encoding: Optional encoding specification for the content.
-    datatype: The data type of the content (plaintext, html, etc.).
-    usagecount: Optional count of how many times this unit has been used.
-    lastusagedate: Optional timestamp of the last usage.
-    creationtool: Optional name of the tool that created this unit.
-    creationtoolversion: Optional version of the creation tool.
-    creationdate: Optional timestamp when this unit was created.
-    creationid: Optional identifier for the creator.
-    changedate: Optional timestamp when this unit was last modified.
-    segtype: Optional type of segmentation used for this unit.
-    changeid: Optional identifier for the last modifier.
-    tmf: Optional translation memory format identifier.
-    srclang: Optional source language code.
-    _children: List of Prop, Note, or Tuv child elements.
   """
   __slots__ = (
     "tuid",
@@ -77,20 +60,35 @@ class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
     "_children",
   )
   tuid: str | None
+  """The unique identifier for the translation unit."""
   encoding: str | None
+  """Optional encoding specification for the translation unit content."""
   datatype: str | DATATYPE | None
+  """The data type of the content. Can be a DATATYPE enum or string."""
   usagecount: int | None
+  """Optional count of how many times this unit has been used."""
   lastusagedate: datetime | None
+  """Optional timestamp of the last usage. Can be string or datetime."""
   creationtool: str | None
+  """Optional name of the tool that created this unit."""
   creationtoolversion: str | None
+  """Optional version of the creation tool."""
   creationdate: datetime | None
+  """Optional timestamp when this unit was created. Can be string or datetime."""
   creationid: str | None
+  """Optional identifier for the creator."""
   changedate: datetime | None
+  """Optional timestamp when this unit was last modified. Can be string or datetime."""
   segtype: SEGTYPE | None
+  """Optional type of segmentation used. A SEGTYPE enum."""
   changeid: str | None
+  """Optional identifier for the last modifier."""
   tmf: str | None
+  """Optional translation memory format identifier."""
   srclang: str | None
+  """Optional source language code (e.g., "en", "fr")."""
   _children: list[Prop | Note | Tuv]
+  """List of child elements (props, notes, tuvs)."""
 
   def __init__(
     self,

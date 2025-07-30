@@ -25,7 +25,7 @@ Overview
 PythonTmx is a modern Python library designed for working with TMX (Translation Memory eXchange) files. Built with type safety and flexibility in mind, it provides a robust abstraction layer over XML processing while supporting multiple XML backends.
 
 Key Features
------------
+------------
 
 * **Type Safety**: Full type annotations with mypy support for catching errors early
 * **Backend Agnostic**: Works with any XML library (lxml, ElementTree, etc.)
@@ -79,7 +79,7 @@ Basic usage:
    xml_element = tmx.to_xml(factory=StdElement)
 
 Architecture
------------
+------------
 
 PythonTmx is built around several core design principles:
 
@@ -97,7 +97,7 @@ The library consists of:
 * **Utilities**: Helper functions and type conversions
 
 Installation
------------
+------------
 
 .. code-block:: bash
 
@@ -112,10 +112,25 @@ For development:
    uv sync
 
 Requirements
------------
+------------
 
 * Python 3.13+
 * Any XML library (lxml recommended for performance)
+
+API Reference
+-------------
+.. toctree::
+   :maxdepth: 2
+   :hidden:
+
+   PythonTmx <PythonTmx>
+
+.. toctree::
+   :maxdepth: 1
+
+   Elements <PythonTmx.elements>
+   Enums <PythonTmx.enums>
+   Core <PythonTmx.core>
 
 License
 -------
@@ -128,10 +143,3 @@ Support
 * `Documentation <https://python-tmx.readthedocs.io/>`_
 * `Issue Tracker <https://github.com/your-repo/python-tmx/issues>`_
 * `Discussions <https://github.com/your-repo/python-tmx/discussions>`_
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

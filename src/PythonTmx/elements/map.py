@@ -32,19 +32,17 @@ class Map(BaseTmxElement):
 
   Maps are commonly used within user-defined entities (ude) elements to provide
   custom character mapping rules for specific translation contexts or tools.
-
-  Attributes:
-    unicode: The Unicode character or sequence being mapped.
-    code: Optional code point or entity reference for the mapping.
-    ent: Optional entity name for the mapping.
-    subst: Optional substitution text for the mapping.
   """
 
   __slots__ = ("unicode", "code", "ent", "subst")
   unicode: str
+  """The Unicode character or sequence being mapped"""
   code: str | None
+  """Optional code point or entity reference for the mapping."""
   ent: str | None
+  """Optional entity name for the mapping."""
   subst: str | None
+  """Optional substitution text for the mapping."""
 
   def __init__(
     self,

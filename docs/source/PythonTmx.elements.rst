@@ -1,85 +1,95 @@
-PythonTmx.elements package
-==========================
+Structural Elements
+===================
 
-Submodules
-----------
-
-PythonTmx.elements.header module
---------------------------------
-
-.. automodule:: PythonTmx.elements.header
+.. autoclass:: PythonTmx.elements.tmx.Tmx
    :members:
    :show-inheritance:
    :undoc-members:
+   :member-order: bysource
 
-PythonTmx.elements.inline module
---------------------------------
-
-.. automodule:: PythonTmx.elements.inline
+.. autoclass:: PythonTmx.elements.tu.Tu
    :members:
    :show-inheritance:
    :undoc-members:
+   :member-order: bysource
 
-PythonTmx.elements.map module
------------------------------
-
-.. automodule:: PythonTmx.elements.map
+.. autoclass:: PythonTmx.elements.tuv.Tuv
    :members:
    :show-inheritance:
    :undoc-members:
+   :member-order: bysource
 
-PythonTmx.elements.note module
-------------------------------
-
-.. automodule:: PythonTmx.elements.note
+.. autoclass:: PythonTmx.elements.note.Note
    :members:
    :show-inheritance:
    :undoc-members:
+   :member-order: bysource
 
-PythonTmx.elements.prop module
-------------------------------
-
-.. automodule:: PythonTmx.elements.prop
+.. autoclass:: PythonTmx.elements.prop.Prop
    :members:
    :show-inheritance:
    :undoc-members:
+   :member-order: bysource
 
-PythonTmx.elements.tmx module
------------------------------
-
-.. automodule:: PythonTmx.elements.tmx
+.. autoclass:: PythonTmx.elements.header.Header
    :members:
    :show-inheritance:
    :undoc-members:
+   :member-order: bysource
 
-PythonTmx.elements.tu module
-----------------------------
-
-.. automodule:: PythonTmx.elements.tu
+.. autoclass:: PythonTmx.elements.ude.Ude
    :members:
    :show-inheritance:
    :undoc-members:
+   :member-order: bysource
 
-PythonTmx.elements.tuv module
------------------------------
-
-.. automodule:: PythonTmx.elements.tuv
+.. autoclass:: PythonTmx.elements.map.Map
    :members:
    :show-inheritance:
    :undoc-members:
+   :member-order: bysource
 
-PythonTmx.elements.ude module
------------------------------
+Inline Elements
+===============
 
-.. automodule:: PythonTmx.elements.ude
+.. autoclass:: PythonTmx.elements.inline.Bpt
    :members:
    :show-inheritance:
    :undoc-members:
+   :member-order: bysource
 
-Module contents
----------------
-
-.. automodule:: PythonTmx.elements
+.. autoclass:: PythonTmx.elements.inline.Ept
    :members:
    :show-inheritance:
    :undoc-members:
+   :member-order: bysource
+
+.. autoclass:: PythonTmx.elements.inline.It
+   :members:
+   :show-inheritance:
+   :undoc-members:
+   :member-order: bysource
+   
+.. autoclass:: PythonTmx.elements.inline.Ph
+   :members:
+   :show-inheritance:
+   :undoc-members:
+   :member-order: bysource
+
+.. autoclass:: PythonTmx.elements.inline.Hi
+   :members:
+   :show-inheritance:
+   :undoc-members:
+   :member-order: bysource
+
+.. autoclass:: PythonTmx.elements.inline.Ut
+   :members:
+   :show-inheritance:
+   :undoc-members:
+   :member-order: bysource
+
+.. autoclass:: PythonTmx.elements.inline.Sub
+   :members:
+   :show-inheritance:
+   :undoc-members:
+   :member-order: bysource

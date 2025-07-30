@@ -35,17 +35,14 @@ class Ude(BaseTmxElement, WithChildren[Map]):
   User-defined entities are useful for handling domain-specific characters,
   proprietary symbols, or custom encoding requirements that aren't covered
   by standard TMX character handling.
-
-  Attributes:
-    name: The name identifier for this user-defined entity.
-    base: Optional base entity reference for inheritance or extension.
-    _children: List of Map elements that define the character mappings.
   """
 
   __slots__ = ("name", "base", "_children")
   _children: list[Map]
   name: str
+  """The name identifier for this user-defined entity."""
   base: str | None
+  """Optional base entity reference for inheritance or extension."""
 
   def __init__(
     self, name: str, base: str | None = None, maps: list[Map] | None = None

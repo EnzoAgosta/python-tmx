@@ -35,19 +35,17 @@ class Prop(BaseTmxElement):
   Properties are commonly used to store tool-specific settings, workflow
   information, or custom metadata that needs to be preserved during
   translation processes.
-
-  Attributes:
-    text: The property value/content.
-    type: The property type/category (e.g., "project", "client", "domain").
-    encoding: Optional encoding specification for the property text.
-    lang: Optional language specification for the property content.
   """
 
   __slots__ = ("text", "type", "encoding", "lang")
   text: str
+  """The property value/content."""
   type: str | TYPE
+  """The property type/category (e.g., "project", "client", "domain")."""
   encoding: str | None
+  """Optional encoding specification for the property text."""
   lang: str | None
+  """Optional language specification for the property content."""
 
   def __init__(
     self,

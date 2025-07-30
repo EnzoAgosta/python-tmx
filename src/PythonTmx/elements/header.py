@@ -41,21 +41,6 @@ class Header(BaseTmxElement, WithChildren[Note | Prop | Ude]):
 
   Headers can contain optional child elements including notes, properties, and
   user-defined entities that provide additional context or configuration.
-
-  Attributes:
-    creationtool: The name of the tool that created the TMX file.
-    creationtoolversion: The version of the creation tool.
-    segtype: The type of segmentation used (sentence, paragraph, etc.).
-    tmf: The translation memory format identifier.
-    adminlang: The administrative language code.
-    srclang: The source language code.
-    datatype: The data type of the content (plaintext, html, etc.).
-    encoding: Optional encoding specification for the content.
-    creationdate: Optional timestamp when the TMX was created.
-    creationid: Optional identifier for the creator.
-    changedate: Optional timestamp when the TMX was last modified.
-    changeid: Optional identifier for the last modifier.
-    _children: List of Note, Prop, or Ude child elements.
   """
 
   __slots__ = (
@@ -74,18 +59,31 @@ class Header(BaseTmxElement, WithChildren[Note | Prop | Ude]):
     "_children",
   )
   creationtool: str
+  """The name of the tool that created the TMX file."""
   creationtoolversion: str
+  """The version of the creation tool."""
   segtype: SEGTYPE
+  """The type of segmentation used (sentence, paragraph, etc.)."""
   tmf: str
+  """The translation memory format identifier."""
   adminlang: str
+  """The administrative language code."""
   srclang: str
+  """The source language code."""
   datatype: str | DATATYPE
+  """The data type of the content (plaintext, html, etc.)."""
   encoding: str | None
+  """Optional encoding specification for the content."""
   creationdate: datetime | None
+  """Optional timestamp when the TMX was created."""
   creationid: str | None
+  """Optional identifier for the creator."""
   changedate: datetime | None
+  """Optional timestamp when the TMX was last modified."""
   changeid: str | None
+  """Optional identifier for the last modifier."""
   _children: list[Note | Prop | Ude]
+  """List of Note, Prop, or Ude child elements."""
 
   def __init__(
     self,

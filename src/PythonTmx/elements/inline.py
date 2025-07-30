@@ -159,16 +159,14 @@ class Sub(BaseTmxElement, WithChildren["str | Bpt | Ept | It | Ph | Hi | Ut"]):
   A substitution element allows for the replacement of text content with
   alternative forms or translations. Sub elements can contain text and
   various inline formatting elements.
-  
-  Attributes:
-    datatype: Optional data type specification for the substitution content.
-    type: Optional type specification for the substitution.
-    _children: List of text strings and inline elements that form the substitution content.
   """
   __slots__ = ("_children", "datatype", "type")
   _children: list[str | Bpt | Ept | It | Ph | Hi | Ut]
+  """List of text strings and inline elements that form the substitution content."""
   datatype: str | DATATYPE | None
+  """Optional data type specification for the substitution content."""
   type: str | TYPE | None
+  """Optional type specification for the substitution."""
 
   def __init__(
     self,
@@ -294,18 +292,16 @@ class Ph(BaseTmxElement, WithChildren[Sub | str]):
   A placeholder element marks a position in text where content can be
   inserted or substituted. Placeholders are commonly used for variables,
   formatting markers, or other dynamic content.
-  
-  Attributes:
-    x: Optional position identifier for the placeholder.
-    assoc: Optional association type (p, f, b).
-    type: Optional placeholder type specification.
-    _children: List of Sub elements and text that form the placeholder content.
   """
   __slots__ = ("x", "assoc", "type", "_children")
   x: int | None
+  """Optional position identifier for the placeholder."""
   assoc: ASSOC | str | None
+  """Optional association type (p, f, b)."""
   type: str | PHTYPE | None
+  """Optional placeholder type specification."""
   _children: list[Sub | str]
+  """List of Sub elements and text that form the placeholder content."""
 
   def __init__(
     self,
@@ -430,18 +426,16 @@ class Bpt(BaseTmxElement, WithChildren[Sub | str]):
   
   A beginning paired tag marks the start of a paired formatting element.
   It is paired with a corresponding Ept (ending paired tag) element.
-  
-  Attributes:
-    i: The identifier that pairs this tag with its corresponding Ept.
-    x: Optional position identifier for the tag.
-    type: Optional type specification for the paired tag.
-    _children: List of Sub elements and text that form the tag content.
   """
   __slots__ = ("_children", "i", "x", "type")
   _children: list[Sub | str]
+  """List of Sub elements and text that form the tag content."""
   i: int
+  """The identifier that pairs this tag with its corresponding Ept."""
   x: int | None
+  """Optional position identifier for the tag."""
   type: str | BPTITTYPE | None
+  """Optional type specification for the paired tag."""
 
   def __init__(
     self,
@@ -561,14 +555,12 @@ class Ept(BaseTmxElement, WithChildren[Sub | str]):
   
   An ending paired tag marks the end of a paired formatting element.
   It is paired with a corresponding Bpt (beginning paired tag) element.
-  
-  Attributes:
-    i: The identifier that pairs this tag with its corresponding Bpt.
-    _children: List of Sub elements and text that form the tag content.
   """
   __slots__ = ("_children", "i")
   _children: list[Sub | str]
+  """List of Sub elements and text that form the tag content."""
   i: int
+  """The identifier that pairs this tag with its corresponding Bpt."""
 
   def __init__(
     self,
@@ -668,18 +660,16 @@ class It(BaseTmxElement, WithChildren[Sub | str]):
   
   An isolated tag represents a standalone formatting element that doesn't
   require a paired closing tag. It can contain text and Sub elements.
-  
-  Attributes:
-    pos: The position of the isolated tag (begin or end).
-    x: Optional position identifier for the tag.
-    type: Optional type specification for the isolated tag.
-    _children: List of Sub elements and text that form the tag content.
   """
   __slots__ = ("_children", "pos", "x", "type")
   _children: list[Sub | str]
+  """List of Sub elements and text that form the tag content."""
   pos: POS | str
+  """The position of the isolated tag (begin or end)."""
   x: int | None
+  """Optional position identifier for the tag."""
   type: str | BPTITTYPE | None
+  """Optional type specification for the isolated tag."""
 
   def __init__(
     self,
@@ -804,14 +794,12 @@ class Ut(BaseTmxElement, WithChildren[Sub | str]):
   
   An unpaired tag represents a standalone formatting element that doesn't
   require a paired closing tag. It can contain text and Sub elements.
-  
-  Attributes:
-    x: Optional position identifier for the tag.
-    _children: List of Sub elements and text that form the tag content.
   """
   __slots__ = ("_children", "x")
   _children: list[Sub | str]
+  """List of Sub elements and text that form the tag content."""
   x: int | None
+  """Optional position identifier for the tag."""
 
   def __init__(
     self,
@@ -914,16 +902,14 @@ class Hi(BaseTmxElement, WithChildren["Bpt | Ept | It | Ph | Hi | Ut | str"]):
   
   A highlighting element marks text that should be highlighted or emphasized
   in some way. It can contain text and various inline formatting elements.
-  
-  Attributes:
-    x: Optional position identifier for the highlighting.
-    type: Optional type specification for the highlighting.
-    _children: List of inline elements and text that form the highlighted content.
   """
   __slots__ = ("_children", "x", "type")
   _children: list[Bpt | Ept | It | Ph | Hi | Ut | str]
+  """List of inline elements and text that form the highlighted content."""
   x: int | None
+  """Optional position identifier for the highlighting."""
   type: str | TYPE | None
+  """Optional type specification for the highlighting."""
 
   def __init__(
     self,

@@ -41,22 +41,6 @@ class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
   
   Tuv elements can contain inline formatting elements (bpt, ept, it, ph, hi, ut)
   and text segments that together form the complete translation content.
-  
-  Attributes:
-    lang: The language code for this translation variant.
-    encoding: Optional encoding specification for the content.
-    datatype: The data type of the content (plaintext, html, etc.).
-    usagecount: Optional count of how many times this variant has been used.
-    lastusagedate: Optional timestamp of the last usage.
-    creationtool: Optional name of the tool that created this variant.
-    creationtoolversion: Optional version of the creation tool.
-    creationdate: Optional timestamp when this variant was created.
-    creationid: Optional identifier for the creator.
-    changedate: Optional timestamp when this variant was last modified.
-    changeid: Optional identifier for the last modifier.
-    tmf: Optional translation memory format identifier.
-    _children: List of Prop or Note child elements.
-    segment: List of inline elements and text that form the translation content.
   """
   __slots__ = (
     "lang",
@@ -75,19 +59,33 @@ class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
     "segment",
   )
   lang: str
+  """The language code for this translation variant."""
   encoding: str | None
+  """Optional encoding specification for the content."""
   datatype: str | DATATYPE | None
+  """The data type of the content (plaintext, html, etc.)."""
   usagecount: int | None
+  """Optional count of how many times this variant has been used."""
   lastusagedate: datetime | None
+  """Optional timestamp of the last usage."""
   creationtool: str | None
+  """Optional name of the tool that created this variant."""
   creationtoolversion: str | None
+  """Optional version of the creation tool."""
   creationdate: datetime | None
+  """Optional timestamp when this variant was created."""
   creationid: str | None
+  """Optional identifier for the creator."""
   changedate: datetime | None
+  """Optional timestamp when this variant was last modified."""
   changeid: str | None
+  """Optional identifier for the last modifier."""
   tmf: str | None
+  """Optional translation memory format identifier."""
   _children: list[Prop | Note]
+  """List of Prop or Note child elements."""
   segment: list[Bpt | Ept | It | Ph | Hi | Ut | str]
+  """List of inline elements and text that form the translation content."""
 
   def __init__(
     self,
