@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 [project]
 name = "python-tmx"
-version = "0.3.1"
+version = "0.4"
 authors = [{ name = "Enzo Agosta", email = "agosta.enzowork@gmail.com" }]
 description = "Python library for manipulating, creating and editing tmx files"
 readme = { file = "README.md", content-type = "text/markdown" }
@@ -17,6 +17,7 @@ classifiers = [
 dependencies = [
     "lxml>=6.0.0",
     "pytest>=8.4.1",
+    "sphinx>=8.2.3",
     "types-lxml>=2025.3.30",
 ]
 
