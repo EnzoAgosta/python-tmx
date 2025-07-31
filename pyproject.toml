@@ -14,7 +14,7 @@ classifiers = [
   "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
 ]
-dependencies = ["lxml>=6.0.0", "types-lxml>=2025.3.30"]
+dependencies = []
 
 [project.urls]
 Homepage = "https://github.com/ChonkyYoshi/python-tmx"
@@ -25,7 +25,14 @@ where = ["src"]
 
 [dependency-groups]
 docs = ["sphinx>=8.2.3", "sphinx-rtd-theme>=3.0.2"]
-test = ["pytest>=8.4.1"]
+lxml = [
+    "lxml>=6.0.0",
+    "types-lxml>=2025.3.30",
+]
+test = [
+    "pytest>=8.4.1",
+    "pytest-cov>=6.2.1",
+]
 
 
 [tool.setuptools]
