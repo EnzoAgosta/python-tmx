@@ -5,32 +5,22 @@ from dataclasses import MISSING, fields
 from datetime import datetime
 from os import PathLike
 from pathlib import Path
+from re import sub
 from typing import Literal, TypeGuard, cast, overload
 
-import lxml.etree as lxet
-
-from PythonTmx.classes import (
-  ASSOC,
-  POS,
-  SEGTYPE,
-  Bpt,
-  Ept,
-  Header,
-  Hi,
-  InlineElement,
-  It,
-  Map,
-  Note,
-  Ph,
-  Prop,
-  StructuralElement,
-  Sub,
-  Tmx,
-  TmxElement,
-  Tu,
-  Tuv,
-  Ude,
-  Ut,
+from PythonTmx.core import (
+  DEFAULT_XML_FACTORY,
+  AnyElementFactory,
+  AnyXmlElement,
+  BaseTmxElement,
+  P,
+  R,
+)
+from PythonTmx.errors import (
+  MissingDefaultFactoryError,
+  NotMappingLikeError,
+  RequiredAttributeMissingError,
+  WrongTagError,
 )
 from PythonTmx.errors import ValidationError
 
@@ -645,9 +635,36 @@ def _check_hex_and_unicode_codepoint(string: str) -> None:
 def ensure_file_exists(path: str | PathLike[str]) -> Path:
   file: Path = Path(path)
   if not file.exists():
-    raise FileNotFoundError(f"File {file!r} does not exist")
+    raise FileNotFoundError(f"File {file.as_posix()!r} does not exist")
   if not file.is_file():
-    raise IsADirectoryError(f"File {file!r} is not a file")
+    raise IsADirectoryError(f"File {file.as_posix()!r} is not a file")
   if not file.suffix == ".tmx":
-    raise ValueError(f"File {file!r} is not a TMX file")
+    raise ValueError(f"File {file.as_posix()!r} is not a TMX file")
   return file
+
+
+def check_tag(tag: str, expected: str) -> None:
+  """Check that the element's tag matches the expected tag.
+
+  This method is used to check that the element's tag matches the expected
+  tag for the element type. It raises a ValidationError if the tag does not
+  match the expected tag.
+
+  Args:
+    tag: The element's tag.
+    expected: The expected tag for the element type.
+
+  Raises:
+    WrongTagError: If the tag does not match the expected tag.
+  """
+  if tag != expected and sub(r"^\{.*?\}", "", tag) != expected:
+    raise WrongTagError(tag, expected)
+
+
+def get_local_name(tag: str) -> str:
+  if tag.startswith("{"):
+    end = tag.find("}")
+    if end == -1:
+      raise ValueError(f"Malformed tag: {tag}")
+    return tag[end + 1 :]
+  return tag

@@ -315,7 +315,7 @@ class TmxFileParser(ABC):
   def iter(
     self,
     mask: str | Iterable[str] | None = None,
-    /,
+    *,
     strategy: Literal["breadth_first", "depth_first"] = "breadth_first",
     exclude: bool = False,
   ) -> Generator[BaseTmxElement]:

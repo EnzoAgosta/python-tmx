@@ -20,7 +20,7 @@ from PythonTmx.errors import (
   ValidationError,
   WrongTagError,
 )
-from PythonTmx.utils import check_element_is_usable, get_factory
+from PythonTmx.utils import check_element_is_usable, check_tag, get_factory
 
 __all__ = [
   "Bpt",
@@ -219,8 +219,7 @@ class Sub(BaseTmxElement, WithChildren["str | Bpt | Ept | It | Ph | Hi | Ut"]):
     """
     try:
       check_element_is_usable(element)
-      if element.tag != "sub":
-        raise WrongTagError(element.tag, "sub")
+      check_tag(element.tag, "sub")
       return cls(
         datatype=element.attrib.get("datatype", None),
         type=element.attrib.get("type", None),
@@ -352,8 +351,7 @@ class Ph(BaseTmxElement, WithChildren[Sub | str]):
     """
     try:
       check_element_is_usable(element)
-      if element.tag != "ph":
-        raise WrongTagError(element.tag, "ph")
+      check_tag(element.tag, "ph")
       return cls(
         x=element.attrib["x"],
         assoc=element.attrib.get("assoc", None),
@@ -484,8 +482,7 @@ class Bpt(BaseTmxElement, WithChildren[Sub | str]):
     """
     try:
       check_element_is_usable(element)
-      if element.tag != "bpt":
-        raise WrongTagError(element.tag, "bpt")
+      check_tag(element.tag, "bpt")
       return cls(
         i=element.attrib["i"],
         x=element.attrib.get("x", None),
@@ -601,8 +598,7 @@ class Ept(BaseTmxElement, WithChildren[Sub | str]):
     """
     try:
       check_element_is_usable(element)
-      if element.tag != "ept":
-        raise WrongTagError(element.tag, "ept")
+      check_tag(element.tag, "ept")
       return cls(
         i=element.attrib["i"],
         children=_xml_to_inline_sub_only(element),
@@ -723,8 +719,7 @@ class It(BaseTmxElement, WithChildren[Sub | str]):
     """
     try:
       check_element_is_usable(element)
-      if element.tag != "it":
-        raise WrongTagError(element.tag, "it")
+      check_tag(element.tag, "it")
       return cls(
         pos=element.attrib["pos"],
         x=element.attrib.get("x", None),
@@ -842,8 +837,7 @@ class Ut(BaseTmxElement, WithChildren[Sub | str]):
     """
     try:
       check_element_is_usable(element)
-      if element.tag != "ut":
-        raise WrongTagError(element.tag, "ut")
+      check_tag(element.tag, "ut")
       return cls(
         x=element.attrib.get("x"),
         children=_xml_to_inline_sub_only(element),
@@ -959,8 +953,7 @@ class Hi(BaseTmxElement, WithChildren["Bpt | Ept | It | Ph | Hi | Ut | str"]):
     """
     try:
       check_element_is_usable(element)
-      if element.tag != "hi":
-        raise WrongTagError(element.tag, "hi")
+      check_tag(element.tag, "hi")
       return cls(
         x=element.attrib.get("x", None),
         type=element.attrib.get("type", None),

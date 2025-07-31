@@ -84,7 +84,7 @@ class Tmx(BaseTmxElement, WithChildren[Tu]):
       check_element_is_usable(element)
       if element.tag != "tmx":
         raise WrongTagError(element.tag, "tmx")
-      if element.text is not None:
+      if element.text is not None and not element.text.isspace():
         raise ValueError("Tmx element cannot have text")
       header: Header | None = None
       tus: list[Tu] | None = None

@@ -16,6 +16,7 @@ from PythonTmx.errors import (
 )
 from PythonTmx.utils import (
   check_element_is_usable,
+  check_tag,
   get_factory,
 )
 
@@ -82,8 +83,7 @@ class Note(BaseTmxElement):
     """
     try:
       check_element_is_usable(element)
-      if element.tag != "note":
-        raise WrongTagError(element.tag, "note")
+      check_tag(element.tag, "note")
       if element.text is None:
         raise ValueError("Note element must have text")
       return cls(
