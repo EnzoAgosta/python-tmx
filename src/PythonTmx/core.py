@@ -3,11 +3,12 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from os import PathLike
-from pathlib import Path
 from typing import (
   Any,
+  Generator,
   Generic,
   Iterator,
+  Literal,
   ParamSpec,
   Protocol,
   Self,
@@ -19,22 +20,25 @@ from typing import (
   runtime_checkable,
 )
 
+from PythonTmx.utils import ensure_file_exists
+
 ChildrenType = TypeVar("ChildrenType")
 P = ParamSpec("P")
 R = TypeVar("R", bound="AnyXmlElement", covariant=True)
 
 DEFAULT_XML_FACTORY: AnyElementFactory[..., AnyXmlElement] | None = None
 
-__all__ = (
+__all__ = [
   "AnyXmlElement",
   "BaseTmxElement",
   "WithChildren",
-  "TmxParser",
+  "TmxFileParser",
   "set_default_factory",
   "DEFAULT_XML_FACTORY",
   "AnyElementFactory",
   "ConvertibleToInt",
-)
+  "TmxFileParser",
+]
 
 
 class AnyXmlElement(Protocol):
@@ -138,9 +142,7 @@ class BaseTmxElement(ABC):
   """
   __slots__ = ("xml_factory",)
 
-  def set_default_factory(
-    self, factory: AnyElementFactory[P, R] | None
-  ) -> None:
+  def set_default_factory(self, factory: AnyElementFactory[P, R] | None) -> None:
     """Set the XML factory for this element instance.
 
     This method allows individual elements to override the global default
@@ -297,55 +299,25 @@ class WithChildren(Generic[ChildrenType]):
     self._children.clear()
 
 
-class TmxParser(ABC):
-  """Abstract base class for TMX file parsers.
-
-  This class defines the interface for TMX file parsing, separating
-  the concerns of file I/O and XML library interaction from the
-  data structure definitions. This enables different parsing strategies
-  and XML library backends while maintaining a consistent interface.
-
-  The parser abstraction allows for flexible file handling, supporting
-  different input sources and XML processing libraries through a unified
-  interface.
-  """
-
-  source: Path
-  """The path to the TMX file to be parsed."""
-
-  @abstractmethod
-  def __init__(self, source: PathLike[str] | Path | str) -> None: ...
-
-  """Initialize the parser with a TMX file source.
-  
-  Args:
-    source: The path to the TMX file to parse. Can be a string,
-            Path object, or any PathLike object.
-  """
+class TmxFileParser(ABC):
+  def __init__(self, source: str | PathLike[str]) -> None:
+    self.source = ensure_file_exists(source)
 
   @abstractmethod
   def iter(
     self,
-    mask: str | tuple[str, ...] | None = None,
-    mask_exclude: bool = False,
-    default_factory: AnyElementFactory[..., AnyXmlElement] | None = None,
-  ) -> Iterator[BaseTmxElement]: ...
+    mask: str | Iterable[str] | None = None,
+    /,
+    strategy: Literal["breadth_first", "depth_first"] = "breadth_first",
+    exclude: bool = False,
+  ) -> Generator[BaseTmxElement]: ...
 
-  """Iterate over TMX elements in the file.
-  
-  This method provides a streaming interface for processing large TMX files,
-  allowing memory-efficient processing of translation units and other elements.
-  
-  Args:
-    mask: Optional tag name(s) to filter elements. If None, returns all elements.
-    mask_exclude: If True, exclude elements matching the mask. If False,
-                  include only elements matching the mask.
-    default_factory: Optional XML element factory to use for parsing.
-                    If None, uses the global default factory.
-  
-  Yields:
-    TMX elements matching the specified criteria.
-  """
+  @abstractmethod
+  def lazy_iter(
+    self,
+    mask: str | Iterable[str] | None = None,
+    exclude: bool = False,
+  ) -> Generator[BaseTmxElement]: ...
 
 
 @runtime_checkable
@@ -363,13 +335,7 @@ class SupportsTrunc(Protocol):
 
 
 type ConvertibleToInt = (
-  str
-  | bytes
-  | bytearray
-  | memoryview
-  | SupportsInt
-  | SupportsIndex
-  | SupportsTrunc
+  str | bytes | bytearray | memoryview | SupportsInt | SupportsIndex | SupportsTrunc
 )
 """Type alias for values that can be converted to integers.
 

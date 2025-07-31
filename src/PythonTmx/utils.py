@@ -3,8 +3,9 @@ from collections import Counter
 from collections.abc import Iterable, Sequence
 from dataclasses import MISSING, fields
 from datetime import datetime
-from itertools import chain
-from typing import Any, Literal, get_args, get_origin, get_type_hints, overload
+from os import PathLike
+from pathlib import Path
+from typing import Literal, TypeGuard, cast, overload
 
 import lxml.etree as lxet
 
@@ -634,130 +635,19 @@ def _check_hex_and_unicode_codepoint(string: str) -> None:
   if not string.startswith("#x"):
     raise ValueError(f"string should start with '#x' but found {string[:2]!r}")
   try:
-    code_point = int(string[2:], 16)
-  except ValueError:
-    raise ValueError(f"Invalid hexadecimal string {string!r}")
-  try:
-    chr(code_point)
-  except ValueError:
-    raise ValueError(f"Invalid Unicode code point {code_point!r}")
+    return datetime.fromisoformat(value)
+  except Exception as e:
+    if required:
+      raise e
+    return None
 
 
-def _validate_map(map_: Map) -> None:
-  _check_hex_and_unicode_codepoint(map_.unicode)
-  if map_.code is not None:
-    _check_hex_and_unicode_codepoint(map_.code)
-  if map_.ent is not None:
-    if not map_.ent.isascii():
-      raise ValueError(f"ent should be ASCII but found {map_.ent!r}")
-  if map_.subst is not None:
-    if not map_.subst.isascii():
-      raise ValueError(f"subst should be ASCII but found {map_.subst!r}")
-
-
-def _validate_balanced_paired_tags(content: Iterable) -> None:
-  bpt_count = Counter(bpt.i for bpt in content if isinstance(bpt, Bpt))
-  ept_count = Counter(ept.i for ept in content if isinstance(ept, Ept))
-  if len(bpt_count) != len(ept_count):
-    raise ValueError("Number of Bpt and Ept tags must be equal")
-  if not len(bpt_count):
-    return
-  if bpt_count.most_common(1)[0][1] > 1:
-    raise ValueError("Bpt indexes must be unique")
-  if ept_count.most_common(1)[0][1] > 1:
-    raise ValueError("Ept indexes must be unique")
-
-
-_type_hints_cache = {}
-
-
-def _get_type_hints(cls: type) -> dict[str, type]:
-  if cls not in _type_hints_cache:
-    _type_hints_cache[cls] = get_type_hints(cls)
-  return _type_hints_cache[cls]
-
-
-def _validate_extra(value: dict[str, str]) -> None:
-  if not isinstance(value, dict):
-    raise TypeError(f"'extra' field must be a dict, got {type(value)}")
-  for k, v in value.items():
-    if not isinstance(k, str) or not isinstance(v, str):
-      raise TypeError(
-        f"'extra' dict must contain only string keys and values but found"
-        f" {type(k).__name__!r}: {type(v).__name__!r}"
-      )
-
-
-def _validate_sequence(value: Sequence[Any], expected_type: type[Any]) -> None:
-  union = get_args(expected_type)[0]
-  for item in value:
-    if not isinstance(item, union):
-      raise TypeError(
-        f"Expected all items to be one of {union!r} but found {type(item).__name__!r}"
-      )
-
-
-def validate(obj: TmxElement, /, validate_extra: bool = True) -> None:
-  """
-  Validates a TmxElement object and its children recursively to ensure proper
-  typing.
-
-  If `validate_extra` is True, the `extra` dict will be validated to ensure that
-  it only contains string keys and values.
-
-  Parameters
-  ----------
-  obj : TmxElement
-      The TmxElement object to validate
-  validate_extra : bool, optional
-      Whether to validate the `extra` dict, by default True
-
-  Raises
-  ------
-  ValidationError
-      On validation failure
-  """
-  stack = [obj]
-  while stack:
-    current = stack.pop()
-    if not isinstance(current, TmxElement):
-      raise ValidationError(current) from TypeError(
-        f"Expected a TmxElement but got {type(current)}"
-      )
-    if isinstance(current, Map):
-      try:
-        _validate_map(current)
-      except (TypeError, ValueError) as e:
-        raise ValidationError(current) from e
-      continue
-    hints = _get_type_hints(current.__class__)
-    for field in fields(current):
-      value = getattr(current, field.name)
-      if field.name == "extra" and validate_extra:
-        try:
-          _validate_extra(value)
-        except TypeError as e:
-          raise ValidationError(current, field=field.name) from e
-        continue
-      if value is None:
-        if field.default is MISSING:
-          raise ValidationError(current, field=field.name) from ValueError(
-            f"Attribute {field.name!r} cannot be None"
-          )
-        continue
-      expected_type = hints[field.name]
-      if get_origin(expected_type) is Sequence:
-        try:
-          _validate_sequence(value, expected_type)
-          stack.extend([item for item in value if isinstance(item, TmxElement)])
-        except TypeError as e:
-          raise ValidationError(current, field=field.name) from e
-        continue
-      if not isinstance(value, expected_type):
-        raise ValidationError(current, field=field.name) from TypeError(
-          f"{field.name!r} must be of type {expected_type.__name__!r} but got "
-          f"{type(value).__name__!r}"
-        )
-    if isinstance(current, Tuv):
-      _validate_balanced_paired_tags(current.content)
-      stack.extend([item for item in current.content if isinstance(item, TmxElement)])
+def ensure_file_exists(path: str | PathLike[str]) -> Path:
+  file: Path = Path(path)
+  if not file.exists():
+    raise FileNotFoundError(f"File {file!r} does not exist")
+  if not file.is_file():
+    raise IsADirectoryError(f"File {file!r} is not a file")
+  if not file.suffix == ".tmx":
+    raise ValueError(f"File {file!r} is not a TMX file")
+  return file
