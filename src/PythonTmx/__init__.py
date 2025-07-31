@@ -9,6 +9,7 @@ from PythonTmx.core import (
   set_default_factory,
 )
 from PythonTmx.elements import (
+  __TAG_MAP__,
   Bpt,
   Ept,
   Header,
@@ -28,7 +29,7 @@ from PythonTmx.elements import (
   Ut,
 )
 from PythonTmx.enums import BPTITTYPE, DATATYPE, PHTYPE, POS, SEGTYPE, TYPE
-from PythonTmx.parsers import StandardParser
+from PythonTmx.parsers import LxmlParser, StandardParser
 
 __all__ = [
   "AnyElementFactory",
@@ -39,6 +40,7 @@ __all__ = [
   "set_default_factory",
   "DEFAULT_XML_FACTORY",
   "ConvertibleToInt",
+  "__TAG_MAP__",
   "Tmx",
   "Tu",
   "Tuv",
@@ -57,6 +59,7 @@ __all__ = [
   "InlineElement",
   "StructuralElement",
   "StandardParser",
+  "LxmlParser",
   "SEGTYPE",
   "TYPE",
   "DATATYPE",

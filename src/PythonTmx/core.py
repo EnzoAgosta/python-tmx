@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
-from os import PathLike
 from typing import (
   Any,
   Generator,
@@ -19,8 +18,6 @@ from typing import (
   overload,
   runtime_checkable,
 )
-
-from PythonTmx.utils import ensure_file_exists
 
 ChildrenType = TypeVar("ChildrenType")
 P = ParamSpec("P")
@@ -300,8 +297,19 @@ class WithChildren(Generic[ChildrenType]):
 
 
 class TmxFileParser(ABC):
-  def __init__(self, source: str | PathLike[str]) -> None:
-    self.source = ensure_file_exists(source)
+  """Abstract base class for parsing TMX (Translation Memory eXchange) files.
+
+  This class defines the interface for TMX file parsers, providing methods to
+  iterate through TMX elements in various traversal strategies. It serves as the
+  foundation for different parsing implementations, allowing for flexible and
+  efficient processing of TMX files.
+
+  The parser supports filtering elements by tag names and offers both memory-efficient
+  lazy parsing and full document parsing with different traversal strategies.
+
+  Attributes:
+    source: The validated file path to the TMX file being parsed.
+  """
 
   @abstractmethod
   def iter(
@@ -310,14 +318,58 @@ class TmxFileParser(ABC):
     /,
     strategy: Literal["breadth_first", "depth_first"] = "breadth_first",
     exclude: bool = False,
-  ) -> Generator[BaseTmxElement]: ...
+  ) -> Generator[BaseTmxElement]:
+    """Iterate through TMX elements with specified filtering and traversal strategy.
+
+    This method parses the entire TMX file into memory and yields elements
+    according to the specified strategy and filtering criteria. It provides
+    full access to the document structure but requires more memory than lazy_iter.
+
+    Args:
+      mask: Tag names to filter by. Can be a single string, iterable of strings,
+            or None to include all elements. Defaults to None.
+      strategy: Traversal strategy for processing the XML tree.
+                - "breadth_first": Process all children before grandchildren (default)
+                - "depth_first": Process each branch completely before moving to siblings
+      exclude: If True, exclude elements matching the mask instead of including them.
+               Defaults to False.
+
+    Yields:
+      BaseTmxElement: TMX elements matching the filter criteria.
+
+    Raises:
+      ValueError: If an unknown strategy is specified.
+      XMLSyntaxError: If the TMX file contains invalid XML.
+    """
 
   @abstractmethod
   def lazy_iter(
     self,
     mask: str | Iterable[str] | None = None,
     exclude: bool = False,
-  ) -> Generator[BaseTmxElement]: ...
+  ) -> Generator[BaseTmxElement]:
+    """Iterate through TMX elements using memory-efficient lazy parsing.
+
+    This method uses incremental XML parsing to yield elements as they are
+    encountered, without loading the entire document into memory. It's ideal
+    for processing large TMX files efficiently, but provides less control
+    over traversal order compared to the iter method.
+
+    The lazy parser processes elements in document order and automatically
+    cleans up processed elements to minimize memory usage.
+
+    Args:
+      mask: Tag names to filter by. Can be a single string, iterable of strings,
+            or None to include all elements. Defaults to None.
+      exclude: If True, exclude elements matching the mask instead of including them.
+               Defaults to False.
+
+    Yields:
+      BaseTmxElement: TMX elements matching the filter criteria in document order.
+
+    Raises:
+      XMLSyntaxError: If the TMX file contains invalid XML.
+    """
 
 
 @runtime_checkable
