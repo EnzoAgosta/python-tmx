@@ -2,7 +2,8 @@ from collections import deque
 from collections.abc import Generator, Iterable
 from os import PathLike
 from typing import Literal
-from xml.etree.ElementTree import Element, iterparse, parse
+
+from lxml.etree import Element, QName, _Element, iterparse, parse  # type: ignore
 
 from PythonTmx.core import BaseTmxElement, TmxFileParser
 from PythonTmx.elements import __TAG_MAP__
@@ -10,7 +11,7 @@ from PythonTmx.parsers.utils import create_tag_mask
 from PythonTmx.utils import ensure_file_exists
 
 
-class StandardParser(TmxFileParser):
+class LxmlParser(TmxFileParser):
   """Standard implementation of TMX file parser using ElementTree.
 
   This parser provides a complete implementation of the TmxFileParser interface,
@@ -101,7 +102,7 @@ class StandardParser(TmxFileParser):
     """
 
     def _depth_first(
-      root_node: Element, tag_mask: tuple[str, ...]
+      root_node: _Element, tag_mask: tuple[str, ...]
     ) -> Generator[BaseTmxElement]:
       """Depth-first traversal implementation using a stack.
 
@@ -112,11 +113,12 @@ class StandardParser(TmxFileParser):
       Yields:
         BaseTmxElement: Elements matching the tag mask in depth-first order.
       """
-      stack: deque[tuple[Element, bool]] = deque([(root_node, False)])
+      stack: deque[tuple[_Element, bool]] = deque([(root_node, False)])
       while stack:
         node, yielded_ancestor = stack.pop()
-        if node.tag in tag_mask and not yielded_ancestor:
-          elem = __TAG_MAP__[node.tag].from_xml(node)
+        tag = QName(node.tag).localname
+        if tag in tag_mask and not yielded_ancestor:
+          elem = __TAG_MAP__[tag].from_xml(node)
           elem.set_default_factory(factory=Element)
           yield elem
           continue
@@ -124,7 +126,7 @@ class StandardParser(TmxFileParser):
           stack.append((child, yielded_ancestor))
 
     def _breadth_first(
-      root_node: Element, tag_mask: tuple[str, ...]
+      root_node: _Element, tag_mask: tuple[str, ...]
     ) -> Generator[BaseTmxElement]:
       """Breadth-first traversal implementation using a queue.
 
@@ -135,11 +137,12 @@ class StandardParser(TmxFileParser):
       Yields:
         BaseTmxElement: Elements matching the tag mask in breadth-first order.
       """
-      queue: deque[Element] = deque([root_node])
+      queue: deque[_Element] = deque([root_node])
       while queue:
         node = queue.popleft()
+        tag = QName(node.tag).localname
         if node.tag in tag_mask:
-          elem = __TAG_MAP__[node.tag].from_xml(node)
+          elem = __TAG_MAP__[tag].from_xml(node)
           elem.set_default_factory(factory=Element)
           yield elem
           continue
@@ -186,16 +189,17 @@ class StandardParser(TmxFileParser):
     context = iterparse(self.source, events=("start", "end"))
 
     _, root = next(context)
-    stack: list[Element] = []
-    yielded: set[Element] = set()
+    stack: list[_Element] = []
+    yielded: set[_Element] = set()
 
     for event, node in context:
       if event == "start":
         stack.append(node)
       else:
+        tag = QName(node.tag).localname
         if node.tag in tag_mask:
           if not any(parent in yielded for parent in stack[:-1]):
-            elem = __TAG_MAP__[node.tag].from_xml(node)
+            elem = __TAG_MAP__[tag].from_xml(node)
             elem.set_default_factory(factory=Element)
             yield elem
             yielded.add(node)
