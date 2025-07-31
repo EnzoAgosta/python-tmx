@@ -307,8 +307,10 @@ lxml = [
     { name = "types-lxml" },
 ]
 test = [
+    { name = "lxml" },
     { name = "pytest" },
     { name = "pytest-cov" },
+    { name = "types-lxml" },
 ]
 
 [package.metadata]
@@ -323,8 +325,10 @@ lxml = [
     { name = "types-lxml", specifier = ">=2025.3.30" },
 ]
 test = [
+    { name = "lxml", specifier = ">=6.0.0" },
     { name = "pytest", specifier = ">=8.4.1" },
     { name = "pytest-cov", specifier = ">=6.2.1" },
+    { name = "types-lxml", specifier = ">=2025.3.30" },
 ]
 
 [[package]]
