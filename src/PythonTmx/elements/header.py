@@ -24,6 +24,7 @@ from PythonTmx.errors import (
 )
 from PythonTmx.utils import (
   check_element_is_usable,
+  check_tag,
   get_factory,
   try_parse_datetime,
 )
@@ -184,20 +185,19 @@ class Header(BaseTmxElement, WithChildren[Note | Prop | Ude]):
     """
 
     def _dispatch(child: AnyXmlElement) -> Note | Prop | Ude:
-      if child.tag == "ude":
+      if child.tag.endswith("ude"):
         return Ude.from_xml(child)
-      elif child.tag == "note":
+      elif child.tag.endswith("note"):
         return Note.from_xml(child)
-      elif child.tag == "prop":
+      elif child.tag.endswith("prop"):
         return Prop.from_xml(child)
       else:
         raise WrongTagError(child.tag, "ude, note or prop")
 
     try:
       check_element_is_usable(element)
-      if element.tag != "header":
-        raise WrongTagError(element.tag, "header")
-      if element.text is not None:
+      check_tag(element.tag, "header")
+      if element.text is not None and not element.text.isspace():
         raise ValueError("Header element cannot have text")
 
       header: Header = cls(

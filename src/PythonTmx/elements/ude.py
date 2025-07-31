@@ -18,6 +18,7 @@ from PythonTmx.errors import (
 )
 from PythonTmx.utils import (
   check_element_is_usable,
+  check_tag,
   get_factory,
 )
 
@@ -93,9 +94,8 @@ class Ude(BaseTmxElement, WithChildren[Map]):
     """
     try:
       check_element_is_usable(element)
-      if element.tag != "ude":
-        raise WrongTagError(element.tag, "ude")
-      if element.text is not None:
+      check_tag(element.tag, "ude")
+      if element.text is not None and not element.text.isspace():
         raise ValueError("Ude element cannot have text")
       return cls(
         name=element.attrib["name"],

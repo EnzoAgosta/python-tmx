@@ -16,6 +16,7 @@ from PythonTmx.errors import (
 )
 from PythonTmx.utils import (
   check_element_is_usable,
+  check_tag,
   get_factory,
 )
 
@@ -90,8 +91,7 @@ class Map(BaseTmxElement):
     """
     try:
       check_element_is_usable(element)
-      if element.tag != "map":
-        raise WrongTagError(element.tag, "map")
+      check_tag(element.tag, "map")
       if element.text is not None:
         raise ValueError("Map element cannot have text")
       return cls(

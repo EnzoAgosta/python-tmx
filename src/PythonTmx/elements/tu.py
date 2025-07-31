@@ -25,6 +25,7 @@ from PythonTmx.errors import (
 )
 from PythonTmx.utils import (
   check_element_is_usable,
+  check_tag,
   get_factory,
   try_parse_datetime,
 )
@@ -198,16 +199,15 @@ class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
     """
     try:
       check_element_is_usable(element)
-      if element.tag != "tu":
-        raise WrongTagError(element.tag, "tu")
+      check_tag(element.tag, "tu")
 
       children: list[Prop | Note | Tuv] = []
       for child in element:
-        if child.tag == "prop":
+        if child.tag.endswith("prop"):
           children.append(Prop.from_xml(child))
-        elif child.tag == "note":
+        elif child.tag.endswith("note"):
           children.append(Note.from_xml(child))
-        elif child.tag == "tuv":
+        elif child.tag.endswith("tuv"):
           children.append(Tuv.from_xml(child))
         else:
           raise WrongTagError(child.tag, "prop, note or tuv")

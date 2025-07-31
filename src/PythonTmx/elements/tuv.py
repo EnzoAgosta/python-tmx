@@ -25,6 +25,7 @@ from PythonTmx.errors import (
 )
 from PythonTmx.utils import (
   check_element_is_usable,
+  check_tag,
   get_factory,
   try_parse_datetime,
 )
@@ -191,43 +192,40 @@ class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
       if seg.text is not None:
         result.append(seg.text)
       for child in seg:
-        match child.tag:
-          case "bpt":
-            result.append(Bpt.from_xml(child))
-          case "ept":
-            result.append(Ept.from_xml(child))
-          case "it":
-            result.append(It.from_xml(child))
-          case "ph":
-            result.append(Ph.from_xml(child))
-          case "hi":
-            result.append(Hi.from_xml(child))
-          case "ut":
-            result.append(Ut.from_xml(child))
-          case _:
-            raise WrongTagError(child.tag, "bpt|ept|it|ph|hi|ut")
+        if child.tag.endswith("bpt"):
+          result.append(Bpt.from_xml(child))
+        elif child.tag.endswith("ept"):
+          result.append(Ept.from_xml(child))
+        elif child.tag.endswith("it"):
+          result.append(It.from_xml(child))
+        elif child.tag.endswith("ph"):
+          result.append(Ph.from_xml(child))
+        elif child.tag.endswith("hi"):
+          result.append(Hi.from_xml(child))
+        elif child.tag.endswith("ut"):
+          result.append(Ut.from_xml(child))
+        else:
+          raise WrongTagError(child.tag, "bpt, ept, it, ph, hi or ut")
         if child.tail is not None:
           result.append(child.tail)
       return result
 
     try:
       check_element_is_usable(element)
-      if element.tag != "tuv":
-        raise WrongTagError(element.tag, "tuv")
-      if element.text is not None:
+      check_tag(element.tag, "tuv")
+      if element.text is not None and not element.text.isspace():
         raise ValueError("tuv element cannot have text")
       segment: list[Bpt | Ept | It | Ph | Hi | Ut | str] = []
       children: list[Prop | Note] = []
       for child in element:
-        match child.tag:
-          case "prop":
-            children.append(Prop.from_xml(child))
-          case "note":
-            children.append(Note.from_xml(child))
-          case "seg":
-            segment.extend(parse_seg(child))
-          case _:
-            raise WrongTagError(child.tag, "prop, note or seg")
+        if "prop" in child.tag:
+          children.append(Prop.from_xml(child))
+        elif "note" in child.tag:
+          children.append(Note.from_xml(child))
+        elif "seg" in child.tag:
+          segment.extend(parse_seg(child))
+        else:
+          raise WrongTagError(child.tag, "prop, note or seg")
 
       return cls(
         lang=element.attrib["{http://www.w3.org/XML/1998/namespace}lang"],

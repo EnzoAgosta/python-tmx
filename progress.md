@@ -29,26 +29,24 @@ A living roadmap for the v0.4+ rewrite of PythonTmx
   - ✅ `It`
   - ✅ `Ut`
 
-## 🚧 Parser Backends
+## ✅ Parser Backends
 
-- 🚧 `LazyLxmlParser`
-- `LxmlParser` (non-lazy, loads full XML tree)
-- `LazyStandardParser` (std lib, lazy)
-- `StandardParser` (std lib, non-lazy)
+- ✅`LxmlParser`
+- ✅`StandardParser`
 
 ## Testing
 
 - ✅ Test structure and pytest setup
 - ✅ Full Prop element test suite (happy/error paths)
 - ✅ Test coverage for each new element
-- Test parser backends (basic + edge cases)
+- ✅ Test parser backends (basic + edge cases)
 - ✅ Error-path, malformed XML, and roundtrip tests
 
-## Documentation
+## 🚧 Documentation
 
 - ✅ Google style docstrings for core classes
-- Docstrings for all element and parser classes
-- Sphinx config and basic API docs
+- ✅ Docstrings for all element and parser classes
+- ✅ Sphinx config and basic API docs
 - Contributor guide, usage examples, and FAQ
 
 ## Scripts & Demos

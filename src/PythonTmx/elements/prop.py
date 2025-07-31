@@ -19,6 +19,7 @@ from PythonTmx.errors import (
 )
 from PythonTmx.utils import (
   check_element_is_usable,
+  check_tag,
   get_factory,
 )
 
@@ -98,8 +99,7 @@ class Prop(BaseTmxElement):
     """
     try:
       check_element_is_usable(element)
-      if element.tag != "prop":
-        raise WrongTagError(element.tag, "prop")
+      check_tag(element.tag, "prop")
       if element.text is None:
         raise ValueError("Prop element must have text")
       return cls(
