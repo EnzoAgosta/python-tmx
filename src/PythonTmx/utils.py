@@ -1,4 +1,6 @@
 from datetime import datetime
+from os import PathLike
+from pathlib import Path
 from typing import Literal, TypeGuard, cast, overload
 
 from PythonTmx.core import (
@@ -71,3 +73,14 @@ def try_parse_datetime(value: str | datetime | None, required: bool) -> datetime
     if required:
       raise e
     return None
+
+
+def ensure_file_exists(path: str | PathLike[str]) -> Path:
+  file: Path = Path(path)
+  if not file.exists():
+    raise FileNotFoundError(f"File {file!r} does not exist")
+  if not file.is_file():
+    raise IsADirectoryError(f"File {file!r} is not a file")
+  if not file.suffix == ".tmx":
+    raise ValueError(f"File {file!r} is not a TMX file")
+  return file

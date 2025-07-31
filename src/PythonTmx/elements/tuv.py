@@ -34,14 +34,15 @@ __all__ = ["Tuv"]
 
 class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
   """Represents a translation unit variant (tuv) element in a TMX file.
-  
+
   A translation unit variant contains the actual text content for a specific
   language within a translation unit. Each tuv represents a source or target
   text in a particular language, along with its associated metadata.
-  
+
   Tuv elements can contain inline formatting elements (bpt, ept, it, ph, hi, ut)
   and text segments that together form the complete translation content.
   """
+
   __slots__ = (
     "lang",
     "encoding",
@@ -105,7 +106,7 @@ class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
     segment: Sequence[Bpt | Ept | It | Ph | Hi | Ut | str] | None = None,
   ) -> None:
     """Initialize a Tuv element.
-    
+
     Args:
       lang: The language code for this translation variant (e.g., "en", "fr").
       encoding: Optional encoding specification (e.g., "UTF-8", "ISO-8859-1").
@@ -146,7 +147,7 @@ class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
   @property
   def props(self) -> list[Prop]:
     """Get the list of Prop elements in this translation variant.
-    
+
     Returns:
       A list of Prop elements that provide metadata about this translation variant.
     """
@@ -155,7 +156,7 @@ class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
   @property
   def notes(self) -> list[Note]:
     """Get the list of Note elements in this translation variant.
-    
+
     Returns:
       A list of Note elements that provide additional information about this variant.
     """
@@ -164,17 +165,17 @@ class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
   @classmethod
   def from_xml(cls: type[Tuv], element: AnyXmlElement) -> Tuv:
     """Create a Tuv instance from an XML element.
-    
+
     This method parses a TMX translation unit variant element and creates a
     corresponding Tuv object. The XML element must have the tag "tuv" and
     cannot contain text content.
-    
+
     Args:
       element: The XML element to parse. Must have tag "tuv" and no text content.
-    
+
     Returns:
       A new Tuv instance with the parsed data.
-    
+
     Raises:
       WrongTagError: If the element tag is not "tuv".
       RequiredAttributeMissingError: If the element lacks required attributes.
@@ -182,6 +183,7 @@ class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
       ValueError: If the tuv element has text content.
       SerializationError: If any other parsing error occurs.
     """
+
     def parse_seg(
       seg: AnyXmlElement,
     ) -> list[Bpt | Ept | It | Ph | Hi | Ut | str]:
@@ -256,18 +258,18 @@ class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
 
   def to_xml(self, factory: AnyElementFactory[..., R] | None = None) -> R:
     """Convert this Tuv instance to an XML element.
-    
+
     Creates an XML element with tag "tuv" and the appropriate attributes.
     All child elements (props, notes) are serialized and appended.
     The segment content is serialized into a "seg" child element.
-    
+
     Args:
       factory: Optional XML element factory. If None, uses the default factory
                or the instance's xml_factory.
-    
+
     Returns:
       An XML element representing this Tuv.
-    
+
     Raises:
       TypeError: If any child element is not a Note or Prop instance.
       ValidationError: If any attribute has an invalid type.
@@ -307,13 +309,13 @@ class Tuv(BaseTmxElement, WithChildren[Prop | Note]):
 
   def _make_attrib_dict(self) -> dict[str, str]:
     """Create a dictionary of XML attributes for this Tuv.
-    
+
     Builds the attribute dictionary that will be used when serializing
     this Tuv to XML. Only includes attributes that have non-None values.
-    
+
     Returns:
       A dictionary mapping attribute names to string values.
-    
+
     Raises:
       ValidationError: If any attribute has an invalid type.
     """

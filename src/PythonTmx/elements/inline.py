@@ -35,16 +35,16 @@ __all__ = [
 
 def _xml_to_inline_sub_only(element: AnyXmlElement) -> list[str | Sub]:
   """Parse XML element content to extract Sub elements and text.
-  
+
   This helper function parses the content of an XML element that can only
   contain Sub elements and text, returning a list of Sub objects and strings.
-  
+
   Args:
     element: The XML element to parse.
-  
+
   Returns:
     A list containing Sub objects and text strings in order of appearance.
-  
+
   Raises:
     WrongTagError: If any child element is not a "sub" tag.
   """
@@ -64,17 +64,17 @@ def _xml_to_inline(
   element: AnyXmlElement,
 ) -> list[Ph | Bpt | Ept | It | Hi | Ut | str]:
   """Parse XML element content to extract inline elements and text.
-  
+
   This helper function parses the content of an XML element that can contain
   various inline elements (ph, bpt, ept, it, hi, ut) and text, returning
   a list of inline objects and strings.
-  
+
   Args:
     element: The XML element to parse.
-  
+
   Returns:
     A list containing inline elements and text strings in order of appearance.
-  
+
   Raises:
     ValueError: If any child element has an unexpected tag.
   """
@@ -111,18 +111,18 @@ def inline_tmx_to_xml(
   factory: AnyElementFactory[P, T],
 ) -> T:
   """Convert inline TMX elements to XML with proper text handling.
-  
+
   This helper function serializes inline TMX elements to XML, handling
   text content, element content, and tail text appropriately.
-  
+
   Args:
     tmx_obj: The inline TMX element to serialize.
     element: The XML element to populate.
     factory: The XML element factory to use.
-  
+
   Returns:
     The populated XML element.
-  
+
   Raises:
     TypeError: If any child element has an unexpected type.
   """
@@ -155,11 +155,12 @@ def inline_tmx_to_xml(
 
 class Sub(BaseTmxElement, WithChildren["str | Bpt | Ept | It | Ph | Hi | Ut"]):
   """Represents a substitution element in TMX content.
-  
+
   A substitution element allows for the replacement of text content with
   alternative forms or translations. Sub elements can contain text and
   various inline formatting elements.
   """
+
   __slots__ = ("_children", "datatype", "type")
   _children: list[str | Bpt | Ept | It | Ph | Hi | Ut]
   """List of text strings and inline elements that form the substitution content."""
@@ -175,7 +176,7 @@ class Sub(BaseTmxElement, WithChildren["str | Bpt | Ept | It | Ph | Hi | Ut"]):
     children: list[str | Bpt | Ept | It | Ph | Hi | Ut] | None = None,
   ) -> None:
     """Initialize a Sub element.
-    
+
     Args:
       datatype: Optional data type specification. Can be a DATATYPE enum or string.
       type: Optional type specification. Can be a TYPE enum or string.
@@ -200,16 +201,16 @@ class Sub(BaseTmxElement, WithChildren["str | Bpt | Ept | It | Ph | Hi | Ut"]):
   @classmethod
   def from_xml(cls: Type[Sub], element: AnyXmlElement) -> Sub:
     """Create a Sub instance from an XML element.
-    
+
     This method parses a TMX substitution element and creates a corresponding
     Sub object. The XML element must have the tag "sub".
-    
+
     Args:
       element: The XML element to parse. Must have tag "sub".
-    
+
     Returns:
       A new Sub instance with the parsed data.
-    
+
     Raises:
       WrongTagError: If the element tag is not "sub".
       RequiredAttributeMissingError: If the element lacks required attributes.
@@ -236,17 +237,17 @@ class Sub(BaseTmxElement, WithChildren["str | Bpt | Ept | It | Ph | Hi | Ut"]):
 
   def to_xml(self, factory: AnyElementFactory[P, R] | None = None) -> R:
     """Convert this Sub instance to an XML element.
-    
+
     Creates an XML element with tag "sub" and the appropriate attributes.
     The content is serialized using the inline_tmx_to_xml helper function.
-    
+
     Args:
       factory: Optional XML element factory. If None, uses the default factory
                or the instance's xml_factory.
-    
+
     Returns:
       An XML element representing this Sub.
-    
+
     Raises:
       TypeError: If any child element has an unexpected type.
       ValidationError: If any attribute has an invalid type.
@@ -262,13 +263,13 @@ class Sub(BaseTmxElement, WithChildren["str | Bpt | Ept | It | Ph | Hi | Ut"]):
 
   def _make_attrib_dict(self) -> dict[str, str]:
     """Create a dictionary of XML attributes for this Sub.
-    
+
     Builds the attribute dictionary that will be used when serializing
     this Sub to XML. Only includes attributes that have non-None values.
-    
+
     Returns:
       A dictionary mapping attribute names to string values.
-    
+
     Raises:
       ValidationError: If any attribute has an invalid type.
     """
@@ -288,11 +289,12 @@ class Sub(BaseTmxElement, WithChildren["str | Bpt | Ept | It | Ph | Hi | Ut"]):
 
 class Ph(BaseTmxElement, WithChildren[Sub | str]):
   """Represents a placeholder element in TMX content.
-  
+
   A placeholder element marks a position in text where content can be
   inserted or substituted. Placeholders are commonly used for variables,
   formatting markers, or other dynamic content.
   """
+
   __slots__ = ("x", "assoc", "type", "_children")
   x: int | None
   """Optional position identifier for the placeholder."""
@@ -311,7 +313,7 @@ class Ph(BaseTmxElement, WithChildren[Sub | str]):
     children: list[Sub | str] | None = None,
   ) -> None:
     """Initialize a Ph element.
-    
+
     Args:
       x: Optional position identifier for the placeholder.
       assoc: Optional association type. Can be an ASSOC enum or string.
@@ -332,16 +334,16 @@ class Ph(BaseTmxElement, WithChildren[Sub | str]):
   @classmethod
   def from_xml(cls: Type[Ph], element: AnyXmlElement) -> Ph:
     """Create a Ph instance from an XML element.
-    
+
     This method parses a TMX placeholder element and creates a corresponding
     Ph object. The XML element must have the tag "ph".
-    
+
     Args:
       element: The XML element to parse. Must have tag "ph".
-    
+
     Returns:
       A new Ph instance with the parsed data.
-    
+
     Raises:
       WrongTagError: If the element tag is not "ph".
       RequiredAttributeMissingError: If the element lacks required attributes.
@@ -369,17 +371,17 @@ class Ph(BaseTmxElement, WithChildren[Sub | str]):
 
   def to_xml(self, factory: AnyElementFactory[P, R] | None = None) -> R:
     """Convert this Ph instance to an XML element.
-    
+
     Creates an XML element with tag "ph" and the appropriate attributes.
     The content is serialized using the inline_tmx_to_xml helper function.
-    
+
     Args:
       factory: Optional XML element factory. If None, uses the default factory
                or the instance's xml_factory.
-    
+
     Returns:
       An XML element representing this Ph.
-    
+
     Raises:
       TypeError: If any child element has an unexpected type.
       ValidationError: If any attribute has an invalid type.
@@ -395,13 +397,13 @@ class Ph(BaseTmxElement, WithChildren[Sub | str]):
 
   def _make_attrib_dict(self) -> dict[str, str]:
     """Create a dictionary of XML attributes for this Ph.
-    
+
     Builds the attribute dictionary that will be used when serializing
     this Ph to XML. Only includes attributes that have non-None values.
-    
+
     Returns:
       A dictionary mapping attribute names to string values.
-    
+
     Raises:
       ValidationError: If any attribute has an invalid type.
     """
@@ -423,10 +425,11 @@ class Ph(BaseTmxElement, WithChildren[Sub | str]):
 
 class Bpt(BaseTmxElement, WithChildren[Sub | str]):
   """Represents a beginning paired tag element in TMX content.
-  
+
   A beginning paired tag marks the start of a paired formatting element.
   It is paired with a corresponding Ept (ending paired tag) element.
   """
+
   __slots__ = ("_children", "i", "x", "type")
   _children: list[Sub | str]
   """List of Sub elements and text that form the tag content."""
@@ -445,7 +448,7 @@ class Bpt(BaseTmxElement, WithChildren[Sub | str]):
     children: list[Sub | str] | None = None,
   ) -> None:
     """Initialize a Bpt element.
-    
+
     Args:
       i: The identifier that pairs this tag with its corresponding Ept.
       x: Optional position identifier for the tag.
@@ -463,16 +466,16 @@ class Bpt(BaseTmxElement, WithChildren[Sub | str]):
   @classmethod
   def from_xml(cls: Type[Bpt], element: AnyXmlElement) -> Bpt:
     """Create a Bpt instance from an XML element.
-    
+
     This method parses a TMX beginning paired tag element and creates a
     corresponding Bpt object. The XML element must have the tag "bpt".
-    
+
     Args:
       element: The XML element to parse. Must have tag "bpt".
-    
+
     Returns:
       A new Bpt instance with the parsed data.
-    
+
     Raises:
       WrongTagError: If the element tag is not "bpt".
       RequiredAttributeMissingError: If the element lacks required attributes.
@@ -500,17 +503,17 @@ class Bpt(BaseTmxElement, WithChildren[Sub | str]):
 
   def to_xml(self, factory: AnyElementFactory[P, R] | None = None) -> R:
     """Convert this Bpt instance to an XML element.
-    
+
     Creates an XML element with tag "bpt" and the appropriate attributes.
     The content is serialized using the inline_tmx_to_xml helper function.
-    
+
     Args:
       factory: Optional XML element factory. If None, uses the default factory
                or the instance's xml_factory.
-    
+
     Returns:
       An XML element representing this Bpt.
-    
+
     Raises:
       TypeError: If any child element has an unexpected type.
       ValidationError: If any attribute has an invalid type.
@@ -526,13 +529,13 @@ class Bpt(BaseTmxElement, WithChildren[Sub | str]):
 
   def _make_attrib_dict(self) -> dict[str, str]:
     """Create a dictionary of XML attributes for this Bpt.
-    
+
     Builds the attribute dictionary that will be used when serializing
     this Bpt to XML. Only includes attributes that have non-None values.
-    
+
     Returns:
       A dictionary mapping attribute names to string values.
-    
+
     Raises:
       ValidationError: If any attribute has an invalid type.
     """
@@ -552,10 +555,11 @@ class Bpt(BaseTmxElement, WithChildren[Sub | str]):
 
 class Ept(BaseTmxElement, WithChildren[Sub | str]):
   """Represents an ending paired tag element in TMX content.
-  
+
   An ending paired tag marks the end of a paired formatting element.
   It is paired with a corresponding Bpt (beginning paired tag) element.
   """
+
   __slots__ = ("_children", "i")
   _children: list[Sub | str]
   """List of Sub elements and text that form the tag content."""
@@ -568,7 +572,7 @@ class Ept(BaseTmxElement, WithChildren[Sub | str]):
     children: list[Sub | str] | None = None,
   ) -> None:
     """Initialize an Ept element.
-    
+
     Args:
       i: The identifier that pairs this tag with its corresponding Bpt.
       children: Optional list of Sub elements and text. If None, starts empty.
@@ -579,16 +583,16 @@ class Ept(BaseTmxElement, WithChildren[Sub | str]):
   @classmethod
   def from_xml(cls: Type[Ept], element: AnyXmlElement) -> Ept:
     """Create an Ept instance from an XML element.
-    
+
     This method parses a TMX ending paired tag element and creates a
     corresponding Ept object. The XML element must have the tag "ept".
-    
+
     Args:
       element: The XML element to parse. Must have tag "ept".
-    
+
     Returns:
       A new Ept instance with the parsed data.
-    
+
     Raises:
       WrongTagError: If the element tag is not "ept".
       RequiredAttributeMissingError: If the element lacks required attributes.
@@ -614,17 +618,17 @@ class Ept(BaseTmxElement, WithChildren[Sub | str]):
 
   def to_xml(self, factory: AnyElementFactory[P, R] | None = None) -> R:
     """Convert this Ept instance to an XML element.
-    
+
     Creates an XML element with tag "ept" and the appropriate attributes.
     The content is serialized using the inline_tmx_to_xml helper function.
-    
+
     Args:
       factory: Optional XML element factory. If None, uses the default factory
                or the instance's xml_factory.
-    
+
     Returns:
       An XML element representing this Ept.
-    
+
     Raises:
       TypeError: If any child element has an unexpected type.
       ValidationError: If any attribute has an invalid type.
@@ -640,13 +644,13 @@ class Ept(BaseTmxElement, WithChildren[Sub | str]):
 
   def _make_attrib_dict(self) -> dict[str, str]:
     """Create a dictionary of XML attributes for this Ept.
-    
+
     Builds the attribute dictionary that will be used when serializing
     this Ept to XML. Only includes attributes that have non-None values.
-    
+
     Returns:
       A dictionary mapping attribute names to string values.
-    
+
     Raises:
       ValidationError: If any attribute has an invalid type.
     """
@@ -657,10 +661,11 @@ class Ept(BaseTmxElement, WithChildren[Sub | str]):
 
 class It(BaseTmxElement, WithChildren[Sub | str]):
   """Represents an isolated tag element in TMX content.
-  
+
   An isolated tag represents a standalone formatting element that doesn't
   require a paired closing tag. It can contain text and Sub elements.
   """
+
   __slots__ = ("_children", "pos", "x", "type")
   _children: list[Sub | str]
   """List of Sub elements and text that form the tag content."""
@@ -679,7 +684,7 @@ class It(BaseTmxElement, WithChildren[Sub | str]):
     children: list[Sub | str] | None = None,
   ) -> None:
     """Initialize an It element.
-    
+
     Args:
       pos: The position of the isolated tag. Can be a POS enum or string.
       x: Optional position identifier for the tag.
@@ -700,16 +705,16 @@ class It(BaseTmxElement, WithChildren[Sub | str]):
   @classmethod
   def from_xml(cls: Type[It], element: AnyXmlElement) -> It:
     """Create an It instance from an XML element.
-    
+
     This method parses a TMX isolated tag element and creates a corresponding
     It object. The XML element must have the tag "it".
-    
+
     Args:
       element: The XML element to parse. Must have tag "it".
-    
+
     Returns:
       A new It instance with the parsed data.
-    
+
     Raises:
       WrongTagError: If the element tag is not "it".
       RequiredAttributeMissingError: If the element lacks required attributes.
@@ -737,17 +742,17 @@ class It(BaseTmxElement, WithChildren[Sub | str]):
 
   def to_xml(self, factory: AnyElementFactory[P, R] | None = None) -> R:
     """Convert this It instance to an XML element.
-    
+
     Creates an XML element with tag "it" and the appropriate attributes.
     The content is serialized using the inline_tmx_to_xml helper function.
-    
+
     Args:
       factory: Optional XML element factory. If None, uses the default factory
                or the instance's xml_factory.
-    
+
     Returns:
       An XML element representing this It.
-    
+
     Raises:
       TypeError: If any child element has an unexpected type.
       ValidationError: If any attribute has an invalid type.
@@ -763,13 +768,13 @@ class It(BaseTmxElement, WithChildren[Sub | str]):
 
   def _make_attrib_dict(self) -> dict[str, str]:
     """Create a dictionary of XML attributes for this It.
-    
+
     Builds the attribute dictionary that will be used when serializing
     this It to XML. Only includes attributes that have non-None values.
-    
+
     Returns:
       A dictionary mapping attribute names to string values.
-    
+
     Raises:
       ValidationError: If any attribute has an invalid type.
     """
@@ -791,10 +796,11 @@ class It(BaseTmxElement, WithChildren[Sub | str]):
 
 class Ut(BaseTmxElement, WithChildren[Sub | str]):
   """Represents an unpaired tag element in TMX content.
-  
+
   An unpaired tag represents a standalone formatting element that doesn't
   require a paired closing tag. It can contain text and Sub elements.
   """
+
   __slots__ = ("_children", "x")
   _children: list[Sub | str]
   """List of Sub elements and text that form the tag content."""
@@ -807,7 +813,7 @@ class Ut(BaseTmxElement, WithChildren[Sub | str]):
     children: list[Sub | str] | None = None,
   ) -> None:
     """Initialize a Ut element.
-    
+
     Args:
       x: Optional position identifier for the tag.
       children: Optional list of Sub elements and text. If None, starts empty.
@@ -818,16 +824,16 @@ class Ut(BaseTmxElement, WithChildren[Sub | str]):
   @classmethod
   def from_xml(cls: Type[Ut], element: AnyXmlElement) -> Ut:
     """Create a Ut instance from an XML element.
-    
+
     This method parses a TMX unpaired tag element and creates a corresponding
     Ut object. The XML element must have the tag "ut".
-    
+
     Args:
       element: The XML element to parse. Must have tag "ut".
-    
+
     Returns:
       A new Ut instance with the parsed data.
-    
+
     Raises:
       WrongTagError: If the element tag is not "ut".
       RequiredAttributeMissingError: If the element lacks required attributes.
@@ -853,17 +859,17 @@ class Ut(BaseTmxElement, WithChildren[Sub | str]):
 
   def to_xml(self, factory: AnyElementFactory[P, R] | None = None) -> R:
     """Convert this Ut instance to an XML element.
-    
+
     Creates an XML element with tag "ut" and the appropriate attributes.
     The content is serialized using the inline_tmx_to_xml helper function.
-    
+
     Args:
       factory: Optional XML element factory. If None, uses the default factory
                or the instance's xml_factory.
-    
+
     Returns:
       An XML element representing this Ut.
-    
+
     Raises:
       TypeError: If any child element has an unexpected type.
       ValidationError: If any attribute has an invalid type.
@@ -879,13 +885,13 @@ class Ut(BaseTmxElement, WithChildren[Sub | str]):
 
   def _make_attrib_dict(self) -> dict[str, str]:
     """Create a dictionary of XML attributes for this Ut.
-    
+
     Builds the attribute dictionary that will be used when serializing
     this Ut to XML. Only includes attributes that have non-None values.
-    
+
     Returns:
       A dictionary mapping attribute names to string values.
-    
+
     Raises:
       ValidationError: If any attribute has an invalid type.
     """
@@ -899,10 +905,11 @@ class Ut(BaseTmxElement, WithChildren[Sub | str]):
 
 class Hi(BaseTmxElement, WithChildren["Bpt | Ept | It | Ph | Hi | Ut | str"]):
   """Represents a highlighting element in TMX content.
-  
+
   A highlighting element marks text that should be highlighted or emphasized
   in some way. It can contain text and various inline formatting elements.
   """
+
   __slots__ = ("_children", "x", "type")
   _children: list[Bpt | Ept | It | Ph | Hi | Ut | str]
   """List of inline elements and text that form the highlighted content."""
@@ -918,7 +925,7 @@ class Hi(BaseTmxElement, WithChildren["Bpt | Ept | It | Ph | Hi | Ut | str"]):
     children: list[Bpt | Ept | It | Ph | Hi | Ut | str] | None = None,
   ) -> None:
     """Initialize a Hi element.
-    
+
     Args:
       x: Optional position identifier for the highlighting.
       type: Optional type specification. Can be a TYPE enum or string.
@@ -934,16 +941,16 @@ class Hi(BaseTmxElement, WithChildren["Bpt | Ept | It | Ph | Hi | Ut | str"]):
   @classmethod
   def from_xml(cls: Type[Hi], element: AnyXmlElement) -> Hi:
     """Create a Hi instance from an XML element.
-    
+
     This method parses a TMX highlighting element and creates a corresponding
     Hi object. The XML element must have the tag "hi".
-    
+
     Args:
       element: The XML element to parse. Must have tag "hi".
-    
+
     Returns:
       A new Hi instance with the parsed data.
-    
+
     Raises:
       WrongTagError: If the element tag is not "hi".
       RequiredAttributeMissingError: If the element lacks required attributes.
@@ -970,17 +977,17 @@ class Hi(BaseTmxElement, WithChildren["Bpt | Ept | It | Ph | Hi | Ut | str"]):
 
   def to_xml(self, factory: AnyElementFactory[P, R] | None = None) -> R:
     """Convert this Hi instance to an XML element.
-    
+
     Creates an XML element with tag "hi" and the appropriate attributes.
     The content is serialized using the inline_tmx_to_xml helper function.
-    
+
     Args:
       factory: Optional XML element factory. If None, uses the default factory
                or the instance's xml_factory.
-    
+
     Returns:
       An XML element representing this Hi.
-    
+
     Raises:
       TypeError: If any child element has an unexpected type.
       ValidationError: If any attribute has an invalid type.
@@ -996,13 +1003,13 @@ class Hi(BaseTmxElement, WithChildren["Bpt | Ept | It | Ph | Hi | Ut | str"]):
 
   def _make_attrib_dict(self) -> dict[str, str]:
     """Create a dictionary of XML attributes for this Hi.
-    
+
     Builds the attribute dictionary that will be used when serializing
     this Hi to XML. Only includes attributes that have non-None values.
-    
+
     Returns:
       A dictionary mapping attribute names to string values.
-    
+
     Raises:
       ValidationError: If any attribute has an invalid type.
     """

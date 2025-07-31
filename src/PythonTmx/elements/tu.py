@@ -34,14 +34,15 @@ __all__ = ["Tu"]
 
 class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
   """Represents a translation unit (tu) element in a TMX file.
-  
+
   A translation unit is the core element of a TMX file that contains a source
   text and one or more target translations. Each tu represents a single
   translatable segment or unit of text along with its translations.
-  
+
   Translation units can contain metadata (properties, notes) and multiple
   translation variants (tuv elements) for different target languages.
   """
+
   __slots__ = (
     "tuid",
     "encoding",
@@ -109,7 +110,7 @@ class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
     children: Sequence[Note | Prop | Tuv] | None = None,
   ) -> None:
     """Initialize a Tu element.
-    
+
     Args:
       tuid: Optional unique identifier for this translation unit.
       encoding: Optional encoding specification (e.g., "UTF-8", "ISO-8859-1").
@@ -152,7 +153,7 @@ class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
   @property
   def props(self) -> list[Prop]:
     """Get the list of Prop elements in this translation unit.
-    
+
     Returns:
       A list of Prop elements that provide metadata about this translation unit.
     """
@@ -161,7 +162,7 @@ class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
   @property
   def notes(self) -> list[Note]:
     """Get the list of Note elements in this translation unit.
-    
+
     Returns:
       A list of Note elements that provide additional information about this unit.
     """
@@ -170,7 +171,7 @@ class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
   @property
   def tuvs(self) -> list[Tuv]:
     """Get the list of Tuv elements in this translation unit.
-    
+
     Returns:
       A list of Tuv elements that contain the source and target translations.
     """
@@ -179,16 +180,16 @@ class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
   @classmethod
   def from_xml(cls: type[Tu], element: AnyXmlElement) -> Tu:
     """Create a Tu instance from an XML element.
-    
+
     This method parses a TMX translation unit element and creates a corresponding
     Tu object. The XML element must have the tag "tu".
-    
+
     Args:
       element: The XML element to parse. Must have tag "tu".
-    
+
     Returns:
       A new Tu instance with the parsed data.
-    
+
     Raises:
       WrongTagError: If the element tag is not "tu".
       RequiredAttributeMissingError: If the element lacks required attributes.
@@ -239,17 +240,17 @@ class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
 
   def to_xml(self, factory: AnyElementFactory[..., R] | None = None) -> R:
     """Convert this Tu instance to an XML element.
-    
+
     Creates an XML element with tag "tu" and the appropriate attributes.
     All child elements (props, notes, tuvs) are serialized and appended.
-    
+
     Args:
       factory: Optional XML element factory. If None, uses the default factory
                or the instance's xml_factory.
-    
+
     Returns:
       An XML element representing this Tu.
-    
+
     Raises:
       ValidationError: If any attribute has an invalid type.
       MissingDefaultFactoryError: If no factory is available.
@@ -266,13 +267,13 @@ class Tu(BaseTmxElement, WithChildren[Prop | Note | Tuv]):
 
   def _make_attrib_dict(self) -> dict[str, str]:
     """Create a dictionary of XML attributes for this Tu.
-    
+
     Builds the attribute dictionary that will be used when serializing
     this Tu to XML. Only includes attributes that have non-None values.
-    
+
     Returns:
       A dictionary mapping attribute names to string values.
-    
+
     Raises:
       ValidationError: If any attribute has an invalid type.
     """
