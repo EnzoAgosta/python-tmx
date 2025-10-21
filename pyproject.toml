@@ -25,10 +25,10 @@ where = ["src"]
 
 [dependency-groups]
 dev = [
-    "mypy>=1.15.0",
-    "pytest>=8.3.4",
-    "ruff>=0.11.8",
-    "types-lxml>=2024.12.13",
+    "lxml>=6.0.2",
+    "pyarrow>=21.0.0",
+    "pyarrow-stubs>=20.0.0.20250928",
+    "types-lxml>=2025.8.25",
 ]
 docs = ["sphinx-rtd-theme>=3.0.2", "sphinx>=8.1.3"]
 
