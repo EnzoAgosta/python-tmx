@@ -30,7 +30,9 @@ dev = [
     "pyarrow-stubs>=20.0.0.20250928",
     "types-lxml>=2025.8.25",
 ]
-docs = ["sphinx-rtd-theme>=3.0.2", "sphinx>=8.1.3"]
+test = [
+    "pytest>=8.4.2",
+]
 
 [tool.setuptools]
 license-files = []

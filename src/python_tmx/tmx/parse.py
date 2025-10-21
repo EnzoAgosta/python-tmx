@@ -44,8 +44,7 @@ def _parse_header(elem: etree._Element) -> Header:
     changedate=_parse_dt(elem.attrib.get("changedate")),
     changeid=elem.attrib.get("changeid"),
     metadata=[
-      _parse_prop(child) if child.tag == "prop" else _parse_note(child)
-      for child in elem.iterchildren("prop", "note")
+      _parse_prop(child) if child.tag == "prop" else _parse_note(child) for child in elem.iterchildren("prop", "note")
     ],
   )
 
@@ -68,13 +67,13 @@ def _parse_tu(elem: etree._Element) -> Tu:
     srclang=elem.get("srclang"),
   )
 
-  for child in elem.iterchildren("tu", "prop", "note"):
+  for child in elem.iterchildren("tuv", "prop", "note"):
     if child.tag == "tuv":
       tu.variants.append(_parse_tuv(child))
     elif child.tag == "prop":
-      tu.metadata.append(_parse_prop(child))
+      tu.props.append(_parse_prop(child))
     else:
-      tu.metadata.append(_parse_note(child))
+      tu.notes.append(_parse_note(child))
 
   return tu
 
@@ -98,9 +97,9 @@ def _parse_tuv(elem: etree._Element) -> Tuv:
 
   for child in elem.iterchildren("prop", "note"):
     if child.tag == "prop":
-      tuv.metadata.append(_parse_prop(child))
+      tuv.props.append(_parse_prop(child))
     else:
-      tuv.metadata.append(_parse_note(child))
+      tuv.notes.append(_parse_note(child))
 
   return tuv
 
@@ -124,9 +123,10 @@ def _parse_segment_parts(elem: etree._Element) -> list[SegmentPart]:
         SegmentPart(
           content=child.text,
           type=SegmentPartType(child.tag),
+          attributes={**child.attrib},
         )
       )
-    parts.extend(
+    parts.append(
       SegmentPart(
         content=_parse_segment_parts(child),
         type=SegmentPartType(child.tag),
