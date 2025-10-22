@@ -11,20 +11,37 @@ from python_tmx.tmx.models import (
   SegmentPart,
   SegmentPartType,
   SegType,
+  Tmx,
   Tu,
   Tuv,
 )
 
 
-def generate_tus(path: PathLike[str] | str) -> Iterator[Tu]:
+def generate_tus_from_file(path: PathLike[str] | str) -> Iterator[Tu]:
   """Stream-parse a TMX file yielding Tu objects."""
-
   for _, elem in etree.iterparse(source=path, events=("end",), recover=True, tag="tu"):
     yield parse_tu(elem=elem)
     elem.clear()
 
 
+def parse_tmx(elem: etree._Element) -> Tmx:
+  if not elem.tag == "tmx":
+    raise ValueError(f"expected a tmx element got {elem.tag!r}")
+  header, body = elem.find("header"), elem.find("body")
+  if body is None:
+    raise ValueError("no body found")
+  if header is None:
+    raise ValueError("no header found")
+  return Tmx(
+    version=elem.attrib["version"],
+    header=parse_header(header),
+    body=[parse_tu(child) for child in body.iter("tu")],
+  )
+
+
 def parse_header(elem: etree._Element) -> Header:
+  if not elem.tag == "header":
+    raise ValueError(f"expected a header element got {elem.tag!r}")
   header: Header = Header(
     creationtool=elem.attrib["creationtool"],
     creationtoolversion=elem.attrib["creationtoolversion"],
@@ -50,6 +67,8 @@ def parse_header(elem: etree._Element) -> Header:
 
 
 def parse_tu(elem: etree._Element) -> Tu:
+  if not elem.tag == "tu":
+    raise ValueError(f"expected a tu element got {elem.tag!r}")
   tu: Tu = Tu(
     tuid=elem.attrib.get(key="tuid"),
     o_encoding=elem.attrib.get(key="o-encoding"),
@@ -79,6 +98,8 @@ def parse_tu(elem: etree._Element) -> Tu:
 
 
 def parse_tuv(elem: etree._Element) -> Tuv:
+  if not elem.tag == "tuv":
+    raise ValueError(f"expected a tuv element got {elem.tag!r}")
   tuv: Tuv = Tuv(
     segment=parse_segment_parts(elem=elem.find(path="seg")),
     lang=elem.attrib["{http://www.w3.org/XML/1998/namespace}lang"],
@@ -106,10 +127,8 @@ def parse_tuv(elem: etree._Element) -> Tuv:
 
 def parse_segment_parts(elem: etree._Element | None) -> list[SegmentPart]:
   parts: list[SegmentPart] = []
-
   if elem is None:
     return parts
-
   if elem.text:
     parts.append(
       SegmentPart(
@@ -118,14 +137,6 @@ def parse_segment_parts(elem: etree._Element | None) -> list[SegmentPart]:
       )
     )
   for child in elem.iterchildren():
-    if child.text:
-      parts.append(
-        SegmentPart(
-          content=child.text,
-          type=SegmentPartType(value=child.tag),
-          attributes={**child.attrib},
-        )
-      )
     parts.append(
       SegmentPart(
         content=parse_segment_parts(elem=child),
@@ -137,29 +148,28 @@ def parse_segment_parts(elem: etree._Element | None) -> list[SegmentPart]:
       parts.append(
         SegmentPart(content=child.tail, type=SegmentPartType.STRING),
       )
-
+  if elem.tail:
+    parts.append(
+      SegmentPart(content=elem.tail, type=SegmentPartType.STRING),
+    )
   return parts
 
 
 def parse_dt(value: str | None) -> datetime | None:
   if value is None:
     return None
-  try:
-    return datetime.fromisoformat(value)
-  except ValueError:
-    return None
+  return datetime.fromisoformat(value)
 
 
 def parse_segtype(value: str | None) -> SegType | None:
   if not value:
     return None
-  try:
-    return SegType(value=value)
-  except ValueError:
-    return None
+  return SegType(value=value)
 
 
 def parse_prop(elem: etree._Element) -> Prop:
+  if not elem.tag == "prop":
+    raise ValueError(f"expected a prop element got {elem.tag!r}")
   return Prop(
     content=elem.text or "",
     type=elem.attrib.get(key="type", default=""),
@@ -169,6 +179,8 @@ def parse_prop(elem: etree._Element) -> Prop:
 
 
 def parse_note(elem: etree._Element) -> Note:
+  if not elem.tag == "note":
+    raise ValueError(f"expected a note element got {elem.tag!r}")
   return Note(
     content=elem.text or "",
     lang=elem.attrib.get(key="{http://www.w3.org/XML/1998/namespace}lang"),

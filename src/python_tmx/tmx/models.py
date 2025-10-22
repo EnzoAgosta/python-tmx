@@ -119,6 +119,7 @@ class Header:
 
 
 @dataclass(slots=True)
-class TmxFile:
+class Tmx:
+  version: str
   header: Header
   body: list[Tu] = field(default_factory=list)
