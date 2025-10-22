@@ -1,10 +1,6 @@
 version = 1
 revision = 3
 requires-python = ">=3.10"
-resolution-markers = [
-    "python_full_version >= '3.11'",
-    "python_full_version < '3.11'",
-]
 
 [[package]]
 name = "beautifulsoup4"
@@ -42,7 +38,7 @@ name = "exceptiongroup"
 version = "1.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/0b/9f/a65090624ecf468cdca03533906e7c69ed7588582240cfe7cc9e770b50eb/exceptiongroup-1.3.0.tar.gz", hash = "sha256:b241f5885f560bc56a59ee63ca4c6a8bfa46ae4ad651af316d4e81817bb9fd88", size = 29749, upload-time = "2025-05-10T17:42:51.123Z" }
 wheels = [
@@ -366,32 +362,36 @@ dependencies = [
 ]
 
 [package.dev-dependencies]
+arrow = [
+    { name = "lxml" },
+    { name = "pyarrow" },
+]
 dev = [
+    { name = "faker" },
     { name = "lxml" },
     { name = "mypy" },
     { name = "pyarrow" },
     { name = "pyarrow-stubs" },
-    { name = "types-lxml" },
-]
-test = [
-    { name = "faker" },
     { name = "pytest" },
+    { name = "types-lxml" },
 ]
 
 [package.metadata]
 requires-dist = [{ name = "lxml", specifier = ">=5.3.0" }]
 
 [package.metadata.requires-dev]
+arrow = [
+    { name = "lxml", specifier = ">=6.0.2" },
+    { name = "pyarrow", specifier = ">=21.0.0" },
+]
 dev = [
+    { name = "faker", specifier = ">=37.11.0" },
     { name = "lxml", specifier = ">=6.0.2" },
     { name = "mypy", specifier = ">=1.18.2" },
     { name = "pyarrow", specifier = ">=21.0.0" },
     { name = "pyarrow-stubs", specifier = ">=20.0.0.20250928" },
-    { name = "types-lxml", specifier = ">=2025.8.25" },
-]
-test = [
-    { name = "faker", specifier = ">=37.11.0" },
     { name = "pytest", specifier = ">=8.4.2" },
+    { name = "types-lxml", specifier = ">=2025.8.25" },
 ]
 
 [[package]]
