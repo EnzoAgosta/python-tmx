@@ -62,7 +62,7 @@ class Tuv:
   notes: list[Note] = field(default_factory=list)
   segment: list[SegmentPart] = field(default_factory=list)
 
-  def _arrow_attributes(self) -> dict[str, str | int | datetime]:
+  def _arrow_attributes(self) -> dict[str, str | int | datetime | None]:
     return {
       "lang": self.lang,
       "o_encoding": self.o_encoding,

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from datetime import datetime
 from os import PathLike
 from typing import Iterator
@@ -18,93 +16,95 @@ from python_tmx.tmx.models import (
 )
 
 
-def generate_tus(path: PathLike) -> Iterator[Tu]:
+def generate_tus(path: PathLike[str] | str) -> Iterator[Tu]:
   """Stream-parse a TMX file yielding Tu objects."""
-  context = etree.iterparse(path, events=("end",), recover=True, tag="tu")
 
-  for _, elem in context:
-    yield _parse_tu(elem)
+  for _, elem in etree.iterparse(source=path, events=("end",), recover=True, tag="tu"):
+    yield parse_tu(elem=elem)
     elem.clear()
 
-  del context
 
-
-def _parse_header(elem: etree._Element) -> Header:
-  return Header(
+def parse_header(elem: etree._Element) -> Header:
+  header: Header = Header(
     creationtool=elem.attrib["creationtool"],
     creationtoolversion=elem.attrib["creationtoolversion"],
-    segtype=_parse_segtype(elem.attrib["segtype"]),
+    segtype=SegType(value=elem.attrib["segtype"]),
     o_tmf=elem.attrib["o-tmf"],
     adminlang=elem.attrib["adminlang"],
     srclang=elem.attrib["srclang"],
     datatype=elem.attrib["datatype"],
-    o_encoding=elem.attrib.get("o-encoding"),
-    creationdate=_parse_dt(elem.attrib.get("creationdate")),
-    creationid=elem.attrib.get("creationid"),
-    changedate=_parse_dt(elem.attrib.get("changedate")),
-    changeid=elem.attrib.get("changeid"),
-    metadata=[
-      _parse_prop(child) if child.tag == "prop" else _parse_note(child) for child in elem.iterchildren("prop", "note")
-    ],
+    o_encoding=elem.attrib.get(key="o-encoding"),
+    creationdate=parse_dt(value=elem.attrib.get(key="creationdate")),
+    creationid=elem.attrib.get(key="creationid"),
+    changedate=parse_dt(value=elem.attrib.get(key="changedate")),
+    changeid=elem.attrib.get(key="changeid"),
   )
 
+  for child in elem.iterchildren("prop", "note"):
+    if child.tag == "note":
+      header.notes.append(parse_note(elem=child))
+    else:
+      header.props.append(parse_prop(elem=child))
 
-def _parse_tu(elem: etree._Element) -> Tu:
-  tu = Tu(
-    tuid=elem.get("tuid"),
-    o_encoding=elem.get("o-encoding"),
-    datatype=elem.get("datatype"),
-    usagecount=_parse_int(elem.get("usagecount")),
-    lastusagedate=_parse_dt(elem.get("lastusagedate")),
-    creationtool=elem.get("creationtool"),
-    creationtoolversion=elem.get("creationtoolversion"),
-    creationdate=_parse_dt(elem.get("creationdate")),
-    creationid=elem.get("creationid"),
-    changedate=_parse_dt(elem.get("changedate")),
-    segtype=_parse_segtype(elem.get("segtype")),
-    changeid=elem.get("changeid"),
-    o_tmf=elem.get("o-tmf"),
-    srclang=elem.get("srclang"),
+  return header
+
+
+def parse_tu(elem: etree._Element) -> Tu:
+  tu: Tu = Tu(
+    tuid=elem.attrib.get(key="tuid"),
+    o_encoding=elem.attrib.get(key="o-encoding"),
+    datatype=elem.attrib.get(key="datatype"),
+    usagecount=parse_int(value=elem.attrib.get(key="usagecount")),
+    lastusagedate=parse_dt(value=elem.attrib.get(key="lastusagedate")),
+    creationtool=elem.attrib.get(key="creationtool"),
+    creationtoolversion=elem.attrib.get(key="creationtoolversion"),
+    creationdate=parse_dt(value=elem.attrib.get(key="creationdate")),
+    creationid=elem.attrib.get(key="creationid"),
+    changedate=parse_dt(value=elem.attrib.get(key="changedate")),
+    segtype=parse_segtype(value=elem.attrib.get(key="segtype")),
+    changeid=elem.attrib.get(key="changeid"),
+    o_tmf=elem.attrib.get(key="o-tmf"),
+    srclang=elem.attrib.get(key="srclang"),
   )
 
   for child in elem.iterchildren("tuv", "prop", "note"):
     if child.tag == "tuv":
-      tu.variants.append(_parse_tuv(child))
+      tu.variants.append(parse_tuv(elem=child))
     elif child.tag == "prop":
-      tu.props.append(_parse_prop(child))
+      tu.props.append(parse_prop(elem=child))
     else:
-      tu.notes.append(_parse_note(child))
+      tu.notes.append(parse_note(elem=child))
 
   return tu
 
 
-def _parse_tuv(elem: etree._Element) -> Tuv:
-  tuv = Tuv(
-    segment=_parse_segment_parts(elem.find("seg")),
-    lang=elem.get("{http://www.w3.org/XML/1998/namespace}lang"),
-    o_encoding=elem.get("o-encoding"),
-    datatype=elem.get("datatype"),
-    usagecount=_parse_int(elem.get("usagecount")),
-    lastusagedate=_parse_dt(elem.get("lastusagedate")),
-    creationtool=elem.get("creationtool"),
-    creationtoolversion=elem.get("creationtoolversion"),
-    creationdate=_parse_dt(elem.get("creationdate")),
-    creationid=elem.get("creationid"),
-    changedate=_parse_dt(elem.get("changedate")),
-    changeid=elem.get("changeid"),
-    o_tmf=elem.get("o-tmf"),
+def parse_tuv(elem: etree._Element) -> Tuv:
+  tuv: Tuv = Tuv(
+    segment=parse_segment_parts(elem=elem.find(path="seg")),
+    lang=elem.attrib["{http://www.w3.org/XML/1998/namespace}lang"],
+    o_encoding=elem.attrib.get(key="o-encoding"),
+    datatype=elem.attrib.get(key="datatype"),
+    usagecount=parse_int(value=elem.attrib.get(key="usagecount")),
+    lastusagedate=parse_dt(value=elem.attrib.get(key="lastusagedate")),
+    creationtool=elem.attrib.get(key="creationtool"),
+    creationtoolversion=elem.attrib.get(key="creationtoolversion"),
+    creationdate=parse_dt(value=elem.attrib.get(key="creationdate")),
+    creationid=elem.attrib.get(key="creationid"),
+    changedate=parse_dt(value=elem.attrib.get(key="changedate")),
+    changeid=elem.attrib.get(key="changeid"),
+    o_tmf=elem.attrib.get(key="o-tmf"),
   )
 
   for child in elem.iterchildren("prop", "note"):
     if child.tag == "prop":
-      tuv.props.append(_parse_prop(child))
+      tuv.props.append(parse_prop(elem=child))
     else:
-      tuv.notes.append(_parse_note(child))
+      tuv.notes.append(parse_note(elem=child))
 
   return tuv
 
 
-def _parse_segment_parts(elem: etree._Element) -> list[SegmentPart]:
+def parse_segment_parts(elem: etree._Element | None) -> list[SegmentPart]:
   parts: list[SegmentPart] = []
 
   if elem is None:
@@ -122,14 +122,14 @@ def _parse_segment_parts(elem: etree._Element) -> list[SegmentPart]:
       parts.append(
         SegmentPart(
           content=child.text,
-          type=SegmentPartType(child.tag),
+          type=SegmentPartType(value=child.tag),
           attributes={**child.attrib},
         )
       )
     parts.append(
       SegmentPart(
-        content=_parse_segment_parts(child),
-        type=SegmentPartType(child.tag),
+        content=parse_segment_parts(elem=child),
+        type=SegmentPartType(value=child.tag),
         attributes={**child.attrib},
       )
     )
@@ -141,40 +141,44 @@ def _parse_segment_parts(elem: etree._Element) -> list[SegmentPart]:
   return parts
 
 
-def _parse_dt(value: str | None) -> datetime | None:
+def parse_dt(value: str | None) -> datetime | None:
+  if value is None:
+    return None
   try:
     return datetime.fromisoformat(value)
-  except Exception:
-    return None
-
-
-def _parse_segtype(value: str | None) -> SegType | None:
-  if not value:
-    return None
-  try:
-    return SegType(value)
   except ValueError:
     return None
 
 
-def _parse_prop(elem: etree._Element) -> Prop:
+def parse_segtype(value: str | None) -> SegType | None:
+  if not value:
+    return None
+  try:
+    return SegType(value=value)
+  except ValueError:
+    return None
+
+
+def parse_prop(elem: etree._Element) -> Prop:
   return Prop(
     content=elem.text or "",
-    type=elem.get("type", ""),
-    lang=elem.get("{http://www.w3.org/XML/1998/namespace}lang"),
-    o_encoding=elem.get("o-encoding"),
+    type=elem.attrib.get(key="type", default=""),
+    lang=elem.attrib.get(key="{http://www.w3.org/XML/1998/namespace}lang"),
+    o_encoding=elem.attrib.get(key="o-encoding"),
   )
 
 
-def _parse_note(elem: etree._Element) -> Note:
+def parse_note(elem: etree._Element) -> Note:
   return Note(
     content=elem.text or "",
-    lang=elem.get("{http://www.w3.org/XML/1998/namespace}lang"),
-    o_encoding=elem.get("o-encoding"),
+    lang=elem.attrib.get(key="{http://www.w3.org/XML/1998/namespace}lang"),
+    o_encoding=elem.attrib.get(key="o-encoding"),
   )
 
 
-def _parse_int(value: str | None) -> int | None:
+def parse_int(value: str | None) -> int | None:
+  if value is None:
+    return None
   try:
     return int(value)
   except (TypeError, ValueError):
