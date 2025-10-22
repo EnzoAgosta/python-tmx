@@ -3,8 +3,8 @@ from datetime import datetime
 import lxml.etree as et
 import pytest
 
-from python_tmx.tmx.models import Note, Prop, SegmentPart, Tuv
-from python_tmx.tmx.parse import parse_tuv
+from python_tmx.base.models import Note, Prop, SegmentPart, Tuv
+from python_tmx.xml.converters import parse_tuv
 
 
 def test_parse_tuv_from_full_element(full_tuv_lxml_elem: et._Element):

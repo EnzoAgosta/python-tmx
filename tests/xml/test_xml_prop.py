@@ -1,7 +1,7 @@
 import lxml.etree as et
 
-from python_tmx.tmx.models import Prop
-from python_tmx.tmx.parse import parse_prop
+from python_tmx.base.models import Prop
+from python_tmx.xml.converters import parse_prop
 
 
 def test_parse_prop_from_full_element(full_prop_lxml_elem: et._Element):

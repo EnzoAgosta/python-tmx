@@ -4,7 +4,7 @@ from typing import Iterator
 
 from lxml import etree
 
-from python_tmx.tmx.models import (
+from python_tmx.base.models import (
   Header,
   Note,
   Prop,

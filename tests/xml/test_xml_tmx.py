@@ -1,8 +1,8 @@
 import lxml.etree as et
 import pytest
 
-from python_tmx.tmx.models import Header, Tmx, Tu
-from python_tmx.tmx.parse import parse_tmx
+from python_tmx.base.models import Header, Tmx, Tu
+from python_tmx.xml.converters import parse_tmx
 
 
 def test_parse_tmx_from_valid_element(tmx_lxml_elem: et._Element):
@@ -24,6 +24,7 @@ def test_parse_tmx_incorrect_tag_raises(tmx_lxml_elem: et._Element):
 
 def test_parse_tmx_missing_header_raises(tmx_lxml_elem: et._Element):
   header = tmx_lxml_elem.find("header")
+  assert header is not None
   tmx_lxml_elem.remove(header)
   with pytest.raises(ValueError, match="no header"):
     parse_tmx(tmx_lxml_elem)
@@ -31,6 +32,7 @@ def test_parse_tmx_missing_header_raises(tmx_lxml_elem: et._Element):
 
 def test_parse_tmx_missing_body_raises(tmx_lxml_elem: et._Element):
   body = tmx_lxml_elem.find("body")
+  assert body is not None
   tmx_lxml_elem.remove(body)
   with pytest.raises(ValueError, match="no body"):
     parse_tmx(tmx_lxml_elem)
@@ -38,6 +40,7 @@ def test_parse_tmx_missing_body_raises(tmx_lxml_elem: et._Element):
 
 def test_parse_tmx_empty_body_returns_empty_list(tmx_lxml_elem: et._Element):
   body = tmx_lxml_elem.find("body")
+  assert body is not None
   for child in list(body):
     body.remove(child)
   tmx = parse_tmx(tmx_lxml_elem)

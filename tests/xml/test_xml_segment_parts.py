@@ -1,8 +1,8 @@
 import lxml.etree as et
 import pytest
 
-from python_tmx.tmx.models import SegmentPart, SegmentPartType
-from python_tmx.tmx.parse import parse_segment_parts
+from python_tmx.base.models import SegmentPart, SegmentPartType
+from python_tmx.xml.converters import parse_segment_parts
 
 
 def test_parse_segment_parts_text_only(text_only_seg_lxml_elem: et._Element):
@@ -27,10 +27,10 @@ def test_parse_segment_parts_includes_child_text_and_tail(seg_with_children_1_le
   tails = [child.tail for child in seg_with_children_1_level_lxml_elem]
   strings = []
   for part in parts:
-    if part.type is SegmentPartType.STRING:
+    if isinstance(part.content, str):
       strings.append(part.content)
     else:
-      strings.extend(subpart.content for subpart in part.content if subpart.type is SegmentPartType.STRING)
+      strings.extend(subpart.content for subpart in part.content if isinstance(subpart.content, str))
   assert all(isinstance(string, str) for string in strings)
   assert all(isinstance(text, str) for text in texts)
   assert all(isinstance(tail, str) for tail in tails)
