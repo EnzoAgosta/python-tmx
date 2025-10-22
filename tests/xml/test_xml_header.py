@@ -3,8 +3,8 @@ from datetime import datetime
 import lxml.etree as et
 import pytest
 
-from python_tmx.tmx.models import Header, Note, Prop, SegType
-from python_tmx.tmx.parse import parse_header
+from python_tmx.base.models import Header, Note, Prop, SegType
+from python_tmx.xml.converters import parse_header
 
 
 def test_parse_header_from_lxml_element(full_header_lxml_elem: et._Element) -> None:

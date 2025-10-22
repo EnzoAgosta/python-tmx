@@ -1,7 +1,7 @@
 import lxml.etree as et
 
-from python_tmx.tmx.models import Note
-from python_tmx.tmx.parse import parse_note
+from python_tmx.base.models import Note
+from python_tmx.xml.converters import parse_note
 
 
 def test_parse_note_from_full_element(full_note_lxml_elem: et._Element):

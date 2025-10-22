@@ -14,7 +14,10 @@ classifiers = [
   "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
 ]
-dependencies = ["lxml>=5.3.0"]
+dependencies = [
+    "lxml>=5.3.0",
+    "orjson>=3.11.3",
+]
 
 [project.urls]
 Homepage = "https://github.com/ChonkyYoshi/python-tmx"

@@ -19,17 +19,9 @@ NOTE_STRUCT = pa.struct(
   )
 )
 
-
-METADATA_UNION = pa.dense_union(
-  child_fields=[
-    pa.field(name="prop", type=PROP_STRUCT),
-    pa.field(name="note", type=NOTE_STRUCT),
-  ]
-)
-
 SEGMENT_PART_STRUCT = pa.struct(
   fields=(
-    pa.field(name="content", type=pa.string(), nullable=False),
+    pa.field(name="content", type=pa.binary(), nullable=False),
     pa.field(name="type", type=pa.string(), nullable=False),
     pa.field(name="attributes", type=pa.map_(pa.string(), pa.string()), nullable=False),
   )
@@ -96,7 +88,7 @@ HEADER_STRUCT = pa.struct(
   )
 )
 
-NESTED_TMX_STRUCT = pa.struct(
+TMX_STRUCT = pa.struct(
   fields=(
     pa.field(name="header", type=HEADER_STRUCT, nullable=True),
     pa.field(name="tus", type=pa.list_(TU_STRUCT), nullable=False),
