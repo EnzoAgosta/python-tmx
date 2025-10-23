@@ -1,7 +1,7 @@
 import lxml.etree as et
 import pytest
 
-from python_tmx.base.models import Header, Tmx, Tu
+from python_tmx.base.classes import Header, Tmx, Tu
 from python_tmx.xml.converters import parse_tmx
 
 

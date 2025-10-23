@@ -3,7 +3,7 @@ from datetime import datetime
 import lxml.etree as et
 import pytest
 
-from python_tmx.base.models import Note, Prop, SegmentPart, Tuv
+from python_tmx.base.classes import InlineTag, Note, Prop, Tuv
 from python_tmx.xml.converters import parse_tuv
 
 
@@ -11,7 +11,7 @@ def test_parse_tuv_from_full_element(full_tuv_lxml_elem: et._Element):
   tuv = parse_tuv(full_tuv_lxml_elem)
   assert isinstance(tuv, Tuv)
   assert isinstance(tuv.segment, list)
-  assert all(isinstance(p, SegmentPart) for p in tuv.segment)
+  assert all(isinstance(p, InlineTag) for p in tuv.segment)
 
   assert tuv.lang == full_tuv_lxml_elem.attrib["{http://www.w3.org/XML/1998/namespace}lang"]
   assert tuv.o_encoding == full_tuv_lxml_elem.attrib["o-encoding"]
