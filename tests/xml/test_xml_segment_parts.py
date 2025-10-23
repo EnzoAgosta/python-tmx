@@ -1,7 +1,7 @@
 import lxml.etree as et
 import pytest
 
-from python_tmx.base.models import SegmentPart, SegmentPartType
+from python_tmx.base.classes import InlineTag, SegmentPartType
 from python_tmx.xml.converters import parse_segment_parts
 
 
@@ -18,7 +18,7 @@ def test_parse_segment_parts_complex_structure(seg_with_children_1_level_lxml_el
   parts = parse_segment_parts(seg_with_children_1_level_lxml_elem)
   assert isinstance(parts, list)
   assert len(parts) > 1
-  assert all(isinstance(p, SegmentPart) for p in parts)
+  assert all(isinstance(p, InlineTag) for p in parts)
 
 
 def test_parse_segment_parts_includes_child_text_and_tail(seg_with_children_1_level_lxml_elem: et._Element):

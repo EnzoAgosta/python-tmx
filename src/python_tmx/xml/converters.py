@@ -4,11 +4,11 @@ from typing import Iterator
 
 from lxml import etree
 
-from python_tmx.base.models import (
+from python_tmx.base.classes import (
   Header,
+  InlineTag,
   Note,
   Prop,
-  SegmentPart,
   SegmentPartType,
   SegType,
   Tmx,
@@ -125,20 +125,20 @@ def parse_tuv(elem: etree._Element) -> Tuv:
   return tuv
 
 
-def parse_segment_parts(elem: etree._Element | None) -> list[SegmentPart]:
-  parts: list[SegmentPart] = []
+def parse_segment_parts(elem: etree._Element | None) -> list[InlineTag]:
+  parts: list[InlineTag] = []
   if elem is None:
     return parts
   if elem.text:
     parts.append(
-      SegmentPart(
+      InlineTag(
         content=elem.text,
         type=SegmentPartType.STRING,
       )
     )
   for child in elem.iterchildren():
     parts.append(
-      SegmentPart(
+      InlineTag(
         content=parse_segment_parts(elem=child),
         type=SegmentPartType(value=child.tag),
         attributes={**child.attrib},
@@ -146,11 +146,11 @@ def parse_segment_parts(elem: etree._Element | None) -> list[SegmentPart]:
     )
     if child.tail:
       parts.append(
-        SegmentPart(content=child.tail, type=SegmentPartType.STRING),
+        InlineTag(content=child.tail, type=SegmentPartType.STRING),
       )
   if elem.tail:
     parts.append(
-      SegmentPart(content=elem.tail, type=SegmentPartType.STRING),
+      InlineTag(content=elem.tail, type=SegmentPartType.STRING),
     )
   return parts
 

@@ -1,6 +1,6 @@
 import lxml.etree as et
 
-from python_tmx.base.models import Prop
+from python_tmx.base.classes import Prop
 from python_tmx.xml.converters import parse_prop
 
 

@@ -3,7 +3,7 @@ from datetime import datetime
 import lxml.etree as et
 import pytest
 
-from python_tmx.base.models import Header, Note, Prop, SegType
+from python_tmx.base.classes import Header, Note, Prop, SegType
 from python_tmx.xml.converters import parse_header
 
 
