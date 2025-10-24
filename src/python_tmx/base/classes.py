@@ -5,9 +5,9 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Self
 
-type BaseStructuralElement = Prop | Note | Header | Tu | Tuv
-type BaseInlineElement = Bpt | Ept | It | Hi | Ph | Sub
-type BaseElement = BaseInlineElement | BaseStructuralElement
+type BaseStructuralElementAlias = Prop | Note | Header | Tu | Tuv | Tmx
+type BaseInlineElementAlias = Bpt | Ept | It | Hi | Ph | Sub
+type BaseElementAlias = BaseInlineElementAlias | BaseStructuralElementAlias
 
 
 class Pos(StrEnum):
@@ -21,7 +21,7 @@ class Assoc(StrEnum):
   B = "b"
 
 
-class SegType(StrEnum):
+class Segtype(StrEnum):
   BLOCK = "block"
   PARAGRAPH = "paragraph"
   SENTENCE = "sentence"
@@ -47,7 +47,7 @@ class Note:
 class Header:
   creationtool: str
   creationtoolversion: str
-  segtype: SegType
+  segtype: Segtype
   o_tmf: str
   adminlang: str
   srclang: str
@@ -136,7 +136,7 @@ class Tu:
   creationdate: datetime | None = None
   creationid: str | None = None
   changedate: datetime | None = None
-  segtype: SegType | None = None
+  segtype: Segtype | None = None
   changeid: str | None = None
   o_tmf: str | None = None
   srclang: str | None = None
