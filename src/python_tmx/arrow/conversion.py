@@ -1,125 +1,115 @@
-from typing import TypeVar
+from collections.abc import Callable
+from typing import Any, overload
+
+import orjson
+import pyarrow as pa
 
 from python_tmx.arrow.dicts import (
-  BptDict,
-  EptDict,
-  HeaderDict,
-  HiDict,
-  ItDict,
-  NoteDict,
-  PhDict,
-  PropDict,
-  SubDict,
-  TuvDict,
+  BptArrowDict,
+  EptArrowDict,
+  HeaderArrowDict,
+  HiArrowDict,
+  ItArrowDict,
+  NoteArrowDict,
+  PhArrowDict,
+  PropArrowDict,
+  SubArrowDict,
+  TmxArrowDict,
+  TuArrowDict,
+  TuvArrowDict,
 )
-from python_tmx.base.classes import Assoc, Bpt, Ept, Header, Hi, It, Note, Ph, Pos, Prop, Segtype, Sub, Tuv
+from python_tmx.arrow.structs import BPT_STRUCT, EPT_STRUCT, HEADER_STRUCT, HI_STRUCT, IT_STRUCT, NOTE_STRUCT, PH_STRUCT, PROP_STRUCT, STRUCT_FROM_DATACLASS, SUB_STRUCT, TMX_STRUCT, TU_STRUCT, TUV_STRUCT
+from python_tmx.base.classes import (
+  Assoc,
+  BaseElementAlias,
+  Bpt,
+  Ept,
+  Header,
+  Hi,
+  It,
+  Note,
+  Ph,
+  Pos,
+  Prop,
+  Segtype,
+  Sub,
+  Tmx,
+  Tu,
+  Tuv,
+)
 
 
-def prop_from_dict(prop_dict: PropDict) -> Prop:
+def prop_from_arrow_dict(prop_dict: PropArrowDict) -> Prop:
   return Prop(**prop_dict)
 
 
-def note_from_dict(note_dict: NoteDict) -> Note:
+def note_from_arrow_dict(note_dict: NoteArrowDict) -> Note:
   return Note(**note_dict)
 
 
-def header_from_dict(header_dict: HeaderDict) -> Header:
+def header_from_arrow_dict(header_dict: HeaderArrowDict) -> Header:
   return Header(
     creationtool=header_dict["creationtool"],
     creationtoolversion=header_dict["creationtoolversion"],
-    segtype=Segtype[header_dict["segtype"]],
+    segtype=Segtype(header_dict["segtype"]),
     o_tmf=header_dict["o_tmf"],
     adminlang=header_dict["adminlang"],
     srclang=header_dict["srclang"],
-    datatype=header_dict["srclang"],
+    datatype=header_dict["datatype"],
     o_encoding=header_dict.get("o_encoding"),
     creationdate=header_dict.get("creationdate"),
     creationid=header_dict.get("creationid"),
     changedate=header_dict.get("changedate"),
     changeid=header_dict.get("changeid"),
-    props=[prop_from_dict(prop) for prop in header_dict["props"]],
-    notes=[note_from_dict(note) for note in header_dict["notes"]],
+    props=[prop_from_arrow_dict(prop) for prop in header_dict["props"]],
+    notes=[note_from_arrow_dict(note) for note in header_dict["notes"]],
   )
 
 
-T = TypeVar("T", bound=Bpt | Ept | Hi | It | Ph | Sub | str)
-
-
-def content_from_list(
-  content_list: list[str | BptDict | EptDict | HiDict | SubDict | ItDict | PhDict], filter: tuple[type[T], ...]
-) -> list[T]:
-  parts: list = []
-  for item in content_list:
-    if isinstance(item, str):
-      parts.append(item)
+def _parse_inline_no_sub(source: bytes) -> list[str | Bpt | Ept | Ph | It | Hi]:
+  parts: list[str | Bpt | Ept | Ph | It | Hi] = []
+  content = orjson.loads(source)
+  part: str | BptArrowDict | EptArrowDict | PhArrowDict | ItArrowDict | HiArrowDict
+  for part in content:
+    if isinstance(part, str):
+      parts.append(part)
       continue
-    if "i" in item:
-      if "x" in item:
-        if Bpt not in filter:
-          raise ValueError("Unexpected Bpt Element found")
-        parts.append(
-          Bpt(
-            content=content_from_list(item["content"], (Sub,)),
-            i=item["i"],
-            x=item.get("x"),
-            type=item.get("type"),
-          )
-        )
-      else:
-        if Ept in filter:
-          raise ValueError("Unexpected Ept Element found")
-        parts.append(
-          Ept(
-            content=content_from_list(item["content"], (Sub,)),
-            i=item["i"],
-          )
-        )
-    elif "pos" in item:
-      if It not in filter:
-        raise ValueError("Unexpected It Element found")
-      parts.append(
-        It(
-          content=content_from_list(item["content"], (Sub,)),
-          pos=Pos(item["pos"]),
-          x=item.get("x"),
-          type=item.get("type"),
-        )
-      )
-    elif "assoc" in item:
-      if Ph not in filter:
-        raise ValueError("Unexpected Ph Element found")
-      parts.append(
-        Ph(
-          content=content_from_list(item["content"], (Sub,)),
-          x=item.get("x"),
-          type=item.get("type"),
-          assoc=Assoc(item["assoc"]),
-        )
-      )
-    elif "datatype" in item:
-      if Sub not in filter:
-        raise ValueError("Unexpected Sub Element found")
+    if part["tag"] == "bpt":
+      parts.append(bpt_from_arrow_dict(part))
+    elif part["tag"] == "ept":
+      parts.append(ept_from_arrow_dict(part))
+    elif part["tag"] == "it":
+      parts.append(it_from_arrow_dict(part))
+    elif part["tag"] == "hi":
+      parts.append(hi_from_arrow_dict(part))
+    elif part["tag"] == "ph":
+      parts.append(ph_from_arrow_dict(part))
+    else:
+      raise ValueError(f"Unexpected inline element tag: {part.get('tag')!r}")
+  return parts
+
+
+def _parse_inline_only_sub(
+  source: bytes,
+) -> list[str | Sub]:
+  parts: list[str | Sub] = []
+  content = orjson.loads(source)
+  part: str | SubArrowDict
+  for part in content:
+    if isinstance(part, str):
+      parts.append(part)
+    else:
       parts.append(
         Sub(
-          content=content_from_list(item["content"], (Bpt, Ept, It, Hi, Ph)),
-          datatype=item.get("datatype"),
-          type=item.get("type"),
-        )
-      )
-    else:
-      if Hi not in filter:
-        raise ValueError("Unexpected Hi Element found")
-      parts.append(
-        Hi(
-          content=content_from_list(item["content"], (Bpt, Ept, It, Hi, Ph)),
-          x=item.get("x"),
-          type=item.get("type"),
+          content=_parse_inline_no_sub(orjson.loads(part["content"])),
+          datatype=part.get("datatype"),
+          type=part["type"],
         )
       )
   return parts
 
 
-def tuv_from_dict(tuv_dict: TuvDict) -> Tuv:
+def tuv_from_arrow_dict(tuv_dict: TuvArrowDict) -> Tuv:
   return Tuv(
     lang=tuv_dict["lang"],
     o_encoding=tuv_dict.get("o_encoding"),
@@ -133,7 +123,186 @@ def tuv_from_dict(tuv_dict: TuvDict) -> Tuv:
     changedate=tuv_dict.get("changedate"),
     changeid=tuv_dict.get("changeid"),
     o_tmf=tuv_dict.get("o_tmf"),
-    props=[prop_from_dict(prop) for prop in tuv_dict["props"]],
-    notes=[note_from_dict(note) for note in tuv_dict["notes"]],
-    content=content_from_list(tuv_dict["content"], (Bpt, Ept, It, Hi, Ph)),
+    props=[prop_from_arrow_dict(prop) for prop in tuv_dict["props"]],
+    notes=[note_from_arrow_dict(note) for note in tuv_dict["notes"]],
+    content=_parse_inline_no_sub(tuv_dict["content"]),
   )
+
+
+def bpt_from_arrow_dict(bpt_dict: BptArrowDict) -> Bpt:
+  return Bpt(
+    content=_parse_inline_only_sub(bpt_dict["content"]),
+    i=bpt_dict["i"],
+    x=bpt_dict.get("x"),
+    type=bpt_dict.get("type"),
+  )
+
+
+def ept_from_arrow_dict(ept_dict: EptArrowDict) -> Ept:
+  return Ept(
+    content=_parse_inline_only_sub(ept_dict["content"]),
+    i=ept_dict["i"],
+  )
+
+
+def it_from_arrow_dict(it_dict: ItArrowDict) -> It:
+  return It(
+    content=_parse_inline_only_sub(it_dict["content"]),
+    pos=Pos(it_dict["pos"]),
+    x=it_dict.get("x"),
+    type=it_dict.get("type"),
+  )
+
+
+def hi_from_arrow_dict(hi_dict: HiArrowDict) -> Hi:
+  return Hi(
+    content=_parse_inline_no_sub(hi_dict["content"]),
+    x=hi_dict.get("x"),
+    type=hi_dict.get("type"),
+  )
+
+
+def ph_from_arrow_dict(ph_dict: PhArrowDict) -> Ph:
+  return Ph(
+    content=_parse_inline_only_sub(ph_dict["content"]),
+    assoc=None if ph_dict.get("assoc") is None else Assoc(ph_dict["assoc"]),
+    x=ph_dict.get("x"),
+    type=ph_dict.get("type"),
+  )
+
+
+def sub_from_arrow_dict(sub_dict: SubArrowDict) -> Sub:
+  return Sub(
+    content=_parse_inline_no_sub(sub_dict["content"]),
+    type=sub_dict.get("type"),
+    datatype=sub_dict.get("datatype"),
+  )
+
+
+def tu_from_arrow_dict(tu_dict: TuArrowDict) -> Tu:
+  return Tu(
+    tuid=tu_dict.get("tuid"),
+    o_encoding=tu_dict.get("o_encoding"),
+    datatype=tu_dict.get("datatype"),
+    usagecount=tu_dict.get("usagecount"),
+    lastusagedate=tu_dict.get("lastusagedate"),
+    creationtool=tu_dict.get("creationtool"),
+    creationtoolversion=tu_dict.get("creationtoolversion"),
+    creationdate=tu_dict.get("creationdate"),
+    creationid=tu_dict.get("creationid"),
+    changedate=tu_dict.get("changedate"),
+    segtype=None if tu_dict.get("segtype") is None else Segtype(tu_dict["segtype"]),
+    changeid=tu_dict.get("changeid"),
+    o_tmf=tu_dict.get("o_tmf"),
+    srclang=tu_dict.get("srclang"),
+    props=[prop_from_arrow_dict(prop) for prop in tu_dict["props"]],
+    notes=[note_from_arrow_dict(note) for note in tu_dict["notes"]],
+    variants=[tuv_from_arrow_dict(tuv) for tuv in tu_dict["variants"]],
+  )
+
+
+def tmx_from_arrow_dict(tmx_dict: TmxArrowDict) -> Tmx:
+  return Tmx(
+    version=tmx_dict["version"],
+    header=header_from_arrow_dict(tmx_dict["header"]),
+    body=[tu_from_arrow_dict(tu) for tu in tmx_dict["body"]],
+  )
+
+
+@overload
+def dataclass_to_arrow_dict(obj: Tmx, *, strict: bool = True) -> TmxArrowDict: ...
+@overload
+def dataclass_to_arrow_dict(obj: Tu, *, strict: bool = True) -> TuArrowDict: ...
+@overload
+def dataclass_to_arrow_dict(obj: Tuv, *, strict: bool = True) -> TuvArrowDict: ...
+@overload
+def dataclass_to_arrow_dict(obj: Header, *, strict: bool = True) -> HeaderArrowDict: ...
+@overload
+def dataclass_to_arrow_dict(obj: Prop, *, strict: bool = True) -> PropArrowDict: ...
+@overload
+def dataclass_to_arrow_dict(obj: Note, *, strict: bool = True) -> NoteArrowDict: ...
+@overload
+def dataclass_to_arrow_dict(obj: Bpt, *, strict: bool = True) -> BptArrowDict: ...
+@overload
+def dataclass_to_arrow_dict(obj: Ept, *, strict: bool = True) -> EptArrowDict: ...
+@overload
+def dataclass_to_arrow_dict(obj: Hi, *, strict: bool = True) -> HiArrowDict: ...
+@overload
+def dataclass_to_arrow_dict(obj: It, *, strict: bool = True) -> ItArrowDict: ...
+@overload
+def dataclass_to_arrow_dict(obj: Ph, *, strict: bool = True) -> PhArrowDict: ...
+@overload
+def dataclass_to_arrow_dict(obj: Sub, *, strict: bool = True) -> SubArrowDict: ...
+def dataclass_to_arrow_dict(
+  obj: Tmx | Tu | Tuv | Header | Prop | Note | Bpt | Ept | Hi | It | Ph | Sub, *, strict: bool = True
+) -> (
+  TmxArrowDict
+  | TuArrowDict
+  | TuvArrowDict
+  | HeaderArrowDict
+  | PropArrowDict
+  | NoteArrowDict
+  | BptArrowDict
+  | EptArrowDict
+  | HiArrowDict
+  | ItArrowDict
+  | PhArrowDict
+  | SubArrowDict
+):
+  struct = STRUCT_FROM_DATACLASS.get(type(obj))
+  if struct is None:
+    raise TypeError(f"{type(obj).__name__} has no registered Arrow struct")
+
+  out: dict[str, Any] = {}
+  for field in struct:
+    name = field.name
+    value = getattr(obj, name)
+    type_ = field.type
+
+    if value is None:
+      if not field.nullable and strict:
+        raise ValueError(f"{name!r} is not nullable")
+      out[name] = None
+      continue
+
+    if pa.types.is_struct(type_):
+      out[name] = dataclass_to_arrow_dict(value, strict=strict)
+    elif pa.types.is_list(type_):
+      item_t = type_.value_type
+      if pa.types.is_struct(item_t):
+        out[name] = [dataclass_to_arrow_dict(v, strict=strict) for v in value]
+      else:
+        out[name] = value
+    elif pa.types.is_binary(type_):
+      out[name] = orjson.dumps(value)
+    elif isinstance(value, (Segtype, Pos, Assoc)):
+      out[name] = value.value
+    else:
+      out[name] = value
+  return out  # type: ignore[return-value]
+
+
+HANDLER_FROM_STRUCT: dict[pa.StructType, Callable[..., BaseElementAlias]] = {
+  PROP_STRUCT: prop_from_arrow_dict,
+  NOTE_STRUCT: note_from_arrow_dict,
+  HEADER_STRUCT: header_from_arrow_dict,
+  BPT_STRUCT: bpt_from_arrow_dict,
+  EPT_STRUCT: ept_from_arrow_dict,
+  HI_STRUCT: hi_from_arrow_dict,
+  IT_STRUCT: it_from_arrow_dict,
+  PH_STRUCT: ph_from_arrow_dict,
+  SUB_STRUCT: sub_from_arrow_dict,
+  TUV_STRUCT: tuv_from_arrow_dict,
+  TU_STRUCT: tu_from_arrow_dict,
+  TMX_STRUCT: tmx_from_arrow_dict,
+}
+
+
+def arrow_struct_scalar_to_dataclass(struct_scalar: pa.StructScalar) -> BaseElementAlias:
+  handler = None
+  for struct in HANDLER_FROM_STRUCT:
+    if struct_scalar.type.equals(struct):
+      handler = HANDLER_FROM_STRUCT[struct]
+  if handler is None:
+    raise TypeError("scalar's struct doesn't correspond to any known struct")
+  return handler(struct_scalar.as_py())
