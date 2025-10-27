@@ -19,8 +19,15 @@ NOTE_STRUCT = pa.struct(
   )
 )
 
+TAG_FIELD = pa.field(
+  name="tag",
+  type=pa.dictionary(index_type=pa.int8(), value_type=pa.string()),
+  nullable=False,
+)
+
 BPT_STRUCT = pa.struct(
   fields=(
+    TAG_FIELD,
     pa.field(name="content", type=pa.binary(), nullable=False),
     pa.field(name="i", type=pa.int16(), nullable=False),
     pa.field(name="x", type=pa.int16(), nullable=True),
@@ -30,6 +37,7 @@ BPT_STRUCT = pa.struct(
 
 EPT_STRUCT = pa.struct(
   fields=(
+    TAG_FIELD,
     pa.field(name="content", type=pa.binary(), nullable=False),
     pa.field(name="i", type=pa.int16(), nullable=False),
   )
@@ -37,6 +45,7 @@ EPT_STRUCT = pa.struct(
 
 HI_STRUCT = pa.struct(
   fields=(
+    TAG_FIELD,
     pa.field(name="content", type=pa.binary(), nullable=False),
     pa.field(name="x", type=pa.int16(), nullable=True),
     pa.field(name="type", type=pa.string(), nullable=True),
@@ -45,6 +54,7 @@ HI_STRUCT = pa.struct(
 
 IT_STRUCT = pa.struct(
   fields=(
+    TAG_FIELD,
     pa.field(name="content", type=pa.binary(), nullable=False),
     pa.field(name="pos", type=pa.string(), nullable=False),
     pa.field(name="x", type=pa.int16(), nullable=True),
@@ -54,6 +64,7 @@ IT_STRUCT = pa.struct(
 
 PH_STRUCT = pa.struct(
   fields=(
+    TAG_FIELD,
     pa.field(name="content", type=pa.binary(), nullable=False),
     pa.field(name="x", type=pa.int16(), nullable=True),
     pa.field(name="type", type=pa.string(), nullable=True),
@@ -63,6 +74,7 @@ PH_STRUCT = pa.struct(
 
 SUB_STRUCT = pa.struct(
   fields=(
+    TAG_FIELD,
     pa.field(name="content", type=pa.binary(), nullable=False),
     pa.field(name="type", type=pa.string(), nullable=True),
     pa.field(name="datatype", type=pa.string(), nullable=True),
@@ -159,19 +171,4 @@ STRUCT_FROM_DATACLASS: dict[type[BaseElementAlias], pa.StructType] = {
   Tuv: TUV_STRUCT,
   Tu: TU_STRUCT,
   Tmx: TMX_STRUCT,
-}
-
-DATACLASS_FROM_STRUCT: dict[pa.StructType, type[BaseElementAlias]] = {
-  PROP_STRUCT: Prop,
-  NOTE_STRUCT: Note,
-  HEADER_STRUCT: Header,
-  BPT_STRUCT: Bpt,
-  EPT_STRUCT: Ept,
-  HI_STRUCT: Hi,
-  IT_STRUCT: It,
-  PH_STRUCT: Ph,
-  SUB_STRUCT: Sub,
-  TUV_STRUCT: Tuv,
-  TU_STRUCT: Tu,
-  TMX_STRUCT: Tmx,
 }
