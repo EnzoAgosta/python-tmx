@@ -134,10 +134,8 @@ def _generate_cache_tuvs(obj: XmlWrapper, *args) -> Generator[XmlTuv]:
       yield tuv_wrapper
 
 
-def _generate_cache_content(
-  obj: XmlWrapper, root_elem: XmlElement
-) -> Generator[str | XmlBpt | XmlEpt | XmlIt | XmlHi | XmlPh | XmlSub]:
-  elem = obj._xml_element
+def _handle_content(obj: XmlWrapper) -> Generator[str | XmlBpt | XmlEpt | XmlIt | XmlHi | XmlPh | XmlSub]:
+  root_elem = obj._xml_element
   cache = obj._attribute_cache
   if not len(root_elem):
     cache["content"] = root_elem.text
@@ -240,7 +238,7 @@ class XmlNote(XmlWrapper[Note]):
       factory = py.Element  # type:ignore[assignment]
 
     xml_elem = factory("note")
-    xml_elem.text = base_element.content
+    xml_elem.text = base_element.text
     if base_element.lang is not None:
       xml_elem.attrib["{http://www.w3.org/XML/1998/namespace}lang"] = base_element.lang
     if base_element.o_encoding is not None:
@@ -250,7 +248,7 @@ class XmlNote(XmlWrapper[Note]):
   def to_dataclass(self) -> Note:
     self.validate_element(self._xml_element)
     return Note(
-      content=self.content,
+      text=self.content,
       lang=self.lang,
       o_encoding=self.o_encoding,
     )

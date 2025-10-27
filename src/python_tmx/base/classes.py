@@ -30,7 +30,7 @@ class Segtype(StrEnum):
 
 @dataclass(slots=True)
 class Prop:
-  content: str
+  text: str
   type: str
   lang: str | None = None
   o_encoding: str | None = None
@@ -38,7 +38,7 @@ class Prop:
 
 @dataclass(slots=True)
 class Note:
-  content: str
+  text: str
   lang: str | None = None
   o_encoding: str | None = None
 
@@ -121,7 +121,7 @@ class Tuv:
   o_tmf: str | None = None
   props: list[Prop] = field(default_factory=list)
   notes: list[Note] = field(default_factory=list)
-  segment: list[str | Bpt | Ept | Hi | It | Ph] = field(default_factory=list)
+  content: list[str | Bpt | Ept | Hi | It | Ph] = field(default_factory=list)
 
 
 @dataclass(slots=True)
