@@ -19,7 +19,7 @@ from python_tmx.arrow.dicts import (
   TuvArrowDict,
 )
 from python_tmx.arrow.structs import BPT_STRUCT, EPT_STRUCT, HEADER_STRUCT, HI_STRUCT, IT_STRUCT, NOTE_STRUCT, PH_STRUCT, PROP_STRUCT, STRUCT_FROM_DATACLASS, SUB_STRUCT, TMX_STRUCT, TU_STRUCT, TUV_STRUCT
-from python_tmx.base.classes import (
+from python_tmx.base.types import (
   Assoc,
   BaseElementAlias,
   Bpt,
