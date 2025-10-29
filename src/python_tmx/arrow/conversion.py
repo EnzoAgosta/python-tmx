@@ -282,7 +282,7 @@ def dataclass_to_arrow_dict(
   return out  # type: ignore[return-value]
 
 
-HANDLER_FROM_STRUCT: dict[pa.StructType, Callable[..., BaseElementAlias]] = {
+STRUCT_TO_ARROW_DICT_HANDLER: dict[pa.StructType, Callable[..., BaseElementAlias]] = {
   PROP_STRUCT: prop_from_arrow_dict,
   NOTE_STRUCT: note_from_arrow_dict,
   HEADER_STRUCT: header_from_arrow_dict,
@@ -300,9 +300,9 @@ HANDLER_FROM_STRUCT: dict[pa.StructType, Callable[..., BaseElementAlias]] = {
 
 def arrow_struct_scalar_to_dataclass(struct_scalar: pa.StructScalar) -> BaseElementAlias:
   handler = None
-  for struct in HANDLER_FROM_STRUCT:
+  for struct in STRUCT_TO_ARROW_DICT_HANDLER:
     if struct_scalar.type.equals(struct):
-      handler = HANDLER_FROM_STRUCT[struct]
+      handler = STRUCT_TO_ARROW_DICT_HANDLER[struct]
   if handler is None:
     raise TypeError("scalar's struct doesn't correspond to any known struct")
   return handler(struct_scalar.as_py())
