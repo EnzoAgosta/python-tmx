@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from datetime import datetime
 import logging
 from typing import Literal, Never, TypeVar, cast, overload
@@ -6,6 +7,7 @@ import lxml.etree as LET
 
 from python_tmx.base.types import (
   Assoc,
+  BaseElementAlias,
   BaseInlineElementAlias,
   Bpt,
   Ept,
@@ -687,3 +689,52 @@ def element_to_tmx(tmx_element: XmlElement, strict: bool = True) -> Tmx:
     logger.warning("Missing <body> element in <tmx>")
     logger.debug("Body will be an empty list. Use strict=True to raise an error.")
   return Tmx(version=tmx_element.attrib["version"], header=header, body=body)
+
+
+TAG_TO_DATACLASS_HANDLER: dict[str, Callable[[XmlElement, bool], BaseElementAlias]] = {
+  "prop": element_to_prop,
+  "note": element_to_note,
+  "header": element_to_header,
+  "bpt": element_to_bpt,
+  "ept": element_to_ept,
+  "it": element_to_it,
+  "ph": element_to_ph,
+  "hi": element_to_hi,
+  "sub": element_to_sub,
+  "tuv": element_to_tuv,
+  "tu": element_to_tu,
+  "tmx": element_to_tmx,
+}
+
+
+DATACLASS_TO_ELEMENT_HANDLER: dict[
+  type[BaseElementAlias], Callable[[BaseElementAlias, type[XmlElement] | None, bool], XmlElement]
+] = {
+  Prop: prop_to_element,
+  Note: note_to_element,
+  Header: header_to_element,
+  Bpt: bpt_to_element,
+  Ept: ept_to_element,
+  It: it_to_element,
+  Ph: ph_to_element,
+  Hi: hi_to_element,
+  Sub: sub_to_element,
+  Tuv: tuv_to_element,
+  Tu: tu_to_element,
+  Tmx: tmx_to_element,
+}
+
+def xml_element_to_dataclass(element: XmlElement, strict: bool = True) -> BaseElementAlias:
+  tag = element.tag
+  if tag not in TAG_TO_DATACLASS_HANDLER:
+    raise ValueError(f"Unexpected tag {tag!r}")
+  return TAG_TO_DATACLASS_HANDLER[tag](element, strict=strict)
+
+
+def dataclass_to_xml_element(
+  obj: BaseElementAlias, backend: type[XmlElement] | None = None, strict: bool = True
+) -> XmlElement:
+  backend = get_backend(backend)
+  if type(obj) not in DATACLASS_TO_ELEMENT_HANDLER:
+    raise ValueError(f"Unexpected type {type(obj).__name__}")
+  return DATACLASS_TO_ELEMENT_HANDLER[type(obj)](obj, backend=backend, strict=strict)
