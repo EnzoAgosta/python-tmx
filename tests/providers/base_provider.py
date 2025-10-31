@@ -6,36 +6,35 @@ from python_tmx.base.types import Bpt, Ept, Header, Hi, It, Note, Ph, Prop, Sub,
 
 
 class BaseElementProvider(BaseProvider):
-  
   def note(self) -> Note:
     return Note(
       text=self.generator.sentence(self.generator.random_number(2, False)),
-      lang=self.generator.language_code(),
-      o_encoding=self.generator.encoding(),
+      lang=self.generator.language_code() if self.generator.pybool() else None,
+      o_encoding=self.generator.encoding() if self.generator.pybool() else None,
     )
 
   def prop(self) -> Prop:
     return Prop(
       text=self.generator.sentence(self.generator.random_number(2, False)),
       type=self.generator.word(),
-      lang=self.generator.language_code(),
-      o_encoding=self.generator.encoding(),
+      lang=self.generator.language_code() if self.generator.pybool() else None,
+      o_encoding=self.generator.encoding() if self.generator.pybool() else None,
     )
 
   def tuv(self) -> Tuv:
     return Tuv(
       lang=self.generator.language_code(),
-      o_encoding=self.generator.encoding(),
-      datatype=self.generator.datatype(),
-      usagecount=self.generator.random_number(3, False),
-      lastusagedate=self.generator.date_time_this_century(),
-      creationtool=self.generator.word(),
-      creationtoolversion=self.generator.version(),
-      creationdate=self.generator.date_time_this_century(),
-      creationid=self.generator.user_name(),
-      changedate=self.generator.date_time_this_century(),
-      changeid=self.generator.user_name(),
-      o_tmf=self.generator.word(),
+      o_encoding=self.generator.encoding() if self.generator.pybool() else None,
+      datatype=self.generator.datatype() if self.generator.pybool() else None,
+      usagecount=self.generator.random_number(3, False) if self.generator.pybool() else None,
+      lastusagedate=self.generator.date_time_this_century() if self.generator.pybool() else None,
+      creationtool=self.generator.word() if self.generator.pybool() else None,
+      creationtoolversion=self.generator.version() if self.generator.pybool() else None,
+      creationdate=self.generator.date_time_this_century() if self.generator.pybool() else None,
+      creationid=self.generator.user_name() if self.generator.pybool() else None,
+      changedate=self.generator.date_time_this_century() if self.generator.pybool() else None,
+      changeid=self.generator.user_name() if self.generator.pybool() else None,
+      o_tmf=self.generator.word() if self.generator.pybool() else None,
       props=[self.prop() for _ in range(self.generator.random_number(2, False))],
       notes=[self.note() for _ in range(self.generator.random_number(2, False))],
       content=[self.content(False) for _ in range(self.generator.random_number(2, False))],
@@ -43,20 +42,20 @@ class BaseElementProvider(BaseProvider):
 
   def tu(self) -> Tu:
     return Tu(
-      tuid=str(self.generator.uuid4()),
-      o_encoding=self.generator.encoding(),
-      datatype=self.generator.datatype(),
-      usagecount=self.generator.random_number(3, False),
-      lastusagedate=self.generator.date_time_this_century(),
-      creationtool=self.generator.word(),
-      creationtoolversion=self.generator.version(),
-      creationdate=self.generator.date_time_this_century(),
-      creationid=self.generator.user_name(),
-      changedate=self.generator.date_time_this_century(),
-      segtype=self.generator.segtype(),
-      changeid=self.generator.user_name(),
-      o_tmf=self.generator.word(),
-      srclang=self.generator.language_code(),
+      tuid=str(self.generator.uuid4()) if self.generator.pybool() else None,
+      o_encoding=self.generator.encoding() if self.generator.pybool() else None,
+      datatype=self.generator.datatype() if self.generator.pybool() else None,
+      usagecount=self.generator.random_number(3, False) if self.generator.pybool() else None,
+      lastusagedate=self.generator.date_time_this_century() if self.generator.pybool() else None,
+      creationtool=self.generator.word() if self.generator.pybool() else None,
+      creationtoolversion=self.generator.version() if self.generator.pybool() else None,
+      creationdate=self.generator.date_time_this_century() if self.generator.pybool() else None,
+      creationid=self.generator.user_name() if self.generator.pybool() else None,
+      changedate=self.generator.date_time_this_century() if self.generator.pybool() else None,
+      segtype=self.generator.segtype() if self.generator.pybool() else None,
+      changeid=self.generator.user_name() if self.generator.pybool() else None,
+      o_tmf=self.generator.word() if self.generator.pybool() else None,
+      srclang=self.generator.language_code() if self.generator.pybool() else None,
       props=[self.prop() for _ in range(self.generator.random_number(2, False))],
       notes=[self.note() for _ in range(self.generator.random_number(2, False))],
       variants=[self.tuv() for _ in range(2)],
@@ -71,11 +70,11 @@ class BaseElementProvider(BaseProvider):
       adminlang=self.generator.language_code(),
       srclang=self.generator.language_code(),
       datatype=self.generator.datatype(),
-      o_encoding=self.generator.encoding(),
-      creationdate=self.generator.date_time_this_century(),
-      creationid=self.generator.user_name(),
-      changedate=self.generator.date_time_this_century(),
-      changeid=self.generator.user_name(),
+      o_encoding=self.generator.encoding() if self.generator.pybool() else None,
+      creationdate=self.generator.date_time_this_century() if self.generator.pybool() else None,
+      creationid=self.generator.user_name() if self.generator.pybool() else None,
+      changedate=self.generator.date_time_this_century() if self.generator.pybool() else None,
+      changeid=self.generator.user_name() if self.generator.pybool() else None,
       props=[self.prop() for _ in range(self.generator.random_number(2, False))],
       notes=[self.note() for _ in range(self.generator.random_number(2, False))],
     )
@@ -86,6 +85,7 @@ class BaseElementProvider(BaseProvider):
       header=self.header(),
       body=[self.tu() for _ in range(self.generator.random_number(2, False))],
     )
+
   @overload
   def content(self, sub_only: Literal[False]) -> str | Bpt | Ept | It | Ph | Hi: ...
   @overload
@@ -95,8 +95,8 @@ class BaseElementProvider(BaseProvider):
       return (
         Sub(
           content=[self.generator.content(False) for _ in range(self.generator.random_number(1, True))],
-          datatype=self.generator.datatype(),
-          type=self.generator.word(),
+          datatype=self.generator.datatype() if self.generator.pybool() else None,
+          type=self.generator.word() if self.generator.pybool() else None,
         )
         if self.generator.random_int(0, 1)
         else self.generator.sentence(self.generator.random_number(2, False))
@@ -124,8 +124,8 @@ class BaseElementProvider(BaseProvider):
     return Bpt(
       content=[self.content(True) for _ in range(self.generator.random_number(1, True))],
       i=self.generator.random_number(1, False),
-      x=self.generator.random_number(1, False),
-      type=self.generator.word(),
+      x=self.generator.random_number(1, False) if self.generator.pybool() else None,
+      type=self.generator.word() if self.generator.pybool() else None,
     )
 
   def ept(self) -> Ept:
@@ -138,21 +138,21 @@ class BaseElementProvider(BaseProvider):
     return It(
       content=[self.content(True) for _ in range(self.generator.random_number(1, True))],
       pos=self.generator.pos(),
-      x=self.generator.random_number(1, False),
-      type=self.generator.word(),
+      x=self.generator.random_number(1, False) if self.generator.pybool() else None,
+      type=self.generator.word() if self.generator.pybool() else None,
     )
 
   def ph(self) -> Ph:
     return Ph(
       content=[self.content(True) for _ in range(self.generator.random_number(1, True))],
-      x=self.generator.random_number(1, False),
-      type=self.generator.word(),
-      assoc=self.generator.assoc(),
+      x=self.generator.random_number(1, False) if self.generator.pybool() else None,
+      type=self.generator.word() if self.generator.pybool() else None,
+      assoc=self.generator.assoc() if self.generator.pybool() else None,
     )
 
   def hi(self) -> Hi:
     return Hi(
       content=[self.content(False) for _ in range(self.generator.random_number(1, True))],
-      x=self.generator.random_number(1, False),
-      type=self.generator.word(),
+      x=self.generator.random_number(1, False) if self.generator.pybool() else None,
+      type=self.generator.word() if self.generator.pybool() else None,
     )
