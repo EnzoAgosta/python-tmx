@@ -22,7 +22,7 @@ from python_tmx.arrow.structs import (
   STRUCT_FROM_DATACLASS,
 )
 from python_tmx.base.types import (
-  BaseElementAlias,
+  BaseElement,
   Prop,
   Note,
   Header,
@@ -199,7 +199,7 @@ class ArrowProvider(BaseProvider):
       "body": [self.tu_dict() for _ in range(self.generator.random_number(3, False))],
     }
 
-  def scalar_for(self, obj_type: type[BaseElementAlias]) -> pa.Scalar:
+  def scalar_for(self, obj_type: type[BaseElement]) -> pa.Scalar:
     struct_type = STRUCT_FROM_DATACLASS[obj_type]
     data_method = getattr(self, f"{obj_type.__name__.lower()}_dict")
     data = data_method()
