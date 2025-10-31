@@ -1,4 +1,5 @@
 from collections.abc import Callable
+import logging
 from typing import Any, overload
 
 import orjson
@@ -18,7 +19,22 @@ from python_tmx.arrow.dicts import (
   TuArrowDict,
   TuvArrowDict,
 )
-from python_tmx.arrow.structs import BPT_STRUCT, EPT_STRUCT, HEADER_STRUCT, HI_STRUCT, IT_STRUCT, NOTE_STRUCT, PH_STRUCT, PROP_STRUCT, STRUCT_FROM_DATACLASS, SUB_STRUCT, TMX_STRUCT, TU_STRUCT, TUV_STRUCT
+from python_tmx.arrow.structs import (
+  BPT_STRUCT,
+  EPT_STRUCT,
+  HEADER_STRUCT,
+  HI_STRUCT,
+  IT_STRUCT,
+  NOTE_STRUCT,
+  PH_STRUCT,
+  PROP_STRUCT,
+  STRUCT_FROM_DATACLASS,
+  SUB_STRUCT,
+  TMX_STRUCT,
+  TU_STRUCT,
+  TUV_STRUCT,
+)
+from python_tmx.base.errors import IncorrectArrowContentError, IncorrectArrowTypeError, MissingArrowStructError
 from python_tmx.base.types import (
   Assoc,
   BaseElementAlias,
@@ -37,6 +53,8 @@ from python_tmx.base.types import (
   Tu,
   Tuv,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def prop_from_arrow_dict(prop_dict: PropArrowDict) -> Prop:
@@ -85,7 +103,7 @@ def _parse_inline_no_sub(source: bytes) -> list[str | Bpt | Ept | Ph | It | Hi]:
     elif part["tag"] == "ph":
       parts.append(ph_from_arrow_dict(part))
     else:
-      raise ValueError(f"Unexpected inline element tag: {part.get('tag')!r}")
+      raise IncorrectArrowContentError(f"Unexpected inline element {part.get('tag')!r}")
   return parts
 
 
@@ -251,7 +269,7 @@ def dataclass_to_arrow_dict(
 ):
   struct = STRUCT_FROM_DATACLASS.get(type(obj))
   if struct is None:
-    raise TypeError(f"{type(obj).__name__} has no registered Arrow struct")
+    raise MissingArrowStructError(f"{type(obj).__name__} has no registered Arrow struct")
 
   out: dict[str, Any] = {}
   for field in struct:
@@ -261,7 +279,11 @@ def dataclass_to_arrow_dict(
 
     if value is None:
       if not field.nullable and strict:
-        raise ValueError(f"{name!r} is not nullable")
+        raise IncorrectArrowTypeError(f"{name!r} is not nullable")
+      logger.debug(f"{name!r} is not nullable")
+      logger.debug("Treating as if it were None and optional.")
+      logger.debug("This is not recommended and can lead to the creation of invalid TMX files.")
+      logger.debug("Use strict=True to raise an error.")
       out[name] = None
       continue
 
@@ -275,10 +297,12 @@ def dataclass_to_arrow_dict(
         out[name] = value
     elif pa.types.is_binary(type_):
       out[name] = orjson.dumps(value)
-    elif isinstance(value, (Segtype, Pos, Assoc)):
-      out[name] = value.value
-    else:
+    elif pa.types.is_timestamp(type_):
       out[name] = value
+    elif pa.types.is_timestamp(type_) or pa.types.is_string(type_) or pa.types.is_integer(type_):
+      out[name] = value
+    else:
+      raise IncorrectArrowTypeError(f"Unexpected type {type_}")
   return out  # type: ignore[return-value]
 
 
@@ -304,5 +328,5 @@ def arrow_struct_scalar_to_dataclass(struct_scalar: pa.StructScalar) -> BaseElem
     if struct_scalar.type.equals(struct):
       handler = STRUCT_TO_ARROW_DICT_HANDLER[struct]
   if handler is None:
-    raise TypeError("scalar's struct doesn't correspond to any known struct")
+    raise MissingArrowStructError("scalar's struct doesn't correspond to any known struct")
   return handler(struct_scalar.as_py())

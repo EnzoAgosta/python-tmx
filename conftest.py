@@ -1,39 +1,63 @@
-import random
-import string
-
 import pytest
+import string
+import random
 from faker import Faker
 
-from tests.base.faker_provider import BaseElementsProvider
+from tests.providers.attribute_provider import ExtraProvider
+from tests.providers.base_provider import BaseElementProvider
+from tests.providers.xml_provider import XmlElementProvider
+import lxml.etree as LET
+import xml.etree.ElementTree as ET
 
-GLOBAL_SEED: int | str
-
-GLOBAL_SEED = "".join(random.choices(string.hexdigits, k=25))
-GLOBAL_SEED = int(GLOBAL_SEED, 16) if random.randint(0, 1) else GLOBAL_SEED
-
-
-@pytest.fixture(scope="session", autouse=True)
-def faker_seed():
-  return GLOBAL_SEED
+FAKER_SEED_KEY = pytest.StashKey[str]()
 
 
-def pytest_configure(config):
-  global GLOBAL_SEED
-  seed = config.getoption("--faker-seed")
-  if seed is not None:
-    GLOBAL_SEED = seed
-  config._faker_seed = GLOBAL_SEED
-
-
-def pytest_report_header(config):
-  return f"seed: {config._faker_seed}\ntype: {config._faker_seed.__class__.__name__}"
+def _random_seed() -> str:
+  chars = string.ascii_letters + string.digits + string.punctuation
+  return "".join(random.choices(chars, k=20))
 
 
 def pytest_addoption(parser):
-  parser.addoption("--faker-seed", action="store", type=str, help="Set Faker seed")
+  parser.addoption(
+    "--faker-seed",
+    action="store",
+    default=None,
+    help="Seed for Faker RNG (20-char random ASCII by default).",
+  )
+
+
+def pytest_configure(config):
+  cli_seed = config.getoption("--faker-seed")
+  seed = cli_seed or _random_seed()
+  config._faker_seed = seed
+
 
 @pytest.fixture(scope="session")
-def faker() -> Faker:
-    fake = Faker()
-    fake.add_provider(BaseElementsProvider)
-    return fake
+def faker_instance(request):
+  seed = getattr(request.config, "_faker_seed", None)
+  Faker.seed(seed)
+  fake = Faker()
+  fake.seed_instance(seed)
+  fake.add_provider(ExtraProvider)
+  fake.add_provider(BaseElementProvider)
+  fake.add_provider(XmlElementProvider)
+  return fake
+
+
+def pytest_report_header(config):
+  seed = getattr(config, "_faker_seed", None)
+  return f"Faker seed: {seed or '(not initialized)'}"
+
+
+@pytest.fixture(
+  scope="class",
+  params=[
+    pytest.param(LET.Element, id="lxml"),
+    pytest.param(ET.Element, id="Stdlib"),
+  ],
+  autouse=True,
+)
+def xml_provider(faker_instance, request):
+  provider = [p for p in faker_instance.providers if isinstance(p, XmlElementProvider)][0]
+  provider.backend = request.param
+  yield faker_instance
