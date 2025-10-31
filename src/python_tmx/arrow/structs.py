@@ -1,6 +1,20 @@
 import pyarrow as pa
 
-from python_tmx.base.types import BaseElementAlias, Bpt, Ept, Header, Hi, It, Note, Ph, Prop, Sub, Tmx, Tu, Tuv
+from python_tmx.base.types import (
+  BaseElementAlias,
+  Bpt,
+  Ept,
+  Header,
+  Hi,
+  It,
+  Note,
+  Ph,
+  Prop,
+  Sub,
+  Tmx,
+  Tu,
+  Tuv,
+)
 
 PROP_STRUCT = pa.struct(
   fields=(

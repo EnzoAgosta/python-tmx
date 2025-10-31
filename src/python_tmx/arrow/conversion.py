@@ -34,7 +34,11 @@ from python_tmx.arrow.structs import (
   TU_STRUCT,
   TUV_STRUCT,
 )
-from python_tmx.base.errors import IncorrectArrowContentError, IncorrectArrowTypeError, MissingArrowStructError
+from python_tmx.base.errors import (
+  IncorrectArrowContentError,
+  IncorrectArrowTypeError,
+  MissingArrowStructError,
+)
 from python_tmx.base.types import (
   Assoc,
   BaseElementAlias,
@@ -252,7 +256,9 @@ def dataclass_to_arrow_dict(obj: Ph, *, strict: bool = True) -> PhArrowDict: ...
 @overload
 def dataclass_to_arrow_dict(obj: Sub, *, strict: bool = True) -> SubArrowDict: ...
 def dataclass_to_arrow_dict(
-  obj: Tmx | Tu | Tuv | Header | Prop | Note | Bpt | Ept | Hi | It | Ph | Sub, *, strict: bool = True
+  obj: Tmx | Tu | Tuv | Header | Prop | Note | Bpt | Ept | Hi | It | Ph | Sub,
+  *,
+  strict: bool = True,
 ) -> (
   TmxArrowDict
   | TuArrowDict

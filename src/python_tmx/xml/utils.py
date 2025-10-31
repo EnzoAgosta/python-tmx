@@ -5,7 +5,11 @@ from typing import Any, cast
 import xml.etree.ElementTree as ET
 import lxml.etree as LET
 
-from python_tmx.base.errors import AttributeValidationError, IncorrectTagError, UnsupportedBackendError
+from python_tmx.base.errors import (
+  AttributeValidationError,
+  IncorrectTagError,
+  UnsupportedBackendError,
+)
 from python_tmx.base.types import Assoc, Pos, Segtype
 from python_tmx.xml import XmlElement
 
@@ -43,9 +47,7 @@ def set_attribute(
     logger.warning(err_msg)
     _log_incorrect_attribute_warning()
     return
-  err_msg = (
-    f"Unexpected type: {type(value)}, expected one of str, int, datetime, Pos, Segtype, Assoc. Got: {type(value)}"
-  )
+  err_msg = f"Unexpected type: {type(value)}, expected one of str, int, datetime, Pos, Segtype, Assoc. Got: {type(value)}"
   match value:
     case Pos() | Segtype() | Assoc():
       elem.set(name, value.value)
@@ -100,7 +102,9 @@ def check_tag(tag: Any, expected: str, strict: bool) -> None:
   if strict:
     raise IncorrectTagError(f"Unexpected tag <{tag_name}>, expected <{expected}>")
   logger.warning(f"Unexpected tag <{tag_name}>, expected <{expected}>")
-  logger.debug(f"Treating as if it were <{expected}> and trying to convert it to a dataclass nonetheless.")
+  logger.debug(
+    f"Treating as if it were <{expected}> and trying to convert it to a dataclass nonetheless."
+  )
   logger.debug("This is not recommended and can lead to unexpected behavior.")
   logger.debug("Use strict=True to raise an error.")
 
