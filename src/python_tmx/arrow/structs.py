@@ -1,7 +1,7 @@
 import pyarrow as pa
 
 from python_tmx.base.types import (
-  BaseElementAlias,
+  BaseElement,
   Bpt,
   Ept,
   Header,
@@ -172,7 +172,7 @@ TMX_SCHEMA = pa.schema(
   )
 )
 
-STRUCT_FROM_DATACLASS: dict[type[BaseElementAlias], pa.StructType] = {
+STRUCT_FROM_DATACLASS: dict[type[BaseElement], pa.StructType] = {
   Prop: PROP_STRUCT,
   Note: NOTE_STRUCT,
   Header: HEADER_STRUCT,

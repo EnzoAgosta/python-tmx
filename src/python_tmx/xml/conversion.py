@@ -9,8 +9,8 @@ from python_tmx.base.errors import (
 )
 from python_tmx.base.types import (
   Assoc,
-  BaseElementAlias,
-  BaseInlineElementAlias,
+  BaseElement,
+  BaseInlineElement,
   Bpt,
   Ept,
   Header,
@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 
 def content_to_element(
-  source: BaseInlineElementAlias | Tuv,
+  source: BaseInlineElement | Tuv,
   target: XmlElement,
   sub_only: bool,
   strict: bool = True,
@@ -649,7 +649,7 @@ def element_to_tmx(tmx_element: XmlElement, strict: bool = True) -> Tmx:
   return Tmx(version=tmx_element.attrib["version"], header=header, body=body)
 
 
-TAG_TO_DATACLASS_HANDLER: dict[str, Callable[[XmlElement, bool], BaseElementAlias]] = {
+TAG_TO_DATACLASS_HANDLER: dict[str, Callable[[XmlElement, bool], BaseElement]] = {
   "prop": element_to_prop,
   "note": element_to_note,
   "header": element_to_header,
@@ -665,7 +665,7 @@ TAG_TO_DATACLASS_HANDLER: dict[str, Callable[[XmlElement, bool], BaseElementAlia
 }
 
 
-def xml_element_to_dataclass(element: XmlElement, strict: bool = True) -> BaseElementAlias:
+def xml_element_to_dataclass(element: XmlElement, strict: bool = True) -> BaseElement:
   tag = normalize_tag(element.tag)
   if tag not in TAG_TO_DATACLASS_HANDLER:
     raise ValueError(f"Unexpected tag {tag!r}")
@@ -673,7 +673,7 @@ def xml_element_to_dataclass(element: XmlElement, strict: bool = True) -> BaseEl
 
 
 def dataclass_to_xml_element(
-  obj: BaseElementAlias, backend: type[XmlElement] | None = None, strict: bool = True
+  obj: BaseElement, backend: type[XmlElement] | None = None, strict: bool = True
 ) -> XmlElement:
   backend = get_backend(backend)
   match obj:

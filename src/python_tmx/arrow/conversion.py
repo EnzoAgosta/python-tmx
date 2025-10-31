@@ -41,7 +41,7 @@ from python_tmx.base.errors import (
 )
 from python_tmx.base.types import (
   Assoc,
-  BaseElementAlias,
+  BaseElement,
   Bpt,
   Ept,
   Header,
@@ -312,7 +312,7 @@ def dataclass_to_arrow_dict(
   return out  # type: ignore[return-value]
 
 
-STRUCT_TO_ARROW_DICT_HANDLER: dict[pa.StructType, Callable[..., BaseElementAlias]] = {
+STRUCT_TO_ARROW_DICT_HANDLER: dict[pa.StructType, Callable[..., BaseElement]] = {
   PROP_STRUCT: prop_from_arrow_dict,
   NOTE_STRUCT: note_from_arrow_dict,
   HEADER_STRUCT: header_from_arrow_dict,
@@ -328,7 +328,7 @@ STRUCT_TO_ARROW_DICT_HANDLER: dict[pa.StructType, Callable[..., BaseElementAlias
 }
 
 
-def arrow_struct_scalar_to_dataclass(struct_scalar: pa.StructScalar) -> BaseElementAlias:
+def arrow_struct_scalar_to_dataclass(struct_scalar: pa.StructScalar) -> BaseElement:
   handler = None
   for struct in STRUCT_TO_ARROW_DICT_HANDLER:
     if struct_scalar.type.equals(struct):
