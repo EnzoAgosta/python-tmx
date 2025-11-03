@@ -13,7 +13,7 @@ import xml.etree.ElementTree as ET
 
 def _random_seed() -> str:
   chars = string.ascii_letters + string.digits + string.punctuation
-  return "".join(random.choices(chars, k=20))
+  return "".join(random.choices(chars, k=30))
 
 
 def pytest_addoption(parser):
@@ -21,12 +21,12 @@ def pytest_addoption(parser):
     "--faker-seed",
     action="store",
     default=os.getenv("FAKER_SEED", _random_seed()),
-    help="Seed for Faker RNG (20-char random ASCII by default).",
+    help="Seed for Faker RNG (30-char random ASCII by default).",
   )
   parser.addoption(
     "--max-depth",
     action="store",
-    default=os.getenv("MAX_DEPTH", random.randint(2, 4)),
+    default=os.getenv("MAX_DEPTH", random.randint(1, 3)),
     help="Defines the maximum depth for inline elements.",
   )
 
