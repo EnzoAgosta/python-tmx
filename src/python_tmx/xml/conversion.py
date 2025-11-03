@@ -2,7 +2,7 @@ from collections.abc import Callable
 from datetime import datetime
 import logging
 from typing import Literal, overload
-
+from pprint import pformat, pprint
 from python_tmx.base.errors import (
   ConversionError,
   IncorrectContentError,
@@ -64,56 +64,56 @@ def content_to_element(
           target.append(sub_to_element(item, backend=backend, strict=strict))
           continue
         if strict:
-          raise IncorrectContentError(error_message.format(item))
-        logger.warning(error_message.format(item))
+          raise IncorrectContentError(error_message % pformat(item))
+        logger.warning(error_message % pformat(item))
         logger.debug(debug_message)
       case Bpt():
         if not sub_only:
           target.append(bpt_to_element(item, backend=backend, strict=strict))
           continue
         if strict:
-          raise IncorrectContentError(error_message.format(item))
-        logger.warning(error_message.format(item))
+          raise IncorrectContentError(error_message % pformat(item))
+        logger.warning(error_message % pformat(item))
         logger.debug(debug_message)
       case Ept():
         if not sub_only:
           target.append(ept_to_element(item, backend=backend, strict=strict))
           continue
         if strict:
-          raise IncorrectContentError(error_message.format(item))
-        logger.warning(error_message.format(item))
+          raise IncorrectContentError(error_message % pformat(item))
+        logger.warning(error_message % pformat(item))
         logger.debug(debug_message)
       case It():
         if not sub_only:
           target.append(it_to_element(item, backend=backend, strict=strict))
           continue
         if strict:
-          raise IncorrectContentError(error_message.format(item))
-        logger.warning(error_message.format(item))
+          raise IncorrectContentError(error_message % pformat(item))
+        logger.warning(error_message % pformat(item))
         logger.debug(debug_message)
       case Ph():
         if not sub_only:
           target.append(ph_to_element(item, backend=backend, strict=strict))
           continue
         if strict:
-          raise IncorrectContentError(error_message.format(item))
-        logger.warning(error_message.format(item))
+          raise IncorrectContentError(error_message % pformat(item))
+        logger.warning(error_message % pformat(item))
         logger.debug(debug_message)
       case Hi():
         if not sub_only:
           target.append(hi_to_element(item, backend=backend, strict=strict))
           continue
         if strict:
-          raise IncorrectContentError(error_message.format(item))
-        logger.warning(error_message.format(item))
+          raise IncorrectContentError(error_message % pformat(item))
+        logger.warning(error_message % pformat(item))
         logger.debug(debug_message)
       case _:
         if strict:
           raise IncorrectContentError(
-            f"Found Unexpected element: {item!r} in {source.__class__.__name__!r} element, Expected str, Bpt, Ept, It, Ph, Hi or Sub"
+            f"Found Unexpected element: {pprint(item)} in {source.__class__.__name__!r} element, Expected str, Bpt, Ept, It, Ph, Hi or Sub"
           )
         logger.warning(
-          f"Found Unexpected element: {item!r} in {source.__class__.__name__!r} element, Expected str, Bpt, Ept, It, Ph, Hi or Sub"
+          f"Found Unexpected element: {pprint(item)} in {source.__class__.__name__!r} element, Expected str, Bpt, Ept, It, Ph, Hi or Sub"
         )
         logger.debug(debug_message)
   return target
@@ -171,9 +171,9 @@ def sub_to_element(
 ) -> XmlElement:
   backend = get_backend(backend)
   sub_element = backend("sub")
-  set_attribute(sub_element, "datatype", sub_object.datatype, False, str, strict)
-  set_attribute(sub_element, "type", sub_object.type, False, str, strict)
-  return content_to_element(sub_object, sub_element, True, strict, backend=backend)
+  set_attribute(sub_element, "datatype", sub_object.datatype, True, str, strict)
+  set_attribute(sub_element, "type", sub_object.type, True, str, strict)
+  return content_to_element(sub_object, sub_element, False, strict, backend=backend)
 
 
 def bpt_to_element(
@@ -225,7 +225,7 @@ def hi_to_element(
   hi_element = backend("hi")
   set_attribute(hi_element, "x", hi_object.x, True, int, strict)
   set_attribute(hi_element, "type", hi_object.type, True, str, strict)
-  return content_to_element(hi_object, hi_element, True, strict, backend=backend)
+  return content_to_element(hi_object, hi_element, False, strict, backend=backend)
 
 
 def tuv_to_element(
@@ -322,48 +322,48 @@ def element_to_content(
       case "sub":
         if not sub_only:
           if strict:
-            raise ConversionError(err_msg.format(tag))
-          logger.warning(err_msg.format(tag))
+            raise ConversionError(err_msg % tag)
+          logger.warning(err_msg % tag)
           logger.debug(debug_message)
           continue
         parts.append(element_to_sub(child))
       case "bpt":
         if sub_only:
           if strict:
-            raise ConversionError(err_msg.format(tag))
-          logger.warning(err_msg.format(tag))
+            raise ConversionError(err_msg % tag)
+          logger.warning(err_msg % tag)
           logger.debug(debug_message)
           continue
         parts.append(element_to_bpt(child))
       case "ept":
         if sub_only:
           if strict:
-            raise ConversionError(err_msg.format(tag))
-          logger.warning(err_msg.format(tag))
+            raise ConversionError(err_msg % tag)
+          logger.warning(err_msg % tag)
           logger.debug(debug_message)
           continue
         parts.append(element_to_ept(child))
       case "it":
         if sub_only:
           if strict:
-            raise ConversionError(err_msg.format(tag))
-          logger.warning(err_msg.format(tag))
+            raise ConversionError(err_msg % tag)
+          logger.warning(err_msg % tag)
           logger.debug(debug_message)
           continue
         parts.append(element_to_it(child))
       case "ph":
         if sub_only:
           if strict:
-            raise ConversionError(err_msg.format(tag))
-          logger.warning(err_msg.format(tag))
+            raise ConversionError(err_msg % tag)
+          logger.warning(err_msg % tag)
           logger.debug(debug_message)
           continue
         parts.append(element_to_ph(child))
       case "hi":
         if sub_only:
           if strict:
-            raise ConversionError(err_msg.format(tag))
-          logger.warning(err_msg.format(tag))
+            raise ConversionError(err_msg % tag)
+          logger.warning(err_msg % tag)
           logger.debug(debug_message)
           continue
         parts.append(element_to_hi(child))
