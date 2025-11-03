@@ -3,6 +3,7 @@ from python_tmx.base.types import Bpt, Ept, Header, Hi, It, Note, Ph, Prop, Sub,
 from python_tmx.xml import XmlElement
 from python_tmx.xml.utils import normalize_tag
 from tests.providers.xml_provider import XML_LANG
+from tests.xml.utils import join_top_level_strings
 
 
 def assert_xml_node_attrib_match_note_object(note_object: Note, xml_node: XmlElement) -> None:
@@ -145,8 +146,9 @@ def assert_content_matches_xml(
   if xml_elem.text is None and not len(xml_elem):
     assert len(content) == 0
     return
+  content = join_top_level_strings(content)
   if xml_elem.text is not None:
-    assert xml_elem.text == content[0]
+    assert xml_elem.text == content[0], f"Expected {xml_elem.text!r} to be the same as {content[0]!r}"
   content_iter = iter(content[1:] if xml_elem.text is not None else content)
   for child in xml_elem:
     tag = normalize_tag(child.tag)
@@ -189,4 +191,4 @@ def assert_content_matches_xml(
       tail = next(content_iter, None)
       assert tail == child.tail
   remaining = list(content_iter)
-  assert len(remaining) == 0
+  assert len(remaining) == 0, f"Expected no item remaining but got {remaining!r}"

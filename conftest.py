@@ -63,9 +63,12 @@ def pytest_report_header(config):
     pytest.param(ET.Element, id="Stdlib"),
   ],
 )
-def xml_provider(faker_instance, request):
-  provider = [p for p in faker_instance.providers if isinstance(p, XmlElementProvider)][0]
-  provider.backend = request.param
-  max_depth = getattr(request.config, "_max_depth", None)
-  provider.max_depth = int(max_depth)
+def element_provider(faker_instance, request):
+  xml_provider = [p for p in faker_instance.providers if isinstance(p, XmlElementProvider)][0]
+  base_provider = [p for p in faker_instance.providers if isinstance(p, BaseElementProvider)][0]
+  xml_provider.backend = request.param
+  max_depth = int(request.config._max_depth)
+  xml_provider.max_depth = max_depth
+  base_provider.max_depth = max_depth
+  faker_instance.backend = request.param
   yield faker_instance

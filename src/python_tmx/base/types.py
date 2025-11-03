@@ -16,7 +16,7 @@ type BaseStructuralElement = Prop | Note | Header | Tu | Tuv | Tmx
 type BaseInlineElement = Bpt | Ept | It | Hi | Ph | Sub
 """Union of all inline TMX elements permitted inside segment content."""
 
-type BaseElementAlias = BaseInlineElement | BaseStructuralElement
+type BaseElement = BaseInlineElement | BaseStructuralElement
 """Union of all element classes in a TMX document."""
 
 

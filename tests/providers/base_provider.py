@@ -7,6 +7,7 @@ from python_tmx.base.types import Bpt, Ept, Header, Hi, It, Note, Ph, Prop, Sub,
 
 class BaseElementProvider(BaseProvider):
   max_depth: int
+
   def note(self) -> Note:
     return Note(
       text=self.generator.sentence(self.generator.random_number(2, False)),
@@ -97,15 +98,7 @@ class BaseElementProvider(BaseProvider):
     if max_depth < 1:
       return self.generator.sentence(self.generator.random_number(2, False))
     if sub_only:
-      return (
-        Sub(
-          content=[self.generator.content(False, next_depth) for _ in range(self.generator.random_number(1, True))],
-          datatype=self.generator.datatype() if self.generator.pybool() else None,
-          type=self.generator.word() if self.generator.pybool() else None,
-        )
-        if self.generator.random_int(0, 1)
-        else self.generator.sentence(self.generator.random_number(2, False))
-      )
+      return self.generator.sub(next_depth)
     item_type = self.generator.random_element(
       OrderedDict({"str": 0.6, "bpt": 0.1, "ept": 0.1, "it": 0.05, "ph": 0.1, "hi": 0.05})
     )
@@ -125,39 +118,52 @@ class BaseElementProvider(BaseProvider):
       case _:
         raise RuntimeError(f"Unexpected item type: {item_type!r}")
 
-  def bpt(self, max_depth: int) -> Bpt:
+  def bpt(self, max_depth: int | None = None) -> Bpt:
+    _max_depth = max_depth if max_depth is not None else self.max_depth
     return Bpt(
-      content=[self.content(True, max_depth) for _ in range(self.generator.random_number(1, True))],
+      content=[self.content(True, _max_depth) for _ in range(self.generator.random_number(1, True))],
       i=self.generator.random_number(1, False),
       x=self.generator.random_number(1, False) if self.generator.pybool() else None,
       type=self.generator.word() if self.generator.pybool() else None,
     )
 
-  def ept(self, max_depth: int) -> Ept:
+  def ept(self, max_depth: int | None = None) -> Ept:
+    _max_depth = max_depth if max_depth is not None else self.max_depth
     return Ept(
-      content=[self.content(True, max_depth) for _ in range(self.generator.random_number(1, True))],
+      content=[self.content(True, _max_depth) for _ in range(self.generator.random_number(1, True))],
       i=self.generator.random_number(1, False),
     )
 
-  def it(self, max_depth: int) -> It:
+  def it(self, max_depth: int | None = None) -> It:
+    _max_depth = max_depth if max_depth is not None else self.max_depth
     return It(
-      content=[self.content(True, max_depth) for _ in range(self.generator.random_number(1, True))],
+      content=[self.content(True, _max_depth) for _ in range(self.generator.random_number(1, True))],
       pos=self.generator.pos(),
       x=self.generator.random_number(1, False) if self.generator.pybool() else None,
       type=self.generator.word() if self.generator.pybool() else None,
     )
 
-  def ph(self, max_depth: int) -> Ph:
+  def ph(self, max_depth: int | None = None) -> Ph:
+    _max_depth = max_depth if max_depth is not None else self.max_depth
     return Ph(
-      content=[self.content(True, max_depth) for _ in range(self.generator.random_number(1, True))],
+      content=[self.content(True, _max_depth) for _ in range(self.generator.random_number(1, True))],
       x=self.generator.random_number(1, False) if self.generator.pybool() else None,
       type=self.generator.word() if self.generator.pybool() else None,
       assoc=self.generator.assoc() if self.generator.pybool() else None,
     )
 
-  def hi(self, max_depth: int) -> Hi:
+  def hi(self, max_depth: int | None = None) -> Hi:
+    _max_depth = max_depth if max_depth is not None else self.max_depth
     return Hi(
-      content=[self.content(False, max_depth) for _ in range(self.generator.random_number(1, True))],
+      content=[self.content(False, _max_depth) for _ in range(self.generator.random_number(1, True))],
       x=self.generator.random_number(1, False) if self.generator.pybool() else None,
+      type=self.generator.word() if self.generator.pybool() else None,
+    )
+
+  def sub(self, max_depth: int | None = None) -> Sub:
+    _max_depth = max_depth if max_depth is not None else self.max_depth
+    return Sub(
+      content=[self.generator.content(False, _max_depth) for _ in range(self.generator.random_number(1, True))],
+      datatype=self.generator.datatype() if self.generator.pybool() else None,
       type=self.generator.word() if self.generator.pybool() else None,
     )
