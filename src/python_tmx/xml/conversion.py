@@ -1,0 +1,705 @@
+from collections.abc import Callable
+from datetime import datetime
+import logging
+from typing import Literal, overload
+from pprint import pformat, pprint
+from python_tmx.base.errors import (
+  ConversionError,
+  IncorrectContentError,
+)
+from python_tmx.base.types import (
+  Assoc,
+  BaseElement,
+  BaseInlineElement,
+  Bpt,
+  Ept,
+  Header,
+  Hi,
+  It,
+  Note,
+  Ph,
+  Pos,
+  Prop,
+  Segtype,
+  Sub,
+  Tmx,
+  Tu,
+  Tuv,
+)
+from python_tmx.xml.utils import check_tag, get_backend, normalize_tag, set_attribute, set_text
+from python_tmx.xml import XmlElement
+
+DT_FORMAT = "%Y%m%dT%H%M%SZ"
+XML_NS = "{http://www.w3.org/XML/1998/namespace}"
+
+logger = logging.getLogger(__name__)
+
+
+def content_to_element(
+  source: BaseInlineElement | Tuv,
+  target: XmlElement,
+  sub_only: bool,
+  strict: bool = True,
+  /,
+  backend: type[XmlElement] | None = None,
+) -> XmlElement:
+  backend = get_backend(backend)
+  error_message = f"Found unexpected element: %s in {source.__class__.__name__!r} element, expected only str, Bpt, Ept, It, Ph, Hi"
+  if sub_only:
+    error_message = f"Found unexpected element: %s in {source.__class__.__name__!r} element, expected only str or Sub"
+  debug_message = "Ignoring. Use strict=True to raise an error."
+  for item in source.content:
+    match item:
+      case str():
+        if len(target) == 0:
+          if target.text is None:
+            target.text = ""
+          target.text += item
+        else:
+          if target[-1].tail is None:
+            target[-1].tail = ""
+          target[-1].tail += item
+      case Sub():
+        if sub_only:
+          target.append(sub_to_element(item, backend=backend, strict=strict))
+          continue
+        if strict:
+          raise IncorrectContentError(error_message % pformat(item))
+        logger.warning(error_message % pformat(item))
+        logger.debug(debug_message)
+      case Bpt():
+        if not sub_only:
+          target.append(bpt_to_element(item, backend=backend, strict=strict))
+          continue
+        if strict:
+          raise IncorrectContentError(error_message % pformat(item))
+        logger.warning(error_message % pformat(item))
+        logger.debug(debug_message)
+      case Ept():
+        if not sub_only:
+          target.append(ept_to_element(item, backend=backend, strict=strict))
+          continue
+        if strict:
+          raise IncorrectContentError(error_message % pformat(item))
+        logger.warning(error_message % pformat(item))
+        logger.debug(debug_message)
+      case It():
+        if not sub_only:
+          target.append(it_to_element(item, backend=backend, strict=strict))
+          continue
+        if strict:
+          raise IncorrectContentError(error_message % pformat(item))
+        logger.warning(error_message % pformat(item))
+        logger.debug(debug_message)
+      case Ph():
+        if not sub_only:
+          target.append(ph_to_element(item, backend=backend, strict=strict))
+          continue
+        if strict:
+          raise IncorrectContentError(error_message % pformat(item))
+        logger.warning(error_message % pformat(item))
+        logger.debug(debug_message)
+      case Hi():
+        if not sub_only:
+          target.append(hi_to_element(item, backend=backend, strict=strict))
+          continue
+        if strict:
+          raise IncorrectContentError(error_message % pformat(item))
+        logger.warning(error_message % pformat(item))
+        logger.debug(debug_message)
+      case _:
+        if strict:
+          raise IncorrectContentError(
+            f"Found Unexpected element: {pprint(item)} in {source.__class__.__name__!r} element, Expected str, Bpt, Ept, It, Ph, Hi or Sub"
+          )
+        logger.warning(
+          f"Found Unexpected element: {pprint(item)} in {source.__class__.__name__!r} element, Expected str, Bpt, Ept, It, Ph, Hi or Sub"
+        )
+        logger.debug(debug_message)
+  return target
+
+
+def note_to_element(
+  note_object: Note, /, backend: type[XmlElement] | None = None, strict: bool = True
+) -> XmlElement:
+  backend = get_backend(backend)
+  elem = backend("note")
+  set_text(elem, note_object.text, strict=strict)
+  set_attribute(elem, f"{XML_NS}lang", note_object.lang, True, str, strict)
+  set_attribute(elem, "o-encoding", note_object.o_encoding, True, str, strict)
+  return elem
+
+
+def prop_to_element(
+  prop_object: Prop, /, backend: type[XmlElement] | None = None, strict: bool = True
+) -> XmlElement:
+  backend = get_backend(backend)
+  elem = backend("prop")
+  set_text(elem, prop_object.text, strict=strict)
+  set_attribute(elem, "type", prop_object.type, False, str, strict)
+  set_attribute(elem, f"{XML_NS}lang", prop_object.lang, True, str, strict)
+  set_attribute(elem, "o-encoding", prop_object.o_encoding, True, str, strict)
+  return elem
+
+
+def header_to_element(
+  header_object: Header, /, backend: type[XmlElement] | None = None, strict: bool = True
+) -> XmlElement:
+  backend = get_backend(backend)
+  elem = backend("header")
+  set_attribute(elem, "creationtool", header_object.creationtool, False, str, strict)
+  set_attribute(elem, "creationtoolversion", header_object.creationtoolversion, False, str, strict)
+  set_attribute(elem, "segtype", header_object.segtype, False, Segtype, strict)
+  set_attribute(elem, "o-tmf", header_object.o_tmf, False, str, strict)
+  set_attribute(elem, "adminlang", header_object.adminlang, False, str, strict)
+  set_attribute(elem, "srclang", header_object.srclang, False, str, strict)
+  set_attribute(elem, "datatype", header_object.datatype, False, str, strict)
+  set_attribute(elem, "creationdate", header_object.creationdate, True, datetime, strict)
+  set_attribute(elem, "creationid", header_object.creationid, True, str, strict)
+  set_attribute(elem, "changedate", header_object.changedate, True, datetime, strict)
+  set_attribute(elem, "changeid", header_object.changeid, True, str, strict)
+  set_attribute(elem, "o-encoding", header_object.o_encoding, True, str, strict)
+  for prop in header_object.props:
+    elem.append(prop_to_element(prop, backend=backend, strict=strict))
+  for note in header_object.notes:
+    elem.append(note_to_element(note, backend=backend, strict=strict))
+  return elem
+
+
+def sub_to_element(
+  sub_object: Sub, /, backend: type[XmlElement] | None = None, strict: bool = True
+) -> XmlElement:
+  backend = get_backend(backend)
+  sub_element = backend("sub")
+  set_attribute(sub_element, "datatype", sub_object.datatype, True, str, strict)
+  set_attribute(sub_element, "type", sub_object.type, True, str, strict)
+  return content_to_element(sub_object, sub_element, False, strict, backend=backend)
+
+
+def bpt_to_element(
+  bpt_object: Bpt, /, backend: type[XmlElement] | None = None, strict: bool = True
+) -> XmlElement:
+  backend = get_backend(backend)
+  bpt_element = backend("bpt")
+  set_attribute(bpt_element, "i", bpt_object.i, False, int, strict)
+  set_attribute(bpt_element, "x", bpt_object.x, True, int, strict)
+  set_attribute(bpt_element, "type", bpt_object.type, True, str, strict)
+  return content_to_element(bpt_object, bpt_element, True, strict, backend=backend)
+
+
+def ept_to_element(
+  ept_object: Ept, /, backend: type[XmlElement] | None = None, strict: bool = True
+) -> XmlElement:
+  backend = get_backend(backend)
+  ept_element = backend("ept")
+  set_attribute(ept_element, "i", ept_object.i, False, int, strict)
+  return content_to_element(ept_object, ept_element, True, strict, backend=backend)
+
+
+def it_to_element(
+  it_object: It, /, backend: type[XmlElement] | None = None, strict: bool = True
+) -> XmlElement:
+  backend = get_backend(backend)
+  it_element = backend("it")
+  set_attribute(it_element, "pos", it_object.pos, False, Pos, strict)
+  set_attribute(it_element, "x", it_object.x, True, int, strict)
+  set_attribute(it_element, "type", it_object.type, True, str, strict)
+  return content_to_element(it_object, it_element, True, strict, backend=backend)
+
+
+def ph_to_element(
+  ph_object: Ph, /, backend: type[XmlElement] | None = None, strict: bool = True
+) -> XmlElement:
+  backend = get_backend(backend)
+  ph_element = backend("ph")
+  set_attribute(ph_element, "x", ph_object.x, True, int, strict)
+  set_attribute(ph_element, "type", ph_object.type, True, str, strict)
+  set_attribute(ph_element, "assoc", ph_object.assoc, True, Assoc, strict)
+  return content_to_element(ph_object, ph_element, True, strict, backend=backend)
+
+
+def hi_to_element(
+  hi_object: Hi, /, backend: type[XmlElement] | None = None, strict: bool = True
+) -> XmlElement:
+  backend = get_backend(backend)
+  hi_element = backend("hi")
+  set_attribute(hi_element, "x", hi_object.x, True, int, strict)
+  set_attribute(hi_element, "type", hi_object.type, True, str, strict)
+  return content_to_element(hi_object, hi_element, False, strict, backend=backend)
+
+
+def tuv_to_element(
+  tuv_object: Tuv, /, backend: type[XmlElement] | None = None, strict: bool = True
+) -> XmlElement:
+  backend = get_backend(backend)
+  tuv_element = backend("tuv")
+  set_attribute(tuv_element, f"{XML_NS}lang", tuv_object.lang, False, str, strict)
+  set_attribute(tuv_element, "o-encoding", tuv_object.o_encoding, True, str, strict)
+  set_attribute(tuv_element, "datatype", tuv_object.datatype, True, str, strict)
+  set_attribute(tuv_element, "usagecount", tuv_object.usagecount, True, int, strict)
+  set_attribute(tuv_element, "lastusagedate", tuv_object.lastusagedate, True, datetime, strict)
+  set_attribute(tuv_element, "creationtool", tuv_object.creationtool, True, str, strict)
+  set_attribute(
+    tuv_element, "creationtoolversion", tuv_object.creationtoolversion, True, str, strict
+  )
+  set_attribute(tuv_element, "creationdate", tuv_object.creationdate, True, datetime, strict)
+  set_attribute(tuv_element, "creationid", tuv_object.creationid, True, str, strict)
+  set_attribute(tuv_element, "changedate", tuv_object.changedate, True, datetime, strict)
+  set_attribute(tuv_element, "changeid", tuv_object.changeid, True, str, strict)
+  set_attribute(tuv_element, "o-tmf", tuv_object.o_tmf, True, str, strict)
+  for prop in tuv_object.props:
+    tuv_element.append(prop_to_element(prop, backend=backend))
+  for note in tuv_object.notes:
+    tuv_element.append(note_to_element(note, backend=backend))
+  seg_element = content_to_element(tuv_object, backend("seg"), False, strict, backend=backend)
+  tuv_element.append(seg_element)
+  return tuv_element
+
+
+def tu_to_element(
+  tu_object: Tu, /, backend: type[XmlElement] | None = None, strict: bool = True
+) -> XmlElement:
+  backend = get_backend(backend)
+  tu_element = backend("tu")
+  set_attribute(tu_element, "tuid", tu_object.tuid, True, str, strict)
+  set_attribute(tu_element, "o-encoding", tu_object.o_encoding, True, str, strict)
+  set_attribute(tu_element, "datatype", tu_object.datatype, True, str, strict)
+  set_attribute(tu_element, "usagecount", tu_object.usagecount, True, int, strict)
+  set_attribute(tu_element, "lastusagedate", tu_object.lastusagedate, True, datetime, strict)
+  set_attribute(tu_element, "creationtool", tu_object.creationtool, True, str, strict)
+  set_attribute(tu_element, "creationtoolversion", tu_object.creationtoolversion, True, str, strict)
+  set_attribute(tu_element, "creationdate", tu_object.creationdate, True, datetime, strict)
+  set_attribute(tu_element, "creationid", tu_object.creationid, True, str, strict)
+  set_attribute(tu_element, "changedate", tu_object.changedate, True, datetime, strict)
+  set_attribute(tu_element, "segtype", tu_object.segtype, True, Segtype, strict)
+  set_attribute(tu_element, "changeid", tu_object.changeid, True, str, strict)
+  set_attribute(tu_element, "o-tmf", tu_object.o_tmf, True, str, strict)
+  set_attribute(tu_element, "srclang", tu_object.srclang, True, str, strict)
+  for prop in tu_object.props:
+    tu_element.append(prop_to_element(prop, backend=backend))
+  for note in tu_object.notes:
+    tu_element.append(note_to_element(note, backend=backend))
+  for variant in tu_object.variants:
+    tu_element.append(tuv_to_element(variant, backend=backend))
+  return tu_element
+
+
+def tmx_to_element(
+  tmx_object: Tmx, /, backend: type[XmlElement] | None = None, strict: bool = True
+) -> XmlElement:
+  backend = get_backend(backend)
+  tmx_element = backend("tmx")
+  set_attribute(tmx_element, "version", tmx_object.version, False, str, strict)
+  tmx_element.append(header_to_element(tmx_object.header, backend=backend, strict=strict))
+  body = backend("body")
+  for tu in tmx_object.body:
+    body.append(tu_to_element(tu, backend=backend, strict=strict))
+  tmx_element.append(body)
+  return tmx_element
+
+
+@overload
+def element_to_content(
+  source: XmlElement, sub_only: Literal[False], strict: bool = True
+) -> list[Bpt | Ept | It | Ph | Hi | str]: ...
+@overload
+def element_to_content(
+  source: XmlElement, sub_only: Literal[True], strict: bool = True
+) -> list[Sub | str]: ...
+def element_to_content(
+  source: XmlElement, sub_only: bool, strict: bool = True
+) -> list[Bpt | Ept | It | Ph | Hi | str] | list[Sub | str]:
+  parts: list = []
+  err_msg = f"Found unexpected element: %s in {source.__class__.__name__!r} element, expected only str, Bpt, Ept, It, Ph or Hi"
+  if sub_only:
+    err_msg = f"Found unexpected element: %s in {source.__class__.__name__!r} element, expected only str or Sub"
+  debug_message = "Ignoring. Use strict=True to raise an error."
+  if source.text is not None:
+    parts.append(source.text)
+  for child in source:
+    tag = normalize_tag(child.tag)
+    match tag:
+      case "sub":
+        if not sub_only:
+          if strict:
+            raise ConversionError(err_msg % tag)
+          logger.warning(err_msg % tag)
+          logger.debug(debug_message)
+          continue
+        parts.append(element_to_sub(child))
+      case "bpt":
+        if sub_only:
+          if strict:
+            raise ConversionError(err_msg % tag)
+          logger.warning(err_msg % tag)
+          logger.debug(debug_message)
+          continue
+        parts.append(element_to_bpt(child))
+      case "ept":
+        if sub_only:
+          if strict:
+            raise ConversionError(err_msg % tag)
+          logger.warning(err_msg % tag)
+          logger.debug(debug_message)
+          continue
+        parts.append(element_to_ept(child))
+      case "it":
+        if sub_only:
+          if strict:
+            raise ConversionError(err_msg % tag)
+          logger.warning(err_msg % tag)
+          logger.debug(debug_message)
+          continue
+        parts.append(element_to_it(child))
+      case "ph":
+        if sub_only:
+          if strict:
+            raise ConversionError(err_msg % tag)
+          logger.warning(err_msg % tag)
+          logger.debug(debug_message)
+          continue
+        parts.append(element_to_ph(child))
+      case "hi":
+        if sub_only:
+          if strict:
+            raise ConversionError(err_msg % tag)
+          logger.warning(err_msg % tag)
+          logger.debug(debug_message)
+          continue
+        parts.append(element_to_hi(child))
+      case _:
+        err_msg = f"Found unexpected element: {tag!r} in {source.__class__.__name__!r} element, expected only str, Bpt, Ept, It, Ph, Hi or Sub"
+        if strict:
+          raise ConversionError(err_msg)
+        logger.warning(err_msg)
+        logger.debug(debug_message)
+    if child.tail is not None:
+      parts.append(child.tail)
+  return parts
+
+
+def element_to_note(note_element: XmlElement, strict: bool = True) -> Note:
+  check_tag(note_element.tag, "note", strict)
+  return Note(
+    text=note_element.text if note_element.text is not None else "",
+    lang=note_element.attrib.get(f"{XML_NS}lang"),
+    o_encoding=note_element.get("o-encoding"),
+  )
+
+
+def element_to_prop(prop_element: XmlElement, strict: bool = True) -> Prop:
+  check_tag(prop_element.tag, "prop", strict)
+  return Prop(
+    type=prop_element.attrib["type"],
+    text=prop_element.text if prop_element.text is not None else "",
+    lang=prop_element.attrib.get(f"{XML_NS}lang"),
+    o_encoding=prop_element.get("o-encoding"),
+  )
+
+
+def element_to_header(header_element: XmlElement, strict: bool = True) -> Header:
+  check_tag(header_element.tag, "header", strict)
+  header_object = Header(
+    creationtool=header_element.attrib["creationtool"],
+    creationtoolversion=header_element.attrib["creationtoolversion"],
+    segtype=Segtype(header_element.attrib["segtype"]),
+    o_tmf=header_element.attrib["o-tmf"],
+    adminlang=header_element.attrib["adminlang"],
+    srclang=header_element.attrib["srclang"],
+    datatype=header_element.attrib["datatype"],
+    o_encoding=header_element.attrib.get("o-encoding"),
+    creationdate=datetime.strptime(header_element.attrib["creationdate"], DT_FORMAT)
+    if header_element.attrib.get("creationdate") is not None
+    else None,
+    creationid=header_element.attrib.get("creationid"),
+    changedate=datetime.strptime(header_element.attrib["changedate"], DT_FORMAT)
+    if header_element.attrib.get("changedate") is not None
+    else None,
+    changeid=header_element.attrib.get("changeid"),
+  )
+  for child in header_element:
+    if child.tag == "prop":
+      header_object.props.append(element_to_prop(child))
+    elif child.tag == "note":
+      header_object.notes.append(element_to_note(child))
+    else:
+      if strict:
+        raise ValueError(f"Unexpected element {child.tag!r} in header, expected prop or note")
+      logger.warning(f"Unexpected element {child.tag!r} in header, expected prop or note")
+      logger.debug("Ignoring. Use strict=True to raise an error.")
+  return header_object
+
+
+def element_to_sub(sub_element: XmlElement, strict: bool = True) -> Sub:
+  check_tag(sub_element.tag, "sub", strict)
+  return Sub(
+    content=element_to_content(sub_element, sub_only=False),
+    datatype=sub_element.attrib.get("datatype"),
+    type=sub_element.attrib.get("type"),
+  )
+
+
+def element_to_bpt(bpt_element: XmlElement, strict: bool = True) -> Bpt:
+  check_tag(bpt_element.tag, "bpt", strict)
+  return Bpt(
+    content=element_to_content(bpt_element, sub_only=True),
+    i=int(bpt_element.attrib["i"]),
+    x=int(bpt_element.attrib["x"]) if bpt_element.attrib.get("x") is not None else None,
+    type=bpt_element.attrib.get("type"),
+  )
+
+
+def element_to_ept(ept_element: XmlElement, strict: bool = True) -> Ept:
+  check_tag(ept_element.tag, "ept", strict)
+  return Ept(
+    content=element_to_content(ept_element, sub_only=True),
+    i=int(ept_element.attrib["i"]),
+  )
+
+
+def element_to_it(it_element: XmlElement, strict: bool = True) -> It:
+  check_tag(it_element.tag, "it", strict)
+  return It(
+    content=element_to_content(it_element, sub_only=True),
+    pos=Pos(it_element.attrib["pos"]),
+    x=int(it_element.attrib["x"]) if it_element.attrib.get("x") is not None else None,
+    type=it_element.attrib.get("type"),
+  )
+
+
+def element_to_ph(ph_element: XmlElement, strict: bool = True) -> Ph:
+  check_tag(ph_element.tag, "ph", strict)
+  return Ph(
+    content=element_to_content(ph_element, sub_only=True),
+    x=int(ph_element.attrib["x"]) if ph_element.attrib.get("x") is not None else None,
+    type=ph_element.attrib.get("type"),
+    assoc=Assoc(ph_element.attrib["assoc"]) if ph_element.attrib.get("assoc") is not None else None,
+  )
+
+
+def element_to_hi(hi_element: XmlElement, strict: bool = True) -> Hi:
+  check_tag(hi_element.tag, "hi", strict)
+  return Hi(
+    content=element_to_content(hi_element, sub_only=False),
+    x=int(hi_element.attrib["x"]) if hi_element.attrib.get("x") is not None else None,
+    type=hi_element.attrib.get("type"),
+  )
+
+
+def element_to_tuv(tuv_element: XmlElement, strict: bool = True) -> Tuv:
+  check_tag(tuv_element.tag, "tuv", strict)
+  tuv_object = Tuv(
+    lang=tuv_element.attrib[f"{XML_NS}lang"],
+    o_encoding=tuv_element.get("o-encoding"),
+    datatype=tuv_element.attrib.get("datatype"),
+    usagecount=int(tuv_element.attrib["usagecount"])
+    if tuv_element.attrib.get("usagecount") is not None
+    else None,
+    lastusagedate=datetime.strptime(tuv_element.attrib["lastusagedate"], DT_FORMAT)
+    if tuv_element.attrib.get("lastusagedate") is not None
+    else None,
+    creationtool=tuv_element.attrib.get("creationtool"),
+    creationtoolversion=tuv_element.attrib.get("creationtoolversion"),
+    creationdate=datetime.strptime(tuv_element.attrib["creationdate"], DT_FORMAT)
+    if tuv_element.attrib.get("creationdate") is not None
+    else None,
+    creationid=tuv_element.attrib.get("creationid"),
+    changedate=datetime.strptime(tuv_element.attrib["changedate"], DT_FORMAT)
+    if tuv_element.attrib.get("changedate") is not None
+    else None,
+    changeid=tuv_element.attrib.get("changeid"),
+    o_tmf=tuv_element.attrib.get("o-tmf"),
+  )
+  seg_found = False
+  for child in tuv_element:
+    if child.tag == "prop":
+      tuv_object.props.append(element_to_prop(child))
+    elif child.tag == "note":
+      tuv_object.notes.append(element_to_note(child))
+    elif child.tag == "seg":
+      if seg_found:
+        if strict:
+          raise ValueError("Found multiple <seg> elements found in <tuv>")
+        logger.warning("Found multiple <seg> elements found in <tuv>")
+        logger.debug("Only the first <seg> will be used. Use strict=True to raise an error.")
+        continue
+      seg_found = True
+      tuv_object.content = element_to_content(child, sub_only=False)
+    else:
+      if strict:
+        raise ValueError(
+          f"Found unexpected element {child.tag!r} in tuv, expected prop, note or seg"
+        )
+      logger.warning(f"Found unexpected element {child.tag!r} in tuv, expected prop, note or seg")
+      logger.debug("Ignoring. Use strict=True to raise an error.")
+  if not seg_found:
+    if strict:
+      raise ValueError("Missing <seg> element in <tuv>")
+    logger.warning("Missing <seg> element in <tuv>")
+    logger.debug(
+      "Treating as if it were a <seg> with an empty text. Use strict=True to raise an error."
+    )
+    tuv_object.content.append("")
+  return tuv_object
+
+
+def element_to_tu(tu_element: XmlElement, strict: bool = True) -> Tu:
+  check_tag(tu_element.tag, "tu", strict)
+  tu_object = Tu(
+    tuid=tu_element.attrib.get("tuid"),
+    o_encoding=tu_element.get("o-encoding"),
+    datatype=tu_element.attrib.get("datatype"),
+    usagecount=int(tu_element.attrib["usagecount"])
+    if tu_element.attrib.get("usagecount") is not None
+    else None,
+    lastusagedate=datetime.strptime(tu_element.attrib["lastusagedate"], DT_FORMAT)
+    if tu_element.attrib.get("lastusagedate") is not None
+    else None,
+    creationtool=tu_element.attrib.get("creationtool"),
+    creationtoolversion=tu_element.attrib.get("creationtoolversion"),
+    creationdate=datetime.strptime(tu_element.attrib["creationdate"], DT_FORMAT)
+    if tu_element.attrib.get("creationdate") is not None
+    else None,
+    creationid=tu_element.attrib.get("creationid"),
+    changedate=datetime.strptime(tu_element.attrib["changedate"], DT_FORMAT)
+    if tu_element.attrib.get("changedate") is not None
+    else None,
+    segtype=Segtype(tu_element.attrib["segtype"])
+    if tu_element.attrib.get("segtype") is not None
+    else None,
+    changeid=tu_element.attrib.get("changeid"),
+    o_tmf=tu_element.attrib.get("o-tmf"),
+    srclang=tu_element.attrib.get("srclang"),
+  )
+  for child in tu_element:
+    if child.tag == "prop":
+      tu_object.props.append(element_to_prop(child))
+    elif child.tag == "note":
+      tu_object.notes.append(element_to_note(child))
+    elif child.tag == "tuv":
+      tu_object.variants.append(element_to_tuv(child))
+    else:
+      if strict:
+        raise ValueError(
+          f"Found unexpected element {child.tag!r} in tu, expected prop or note or tuv"
+        )
+      logger.warning(f"Found unexpected element {child.tag!r} in tu, expected prop or note or tuv")
+      logger.debug("Ignoring. Use strict=True to raise an error.")
+  return tu_object
+
+
+def element_to_tmx(tmx_element: XmlElement, strict: bool = True) -> Tmx:
+  check_tag(tmx_element.tag, "tmx", strict)
+  body_found = False
+  header: Header | None = None
+  body: list[Tu] = []
+  for child in tmx_element:
+    if child.tag == "header":
+      if header is not None:
+        if strict:
+          raise ValueError("Multiple <header> elements found in <tmx>")
+        logger.warning("Multiple <header> elements found in <tmx>")
+        logger.debug(
+          "Only considering the first <header> element. Use strict=True to raise an error."
+        )
+        continue
+      header = element_to_header(child)
+    elif child.tag == "body":
+      if body_found:
+        if strict:
+          raise ValueError("Multiple <body> elements found in <tmx>")
+        logger.warning("Multiple <body> elements found in <tmx>")
+        logger.debug(
+          "tus from all <body> elements will be included. Use strict=True to raise an error."
+        )
+        body_found = False
+      body_found = True
+      for tu in child:
+        if tu.tag == "tu":
+          body.append(element_to_tu(tu))
+        else:
+          if strict:
+            raise ValueError(f"Found unexpected element {tu.tag!r} in body, expected tu")
+          logger.warning(f"Found unexpected element {tu.tag!r} in body, expected tu")
+          logger.debug("Ignoring. Use strict=True to raise an error.")
+    else:
+      if strict:
+        raise ValueError(f"Found unexpected element {child.tag!r} in tmx, expected header or body")
+      logger.warning(f"Found unexpected element {child.tag!r} in tmx, expected header or body")
+      logger.debug("Ignoring. Use strict=True to raise an error.")
+  if header is None:
+    if strict:
+      raise ValueError("Missing <header> element in <tmx>")
+    logger.warning("Missing <header> element in <tmx>")
+    logger.debug("Creating minimal header. Use strict=True to raise an error.")
+    header = Header(
+      creationtool="python-tmx",
+      creationtoolversion="0.4",
+      segtype=Segtype.PARAGRAPH,
+      o_tmf="unknown",
+      adminlang="en",
+      srclang="en",
+      datatype="unknown",
+    )
+  if not body_found:
+    if strict:
+      raise ValueError("Missing <body> element in <tmx>")
+    logger.warning("Missing <body> element in <tmx>")
+    logger.debug("Body will be an empty list. Use strict=True to raise an error.")
+  return Tmx(version=tmx_element.attrib["version"], header=header, body=body)
+
+
+TAG_TO_DATACLASS_HANDLER: dict[str, Callable[[XmlElement, bool], BaseElement]] = {
+  "prop": element_to_prop,
+  "note": element_to_note,
+  "header": element_to_header,
+  "bpt": element_to_bpt,
+  "ept": element_to_ept,
+  "it": element_to_it,
+  "ph": element_to_ph,
+  "hi": element_to_hi,
+  "sub": element_to_sub,
+  "tuv": element_to_tuv,
+  "tu": element_to_tu,
+  "tmx": element_to_tmx,
+}
+
+
+def xml_element_to_dataclass(element: XmlElement, strict: bool = True) -> BaseElement:
+  tag = normalize_tag(element.tag)
+  if tag not in TAG_TO_DATACLASS_HANDLER:
+    raise ValueError(f"Unexpected tag {tag!r}")
+  return TAG_TO_DATACLASS_HANDLER[tag](element, strict)
+
+
+def dataclass_to_xml_element(
+  obj: BaseElement, backend: type[XmlElement] | None = None, strict: bool = True
+) -> XmlElement:
+  backend = get_backend(backend)
+  match obj:
+    case Prop():
+      return prop_to_element(obj, backend=backend, strict=strict)
+    case Note():
+      return note_to_element(obj, backend=backend, strict=strict)
+    case Header():
+      return header_to_element(obj, backend=backend, strict=strict)
+    case Bpt():
+      return bpt_to_element(obj, backend=backend, strict=strict)
+    case Ept():
+      return ept_to_element(obj, backend=backend, strict=strict)
+    case It():
+      return it_to_element(obj, backend=backend, strict=strict)
+    case Ph():
+      return ph_to_element(obj, backend=backend, strict=strict)
+    case Hi():
+      return hi_to_element(obj, backend=backend, strict=strict)
+    case Sub():
+      return sub_to_element(obj, backend=backend, strict=strict)
+    case Tuv():
+      return tuv_to_element(obj, backend=backend, strict=strict)
+    case Tu():
+      return tu_to_element(obj, backend=backend, strict=strict)
+    case Tmx():
+      return tmx_to_element(obj, backend=backend, strict=strict)
+    case _:
+      raise TypeError(f"Unexpected type {type(obj).__name__}")
