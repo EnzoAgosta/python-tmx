@@ -1,28 +1,24 @@
-class ConversionError(Exception):
+class XmlSerializationError(Exception):
   pass
 
 
-class AttributeValidationError(ConversionError):
+class AttributeValidationError(Exception):
   pass
 
 
-class XmlConversionError(Exception):
+class UnsupportedBackendError(Exception):
   pass
 
 
-class UnsupportedBackendError(XmlConversionError):
+class IncorrectTagError(Exception):
   pass
 
 
-class IncorrectTagError(XmlConversionError):
+class InvalidContentError(Exception):
   pass
 
 
-class IncorrectContentError(XmlConversionError):
-  pass
-
-
-class ArrowConversionError(ConversionError):
+class ArrowConversionError(XmlSerializationError):
   pass
 
 
@@ -35,4 +31,8 @@ class IncorrectArrowTypeError(ArrowConversionError):
 
 
 class IncorrectArrowContentError(ArrowConversionError):
+  pass
+
+
+class MissingHandlerError(XmlSerializationError):
   pass
