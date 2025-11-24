@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+[project]
+name = "python-tmx"
+version = "0.4"
+authors = [{ name = "Enzo Agosta", email = "agosta.enzowork@gmail.com" }]
+description = "Python library for manipulating, creating and editing tmx files"
+readme = { file = "README.md", content-type = "text/markdown" }
+license = { text = "MIT" }
+requires-python = ">=3.10"
+classifiers = [
+  "Programming Language :: Python :: 3.13",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+]
+dependencies = [
+  "lxml>=5.3.0",
+  "types-lxml>=2025.8.25",
+  "orjson>=3.11.3",
+  "pyarrow>=21.0.0",
+  "pyarrow-stubs>=20.0.0.20250928",
+  "faker>=37.12.0",
+  "pytest>=8.4.2",
+  "mypy>=1.18.2",
+  "ruff>=0.14.3",
+]
+
+[project.urls]
+Homepage = "https://github.com/ChonkyYoshi/python-tmx"
+Issues = "https://github.com/ChonkyYoshi/python-tmx/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools]
+license-files = []
