@@ -10,7 +10,7 @@ from python_tmx.xml.serialization.logger import SerializationLogger
 from python_tmx.xml.serialization.policy import SerializationPolicy
 
 
-class BaseSerializer(Generic[XmlElement], ABC):
+class BaseElementSerializer(Generic[XmlElement], ABC):
   def __init__(
     self,
     backend: XMLBackend[XmlElement],
@@ -75,7 +75,7 @@ class BaseSerializer(Generic[XmlElement], ABC):
       self.backend.set_text(element, value)
       return
     self.logger.log_invalid_attribute_type("text", "str", value)
-    match self.policy.invalid_content:
+    match self.policy.invalid_text_content:
       case "raise":
         raise InvalidContentError(f"Invalid value for 'text': expected 'str', got {type(value).__name__!r}")
       case "coerce":
