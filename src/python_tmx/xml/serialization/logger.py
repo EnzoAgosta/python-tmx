@@ -34,3 +34,7 @@ class SerializationLogger:
   def log_missing_handler(self, obj: str) -> None:
     level = logging.WARNING if self.policy.missing_handler == "default" else logging.DEBUG
     self.logger.log(level, "Missing handler for %s", obj)
+
+  def log_invalid_child_element(self, expected_type: str, received_type: str) -> None:
+    level = logging.WARNING if self.policy.incorrect_child_element == "warn" else logging.DEBUG
+    self.logger.log(level, "Incorrect content element: expected %s, got %s", expected_type, received_type)
