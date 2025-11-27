@@ -1,4 +1,5 @@
-from python_tmx.xml.backends.lxml import LxmlBackend
-from python_tmx.xml.backends.standard import StandardBackend
+from .lxml import LxmlBackend
+from .standard import StandardBackend
+from .base import XMLBackend
 
-__all__ = ["LxmlBackend", "StandardBackend"]
+__all__ = ["LxmlBackend", "StandardBackend", "XMLBackend"]
