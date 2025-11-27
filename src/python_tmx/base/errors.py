@@ -2,15 +2,19 @@ class XmlSerializationError(Exception):
   pass
 
 
-class AttributeValidationError(Exception):
+class XmlDeserializationError(Exception):
   pass
 
 
-class UnsupportedBackendError(Exception):
+class AttributeSerializationError(XmlSerializationError):
   pass
 
 
-class IncorrectTagError(Exception):
+class AttributeDeserializationError(XmlDeserializationError):
+  pass
+
+
+class InvalidTagError(XmlDeserializationError):
   pass
 
 

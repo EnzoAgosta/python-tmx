@@ -1,5 +1,4 @@
 from typing import TypeVar
-import xml.etree.ElementTree as ET
-import lxml.etree as LET
 
-XmlElement = TypeVar("XmlElement", ET.Element, LET.Element)
+XML_NS = "{http://www.w3.org/XML/1998/namespace}"
+T_XmlElement = TypeVar("T_XmlElement")

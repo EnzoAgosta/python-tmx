@@ -230,4 +230,4 @@ class LxmlProvider(XmlElementProvider[LET.Element]):
 
 
 class StdProvider(XmlElementProvider[ET.Element]):
-  backend = ET.Element  # type: ignore[assignment]
+  backend = ET.Element

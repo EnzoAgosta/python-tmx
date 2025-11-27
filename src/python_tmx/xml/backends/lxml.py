@@ -1,17 +1,15 @@
-import logging
+from collections.abc import Iterator
+from functools import cache
 import lxml.etree as LET
 
-from python_tmx.xml.backends.base import XMLBackend
+from python_tmx.xml.utils import normalize_tag
 
-logger = logging.getLogger(__name__)
 
 __all__ = ["LxmlBackend"]
 
-class LxmlBackend(XMLBackend[LET._Element]):
-  """lxml-based XML backend."""
 
-  def __init__(self):
-    logger.info("Initialized lxml backend")
+class LxmlBackend:
+  """lxml-based XML backend."""
 
   def make_elem(self, tag: str) -> LET.Element:
     return LET.Element(tag)
@@ -24,3 +22,28 @@ class LxmlBackend(XMLBackend[LET._Element]):
 
   def append(self, parent: LET._Element, child: LET._Element) -> None:
     parent.append(child)
+
+  def get_attr(self, element: LET._Element, key: str, default: str | None = None) -> str | None:
+    return element.attrib.get(key, default)
+
+  def get_text(self, element: LET._Element) -> str | None:
+    return element.text
+
+  def get_tail(self, element: LET._Element) -> str | None:
+    return element.tail
+
+  def set_tail(self, element: LET._Element, tail: str | None) -> None:
+    element.tail = tail
+
+  def iter_children(self, element: LET._Element, tag: str | None = None) -> Iterator[LET._Element]:
+    for descendant in element:
+      descendant_tag = self.get_tag(descendant)
+      if tag is None or descendant_tag in tag:
+        yield descendant
+
+  @cache
+  def get_tag(self, element: LET._Element) -> str:
+    return normalize_tag(element.tag)
+
+  def find(self, element: LET._Element, tag: str) -> LET._Element | None:
+    return element.find(tag)
