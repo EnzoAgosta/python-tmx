@@ -236,7 +236,7 @@ class TuvDeserializer(BaseElementDeserializer[T_XmlElement], InlineContentDeseri
           raise XmlDeserializationError(f"Invalid child element <{self.backend.get_tag(child)}> in <tuv>")
     if content is None:
       if self.policy.missing_seg.behavior == "raise":
-        raise XmlDeserializationError("Element <tuv> does not have any content")
+        raise XmlDeserializationError("Element <tuv> is missing a <seg> child element")
       if self.policy.missing_seg.behavior == "ignore":
         content = []
     return Tuv(
