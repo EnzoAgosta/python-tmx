@@ -23,66 +23,172 @@ class TestPropDeserializer[T_XmlElement]:
     self.handler = PropDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
     self.handler._set_emit(lambda x: None)
 
-  def make_valid_elem(self, *, full: bool = False) -> T_XmlElement:
+  def make_prop_elem(
+    self,
+    *,
+    tag: str = "prop",
+    text: str | None = "Valid Prop Content",
+    _type: str | None = "x-test-type",
+    o_encoding: str | None = "UTF-8",
+    lang: str | None = "en-US",
+  ) -> T_XmlElement:
     """
     Creates a <prop> element.
-    if full is True, all optional attributes are filled.
+
+    extra kwargs:
+    tag: The tag to use for the element (default: "prop")
+    text: The text content to use (default: "Valid Prop Content")
+    type: The type attribute to use (default: "x-test-type")
+    o_encoding: The o-encoding attribute to use (default: None or "UTF-8" if full is True)
+    lang: The lang attribute to use (default: None or "en-US" if full is True)
     """
-    elem = self.backend.make_elem("prop")
-    self.backend.set_attr(elem, "type", "x-test-type")
-    self.backend.set_text(elem, "Valid Prop Content")
-
-    if full:
-      self.backend.set_attr(elem, f"{XML_NS}lang", "en-US")
-      self.backend.set_attr(elem, "o-encoding", "UTF-8")
-
+    elem = self.backend.make_elem(tag)
+    self.backend.set_text(elem, text)
+    if _type is not None:
+      self.backend.set_attr(elem, "type", _type)
+    if lang is not None:
+      self.backend.set_attr(elem, f"{XML_NS}lang", lang)
+    if o_encoding is not None:
+      self.backend.set_attr(elem, "o-encoding", o_encoding)
     return elem
 
-  def test_minimal_valid(self):
-    """Prop requires 'type' and text."""
-    elem = self.make_valid_elem()
+  def test_basic_usage(self, caplog: pytest.LogCaptureFixture):
+    """
+    Simple and most common usage of the Prop deserializer.
+    Tests that the Prop is correctly constructed from the XML element.
+    """
+    elem = self.make_prop_elem()
     prop = self.handler._deserialize(elem)
 
     assert isinstance(prop, Prop)
     assert prop.text == "Valid Prop Content"
     assert prop.type == "x-test-type"
-    assert prop.lang is None
-
-  def test_full_valid(self):
-    elem = self.make_valid_elem(full=True)
-    prop = self.handler._deserialize(elem)
-
     assert prop.lang == "en-US"
     assert prop.o_encoding == "UTF-8"
 
-  def test_check_tag(self):
-    elem = self.backend.make_elem("note")
-    with pytest.raises(InvalidTagError, match="expected prop"):
+    assert caplog.records == []
+
+  def test_check_tag_raises(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    """
+    Tests that the Prop deserializer raises an error when the tag is incorrect
+    if the policy says so and that the error is logged using the policy's log level
+    for that event.
+    """
+    elem = self.make_prop_elem(tag="note")
+    self.policy.invalid_tag.behavior = "raise"  # Default but setting it explicitly for testing purposes
+    self.policy.invalid_tag.log_level = log_level
+    with pytest.raises(InvalidTagError, match="Incorrect tag: expected prop, got note"):
       self.handler._deserialize(elem)
 
-  def test_missing_required_type(self):
-    """'type' is required for <prop>."""
-    elem = self.make_valid_elem()
-    elem = self.backend.make_elem("prop")
-    self.backend.set_text(elem, "Content")
+    expected_log = (self.logger.name, log_level, "Incorrect tag: expected prop, got note")
 
+    assert caplog.record_tuples == [expected_log]
+
+  def test_check_tag_ignores(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    """
+    Tests that the Prop deserializer ignores an incorrect tag if the policy says so
+    and that the error is logged using the policy's log level for that event.
+
+    Note: This creates a Prop element that doesn't reflect the original XML.
+    """
+    elem = self.make_prop_elem(tag="note")
+    self.policy.invalid_tag.behavior = "ignore"
+    self.policy.invalid_tag.log_level = log_level
+    prop = self.handler._deserialize(elem)
+    assert isinstance(prop, Prop)
+    assert prop.text == "Valid Prop Content"
+    assert prop.type == "x-test-type"
+    assert prop.lang == "en-US"
+    assert prop.o_encoding == "UTF-8"
+
+    expected_log = (self.logger.name, log_level, "Incorrect tag: expected prop, got note")
+    assert caplog.record_tuples == [expected_log]
+
+  def test_missing_required_attribute_raises(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    """
+    Tests that the Prop deserializer raises an error when the required attribute is missing
+    if the policy says so and that the error is logged using the policy's log level
+    for that event.
+    """
+    elem = self.make_prop_elem(_type=None)
+    self.policy.required_attribute_missing.behavior = "raise"  # Default but setting it explicitly for testing purposes
+    self.policy.required_attribute_missing.log_level = log_level
     with pytest.raises(AttributeDeserializationError, match="Missing required attribute 'type'"):
       self.handler._deserialize(elem)
+    assert caplog.records[-1].levelno == log_level
+    assert caplog.records[-1].message == "Missing required attribute 'type' on element <prop>"
 
-  def test_missing_text_raise(self):
-    """Policy: Text missing -> Raise (Default)."""
-    elem = self.make_valid_elem()
-    self.backend.set_text(elem, None)
-    self.policy.missing_text.behavior = "raise"
+  def test_missing_required_attribute_ignores(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    """
+    Tests that the Prop deserializer ignores an error when the required attribute is missing
+    if the policy says so and that the error is logged using the policy's log level
+    for that event.
 
-    with pytest.raises(XmlDeserializationError, match="does not have any text content"):
+    Note: This creates a invalid Prop element that doesn't reflect the original XML.
+    """
+    elem = self.make_prop_elem(_type=None)
+    self.policy.required_attribute_missing.behavior = "ignore"
+    self.policy.required_attribute_missing.log_level = log_level
+    prop = self.handler._deserialize(elem)
+    assert isinstance(prop, Prop)
+    assert prop.type is None
+
+    expected_log = (self.logger.name, log_level, "Missing required attribute 'type' on element <prop>")
+    assert caplog.record_tuples == [expected_log]
+
+  def test_missing_text_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    """
+    Tests that the Prop deserializer raises an error when the text is missing
+    if the policy says so and that the error is logged using the policy's log level
+    for that event.
+    """
+    elem = self.make_prop_elem(text=None)
+
+    self.policy.missing_text.behavior = "raise"  # Default but setting it explicitly for testing purposes
+    self.policy.missing_text.log_level = log_level
+
+    with pytest.raises(XmlDeserializationError, match="Element <prop> does not have any text content"):
       self.handler._deserialize(elem)
 
-  def test_missing_text_empty(self):
-    """Policy: Text missing -> Return empty string."""
-    elem = self.make_valid_elem()
-    self.backend.set_text(elem, None)
-    self.policy.missing_text.behavior = "empty"
+    expected_log = (self.logger.name, log_level, "Element <prop> does not have any text content")
+    assert caplog.record_tuples == [expected_log]
 
+  def test_missing_text_empty(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    """
+    Tests that the Prop deserializer falls back to an empty string when the text is missing
+    if the policy says so and that the error is logged using the policy's log level
+    for that event.
+
+    Note: This creates a Prop element that doesn't reflect the original XML.
+    """
+    elem = self.make_prop_elem(text=None)
+
+    self.policy.missing_text.behavior = "empty"
+    self.policy.missing_text.log_level = log_level
     prop = self.handler._deserialize(elem)
+
     assert prop.text == ""
+
+    expected_logs = [
+      (self.logger.name, log_level, "Element <prop> does not have any text content"),
+      (self.logger.name, log_level, "Falling back to an empty string"),
+    ]
+
+    assert caplog.record_tuples == expected_logs
+
+  def test_missing_text_ignores(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    """
+    Tests that the Prop deserializer ignores an error when the text is missing
+    if the policy says so and that the error is logged using the policy's log level
+    for that event.
+
+    Note: This creates a invalid Prop element that doesn't reflect the original XML.
+    """
+    elem = self.make_prop_elem(text=None)
+    self.policy.missing_text.behavior = "ignore"
+    self.policy.missing_text.log_level = log_level
+    prop = self.handler._deserialize(elem)
+    assert prop.text is None
+
+    expected_log = (self.logger.name, log_level, "Element <prop> does not have any text content")
+    assert caplog.record_tuples == [expected_log]

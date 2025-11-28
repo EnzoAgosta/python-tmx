@@ -1,15 +1,9 @@
+from datetime import UTC, datetime
 import logging
-from datetime import datetime
-from typing import Any
-
+from unittest.mock import Mock
 import pytest
-
-from python_tmx.base.errors import (
-  AttributeDeserializationError,
-  InvalidTagError,
-  XmlDeserializationError,
-)
 from python_tmx.base.types import Header, Note, Prop, Segtype
+from python_tmx.base.errors import AttributeDeserializationError, InvalidTagError, XmlDeserializationError
 from python_tmx.xml.backends.base import XMLBackend
 from python_tmx.xml.deserialization._handlers import HeaderDeserializer
 from python_tmx.xml.policy import DeserializationPolicy
@@ -29,161 +23,219 @@ class TestHeaderDeserializer[T_XmlElement]:
 
     self.handler = HeaderDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
 
-    self.handler._set_emit(lambda x: None)
+  def make_header_elem(
+    self,
+    *,
+    tag: str = "header",
+    creationtool: str | None = "pytest",
+    creationtoolversion: str | None = "v1",
+    segtype: str | None = "sentence",
+    o_tmf: str | None = "TestTMF",
+    adminlang: str | None = "en-US",
+    srclang: str | None = "en-US",
+    datatype: str | None = "plaintext",
+    o_encoding: str | None = "UTF-8",
+    creationdate: datetime | None = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC),
+    creationid: str | None = "User1",
+    changedate: datetime | None = datetime(2025, 2, 1, 14, 30, 0, tzinfo=UTC),
+    changeid: str | None = "User2",
+    props: int = 0,
+    notes: int = 0,
+  ) -> T_XmlElement:
+    """
+    Creates a <header> element.
 
-  def make_valid_elem(self, *, full: bool = False, notes: bool = False, props: bool = False) -> T_XmlElement:
+    extra kwargs:
+    tag: The tag to use for the element (default: "header")
+    creationtool: The creationtool attribute to use (default: "pytest")
+    creationtoolversion: The creationtoolversion attribute to use (default: "v1")
+    segtype: The segtype attribute to use (default: "sentence"). Must be one of "block", "paragraph", "sentence", "phrase".
+    o_tmf: The o-tmf attribute to use (default: "TestTMF")
+    adminlang: The adminlang attribute to use (default: "en-US")
+    srclang: The srclang attribute to use (default: "en-US")
+    datatype: The datatype attribute to use (default: "plaintext")
+    o_encoding: The o-encoding attribute to use (default: "UTF-8" if full is True)
+    creationdate: The creationdate attribute to use (default: January 1st, 2025 at 12:00:00 UTC)
+    creationid: The creationid attribute to use (default: "User1")
+    changedate: The changedate attribute to use (default: February 1st, 2025 at 14:30:00 UTC)
+    changeid: The changeid attribute to use (default: "User2")
+    props: The number of props to add to the header (default: 1)
+    notes: The number of notes to add to the header (default: 1)
     """
-    Helper to create a valid header element.
-    If full is True, all optional attributes are filled.
-    If notes is True, a note is added to the header.
-    If props is True, a prop is added to the header.
-    """
-    elem = self.backend.make_elem("header")
-    self.backend.set_attr(elem, "creationtool", "pytest")
-    self.backend.set_attr(elem, "creationtoolversion", "v1")
-    self.backend.set_attr(elem, "segtype", "sentence")
-    self.backend.set_attr(elem, "o-tmf", "TestTMF")
-    self.backend.set_attr(elem, "adminlang", "en-US")
-    self.backend.set_attr(elem, "srclang", "en-US")
-    self.backend.set_attr(elem, "datatype", "plaintext")
-    if full:
-      self.backend.set_attr(elem, "o-encoding", "UTF-8")
-      self.backend.set_attr(elem, "creationid", "User1")
-      self.backend.set_attr(elem, "changeid", "User2")
-      self.backend.set_attr(elem, "creationdate", "20250101T120000Z")
-      self.backend.set_attr(elem, "changedate", "20250201T143000Z")
-    if notes:
-      self.backend.append(elem, self.backend.make_elem("note"))
-    if props:
+    elem = self.backend.make_elem(tag)
+    if creationtool is not None:
+      self.backend.set_attr(elem, "creationtool", creationtool)
+    if creationtoolversion is not None:
+      self.backend.set_attr(elem, "creationtoolversion", creationtoolversion)
+    if segtype is not None:
+      self.backend.set_attr(elem, "segtype", segtype)
+    if o_tmf is not None:
+      self.backend.set_attr(elem, "o-tmf", o_tmf)
+    if adminlang is not None:
+      self.backend.set_attr(elem, "adminlang", adminlang)
+    if srclang is not None:
+      self.backend.set_attr(elem, "srclang", srclang)
+    if datatype is not None:
+      self.backend.set_attr(elem, "datatype", datatype)
+    if o_encoding is not None:
+      self.backend.set_attr(elem, "o-encoding", o_encoding)
+    if creationdate is not None:
+      self.backend.set_attr(elem, "creationdate", creationdate.strftime("%Y%m%dT%H%M%SZ"))
+    if creationid is not None:
+      self.backend.set_attr(elem, "creationid", creationid)
+    if changedate is not None:
+      self.backend.set_attr(elem, "changedate", changedate.strftime("%Y%m%dT%H%M%SZ"))
+    if changeid is not None:
+      self.backend.set_attr(elem, "changeid", changeid)
+    for _ in range(props):
       self.backend.append(elem, self.backend.make_elem("prop"))
+    for _ in range(notes):
+      self.backend.append(elem, self.backend.make_elem("note"))
     return elem
 
-  def test_minimal_valid(self):
-    """Verifies that a header with only required attributes parses correctly."""
-    elem = self.make_valid_elem()
-    header = self.handler._deserialize(elem)
-
-    assert header.creationtool == "pytest"
-    assert header.segtype == Segtype.SENTENCE
-    assert header.creationdate is None
-    assert header.props == []
-
-  def test_full_valid(self):
-    """Verifies that all optional attributes and dates are parsed correctly."""
-    elem = self.make_valid_elem(full=True)
-    header = self.handler._deserialize(elem)
-
-    assert header.o_encoding == "UTF-8"
-    assert header.creationid == "User1"
-    assert header.changeid == "User2"
-    assert header.creationdate == datetime(2025, 1, 1, 12, 0, 0)
-    assert header.changedate == datetime(2025, 2, 1, 14, 30, 0)
-
-  def test_valid_tag_check(self):
-    """Verifies the base class _check_tag logic."""
-    elem = self.backend.make_elem("tmx")  # Wrong tag
-    with pytest.raises(InvalidTagError, match="expected header, got tmx"):
-      self.handler._deserialize(elem)
-
-  def test_segtype_parsing_error(self):
-    """Verifies enum conversion for segtype."""
-    elem = self.make_valid_elem()
-
-    self.backend.set_attr(elem, "segtype", "invalid_enum_value")
-    with pytest.raises(AttributeDeserializationError, match="Invalid enum value"):
-      self.handler._deserialize(elem)
-
-  def test_date_parsing_iso_fallback(self, caplog:pytest.LogCaptureFixture):
+  def test_basic_usage(self, caplog: pytest.LogCaptureFixture):
     """
-    Verifies that we accept ISO formatted dates (common in wild TMX)
-    even if they don't match the strict TMX spec, but log an INFO message.
+    Simple and most common usage of the Header deserializer.
+    Tests that the Header is correctly constructed from the XML element.
     """
-    elem = self.make_valid_elem()
-    self.backend.set_attr(elem, "creationdate", "2025-01-01T12:00:00")
+    mock_prop_obj = Prop(text="P", type="T")
+    mock_note_obj = Note(text="N")
 
-    with caplog.at_level(logging.INFO, logger="python_tmx.test"):
-      header = self.handler._deserialize(elem)
-
-    assert header.creationdate == datetime(2025, 1, 1, 12, 0, 0)
-    assert any("Falling back to iso format" in r.message for r in caplog.records)
-
-  def test_date_parsing_failure(self):
-    """Verifies that completely malformed dates raise an error."""
-    elem = self.make_valid_elem()
-    self.backend.set_attr(elem, "creationdate", "not-a-date-string")
-
-    with pytest.raises(AttributeDeserializationError, match="Invalid datetime value"):
-      self.handler._deserialize(elem)
-
-  def test_children_processing_mocked(self):
-    """
-    Verifies that props and notes are correctly identified, emitted,
-    and added to the correct lists.
-    """
-    elem = self.make_valid_elem(notes=True, props=True)
-
-    mock_prop = Prop(text="P", type="t")
-    mock_note = Note(text="N")
-
-    def mock_emit(child_elem) -> Any:
-      tag = self.backend.get_tag(child_elem)
+    def side_effect(child_id):
+      tag = self.backend.get_tag(child_id)
       if tag == "prop":
-        return mock_prop
+        return mock_prop_obj
       if tag == "note":
-        return mock_note
+        return mock_note_obj
       return None
 
+    mock_emit = Mock(side_effect=side_effect)
     self.handler._set_emit(mock_emit)
-
+    elem = self.make_header_elem(props=1, notes=1)
     header = self.handler._deserialize(elem)
 
-    assert len(header.props) == 1
-    assert header.props[0] == mock_prop
-    assert len(header.notes) == 1
-    assert header.notes[0] == mock_note
+    assert isinstance(header, Header)
+    assert header.creationtool == "pytest"
+    assert header.creationtoolversion == "v1"
+    assert header.segtype == Segtype.SENTENCE
+    assert header.o_tmf == "TestTMF"
+    assert header.adminlang == "en-US"
+    assert header.srclang == "en-US"
+    assert header.datatype == "plaintext"
+    assert header.o_encoding == "UTF-8"
+    assert header.creationdate == datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
+    assert header.creationid == "User1"
+    assert header.changedate == datetime(2025, 2, 1, 14, 30, 0, tzinfo=UTC)
+    assert header.changeid == "User2"
 
-  def test_missing_required_attribute_raise(self):
-    """Policy: Missing Required Attr -> Raise."""
-    elem_bad = self.backend.make_elem("header")
+    assert header.props == [mock_prop_obj]
+    assert header.notes == [mock_note_obj]
 
-    with pytest.raises(AttributeDeserializationError, match="Missing required attribute"):
-      self.handler._deserialize(elem_bad)
+    assert mock_emit.call_count == 2
+    for i in self.backend.iter_children(elem):
+      mock_emit.assert_any_call(i)
 
-  def test_extra_text_content_raise(self):
-    """Policy: Text content in header -> Raise."""
-    elem = self.make_valid_elem()
-    self.backend.set_text(elem, "  I should not be here  ")
+    assert caplog.records == []
 
-    with pytest.raises(XmlDeserializationError, match="extra text content"):
+  def test_check_tag_raises(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    """
+    Tests that the Header deserializer raises an error when the tag is incorrect
+    if the policy says so and that the error is logged using the policy's log level
+    for that event.
+    """
+    elem = self.make_header_elem(tag="note")
+    self.policy.invalid_tag.behavior = "raise"  # Default but setting it explicitly for testing purposes
+    self.policy.invalid_tag.log_level = log_level
+    with pytest.raises(InvalidTagError, match="Incorrect tag: expected header, got note"):
       self.handler._deserialize(elem)
 
-  def test_extra_text_content_ignore(self):
-    """Policy: Text content in header -> Ignore."""
-    elem = self.make_valid_elem()
-    self.backend.set_text(elem, "  I should not be here  ")
+    expected_log = (self.logger.name, log_level, "Incorrect tag: expected header, got note")
 
-    self.policy.extra_text.behavior = "ignore"
+    assert caplog.record_tuples == [expected_log]
 
+  def test_check_tag_ignores(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    """
+    Tests that the Header deserializer ignores an incorrect tag if the policy says so
+    and that the error is logged using the policy's log level for that event.
+
+    Note: This creates a Header element that doesn't reflect the original XML.
+    """
+    elem = self.make_header_elem(tag="note")
+    self.policy.invalid_tag.behavior = "ignore"
+    self.policy.invalid_tag.log_level = log_level
     header = self.handler._deserialize(elem)
     assert isinstance(header, Header)
 
-  def test_invalid_child_raise(self):
-    """Policy: Invalid child element -> Raise."""
-    elem = self.make_valid_elem()
-    self.backend.append(elem, self.backend.make_elem("tu"))
+    expected_log = (self.logger.name, log_level, "Incorrect tag: expected header, got note")
+    assert caplog.record_tuples == [expected_log]
 
-    self.policy.invalid_child_element.behavior = "raise"
+  def test_missing_required_attribute_raises(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    """
+    Tests that the Header deserializer raises an error when the required attribute is missing
+    if the policy says so and that the error is logged using the policy's log level
+    for that event.
+    """
+    elem = self.make_header_elem(creationtool=None)
+    self.policy.required_attribute_missing.behavior = "raise"  # Default but setting it explicitly for testing purposes
+    self.policy.required_attribute_missing.log_level = log_level
+    with pytest.raises(AttributeDeserializationError, match="Missing required attribute 'creationtool'"):
+      self.handler._deserialize(elem)
+    assert caplog.records[-1].levelno == log_level
+    assert caplog.records[-1].message == "Missing required attribute 'creationtool' on element <header>"
 
-    with pytest.raises(XmlDeserializationError, match="Invalid child element <tu>"):
+  def test_missing_required_attribute_ignores(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    """
+    Tests that the Header deserializer ignores an error when the required attribute is missing
+    if the policy says so and that the error is logged using the policy's log level
+    for that event.
+
+    Note: This creates a invalid Header element that doesn't reflect the original XML.
+    """
+    elem = self.make_header_elem(creationtool=None)
+    self.policy.required_attribute_missing.behavior = "ignore"
+    self.policy.required_attribute_missing.log_level = log_level
+    header = self.handler._deserialize(elem)
+    assert isinstance(header, Header)
+    assert header.creationtool is None
+
+    expected_log = (self.logger.name, log_level, "Missing required attribute 'creationtool' on element <header>")
+    assert caplog.record_tuples == [expected_log]
+
+  def test_extra_missing_text_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    """
+    Tests that the Header deserializer raises an error when there is extra text content
+    if the policy says so and that the error is logged using the policy's log level
+    for that event.
+    """
+    elem = self.make_header_elem()
+    self.backend.set_text(elem, "  I should not be here  ")
+
+    self.policy.extra_text.behavior = "raise"  # Default but setting it explicitly for testing purposes
+    self.policy.extra_text.log_level = log_level
+
+    with pytest.raises(
+      XmlDeserializationError, match="Element <header> has extra text content '  I should not be here  '"
+    ):
       self.handler._deserialize(elem)
 
-  def test_invalid_child_ignore(self):
-    """Policy: Invalid child element -> Ignore."""
-    elem = self.make_valid_elem()
-    self.backend.append(elem, self.backend.make_elem("tu"))
+    expected_log = (self.logger.name, log_level, "Element <header> has extra text content '  I should not be here  '")
+    assert caplog.record_tuples == [expected_log]
 
-    self.policy.invalid_child_element.behavior = "ignore"
+  def test_extra_text_ignores(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    """
+    Tests that the Header deserializer ignores an error when there is extra text content
+    if the policy says so and that the error is logged using the policy's log level
+    for that event.
 
-    header = self.handler._deserialize(elem)
-    assert header.props == []
-    assert header.notes == []
+    Note: This creates a invalid Header element that doesn't reflect the original XML.
+    """
+    elem = self.make_header_elem()
+    self.backend.set_text(elem, "  I should not be here  ")
+
+    self.policy.extra_text.behavior = "ignore"
+    self.policy.extra_text.log_level = log_level
+
+    self.handler._deserialize(elem)
+
+    expected_log = (self.logger.name, log_level, "Element <header> has extra text content '  I should not be here  '")
+    assert caplog.record_tuples == [expected_log]

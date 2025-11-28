@@ -42,14 +42,15 @@ __all__ = [
 class NoteDeserializer(BaseElementDeserializer[T_XmlElement]):
   def _deserialize(self, element: T_XmlElement) -> Note:
     self._check_tag(element, "note")
-    lang = self._parse_attribute(element, f"{XML_NS}lang", True)
+    lang = self._parse_attribute(element, f"{XML_NS}lang", False)
     o_encoding = self._parse_attribute(element, "o-encoding", False)
     text = self.backend.get_text(element)
     if text is None:
-      self.logger.log(self.policy.missing_text.log_level, "Missing text content for <note>")
+      self.logger.log(self.policy.missing_text.log_level, "Element <note> does not have any text content")
       if self.policy.missing_text.behavior == "raise":
         raise XmlDeserializationError("Element <note> does not have any text content")
       if self.policy.missing_text.behavior == "empty":
+        self.logger.log(self.policy.missing_text.log_level, "Falling back to an empty string")
         text = ""
     return Note(text=text, lang=lang, o_encoding=o_encoding)  # type: ignore[arg-type]
 
@@ -62,10 +63,11 @@ class PropDeserializer(BaseElementDeserializer[T_XmlElement]):
     o_encoding = self._parse_attribute(element, "o-encoding", False)
     text = self.backend.get_text(element)
     if text is None:
-      self.logger.log(self.policy.missing_text.log_level, "Missing text content for <prop>")
+      self.logger.log(self.policy.missing_text.log_level, "Element <prop> does not have any text content")
       if self.policy.missing_text.behavior == "raise":
         raise XmlDeserializationError("Element <prop> does not have any text content")
       if self.policy.missing_text.behavior == "empty":
+        self.logger.log(self.policy.missing_text.log_level, "Falling back to an empty string")
         text = ""
     return Prop(text=text, type=_type, lang=lang, o_encoding=o_encoding)  # type: ignore[arg-type]
 
@@ -77,7 +79,7 @@ class HeaderDeserializer(BaseElementDeserializer[T_XmlElement]):
       if text.strip():
         self.logger.log(self.policy.extra_text.log_level, "Element <header> has extra text content '%s'", text)
         if self.policy.extra_text.behavior == "raise":
-          raise XmlDeserializationError("Element <header> has extra text content")
+          raise XmlDeserializationError(f"Element <header> has extra text content '{text}'")
     creationtool = self._parse_attribute(element, "creationtool", True)
     creationtoolversion = self._parse_attribute(element, "creationtoolversion", True)
     segtype = self._parse_attribute_as_enum(element, "segtype", Segtype, True)
