@@ -115,8 +115,8 @@ class TestPropDeserializer[T_XmlElement]:
     self.policy.required_attribute_missing.log_level = log_level
     with pytest.raises(AttributeDeserializationError, match="Missing required attribute 'type'"):
       self.handler._deserialize(elem)
-    assert caplog.records[-1].levelno == log_level
-    assert caplog.records[-1].message == "Missing required attribute 'type' on element <prop>"
+    expected_log = (self.logger.name, log_level, "Missing required attribute 'type' on element <prop>")
+    assert caplog.record_tuples == [expected_log]
 
   def test_missing_required_attribute_ignores(self, caplog: pytest.LogCaptureFixture, log_level: int):
     """

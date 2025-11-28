@@ -1,6 +1,7 @@
 from python_tmx.base.errors import XmlDeserializationError
 from python_tmx.base.types import (
   Assoc,
+  BaseInlineElement,
   Bpt,
   Ept,
   Header,
@@ -207,7 +208,8 @@ class TuvDeserializer(BaseElementDeserializer[T_XmlElement], InlineContentDeseri
     o_tmf = self._parse_attribute(element, "o-tmf", False)
     props: list[Prop] = []
     notes: list[Note] = []
-    content: list[str | Bpt | Ept | Hi | It | Ph] | None = None
+    content: list[str | BaseInlineElement] | None = None
+    seg_found = False
     for child in self.backend.iter_children(element):
       if self.backend.get_tag(child) == "prop":
         prop = self.emit(child)
@@ -218,16 +220,17 @@ class TuvDeserializer(BaseElementDeserializer[T_XmlElement], InlineContentDeseri
         if isinstance(note, Note):
           notes.append(note)
       elif self.backend.get_tag(child) == "seg":
-        if content is not None:
+        if seg_found:
           self.logger.log(
             self.policy.multiple_seg.log_level,
-            "multiple <seg> elements in <tuv>",
+            "Multiple <seg> elements in <tuv>",
           )
           if self.policy.multiple_seg.behavior == "raise":
-            raise XmlDeserializationError("multiple <seg> elements in <tuv>")
+            raise XmlDeserializationError("Multiple <seg> elements in <tuv>")
           if self.policy.multiple_seg.behavior == "keep_first":
             continue
-        content = self.deserialize_content(child)  # type: ignore[arg-type]
+        seg_found = True
+        content = self.deserialize_content(child)
       else:
         self.logger.log(
           self.policy.invalid_child_element.log_level,
@@ -236,7 +239,13 @@ class TuvDeserializer(BaseElementDeserializer[T_XmlElement], InlineContentDeseri
         )
         if self.policy.invalid_child_element.behavior == "raise":
           raise XmlDeserializationError(f"Invalid child element <{self.backend.get_tag(child)}> in <tuv>")
-    if content is None:
+    if seg_found:
+      if content == []:
+        self.logger.log(self.policy.empty_seg.log_level, "Element <tuv> has an empty <seg> child element")
+        if self.policy.empty_seg.behavior == "raise":
+          raise XmlDeserializationError("Element <tuv> has an empty <seg> child element")
+    else:
+      self.logger.log(self.policy.missing_seg.log_level, "Element <tuv> is missing a <seg> child element")
       if self.policy.missing_seg.behavior == "raise":
         raise XmlDeserializationError("Element <tuv> is missing a <seg> child element")
       if self.policy.missing_seg.behavior == "ignore":
@@ -338,10 +347,10 @@ class TmxDeserializer(BaseElementDeserializer[T_XmlElement]):
         if header is not None:
           self.logger.log(
             self.policy.invalid_child_element.log_level,
-            "multiple <header> elements in <tmx>",
+            "Multiple <header> elements in <tmx>",
           )
           if self.policy.invalid_child_element.behavior == "raise":
-            raise XmlDeserializationError("multiple <header> elements in <tmx>")
+            raise XmlDeserializationError("Multiple <header> elements in <tmx>")
           if self.policy.multiple_headers.behavior == "keep_first":
             continue
         header_obj = self.emit(child)

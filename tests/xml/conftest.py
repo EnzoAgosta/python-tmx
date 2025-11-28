@@ -1,12 +1,13 @@
 from collections.abc import Generator
 import logging
 
-from python_tmx.xml.backends.base import XMLBackend
 import pytest
+
+from python_tmx.xml.backends.base import XMLBackend
 
 from python_tmx.xml.backends.lxml import LxmlBackend
 from python_tmx.xml.backends.standard import StandardBackend
-from test_lib.backend import StrictBackend
+from strict_backend import StrictBackend
 
 
 @pytest.fixture(
@@ -27,13 +28,13 @@ def backend(request: pytest.FixtureRequest) -> Generator[XMLBackend, None, None]
 @pytest.fixture(autouse=True, scope="session")
 def test_logger() -> logging.Logger:
   logger = logging.getLogger("tests.capture_all")
-  logger.setLevel(1) # we want to capture all logs
+  logger.setLevel(1)
   return logger
 
 
 @pytest.fixture(
   params=["debug", "info", "warning", "error"],
-  ids=["log_level=debug, ", "log_level=info, ", "log_level=warning, ", "log_level=error, "], 
+  ids=["log_level=debug, ", "log_level=info, ", "log_level=warning, ", "log_level=error, "],
 )
 def log_level(request: pytest.FixtureRequest) -> int:
   match request.param:
