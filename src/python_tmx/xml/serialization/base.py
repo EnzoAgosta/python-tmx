@@ -134,7 +134,7 @@ class BaseElementSerializer[T_XmlElement](ABC):
         raise AttributeSerializationError(f"Invalid attribute type {value!r} for attribute {name!r}")
       return
     else:
-      self.backend.set_attr(element, name, value.strftime("%Y%m%dT%H%M%SZ"))
+      self.backend.set_attr(element, name, value.isoformat())
 
   def _set_attribute(self, element: T_XmlElement, name: str, value: str | None, required: bool) -> None:
     if value is None:

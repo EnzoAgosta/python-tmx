@@ -164,12 +164,12 @@ class InlineContentDeserializerMixin[T_XmlElement](DeserializerHost[T_XmlElement
 
   def deserialize_content(self, source: T_XmlElement) -> list[BaseInlineElement | str]:
     tag = self.backend.get_tag(source)
+    result = []
     if tag not in self.ALLOWED:
       self.logger.log(self.policy.invalid_inline_tag.log_level, "tag <%s> is not allowed in inline content", tag)
       if self.policy.invalid_inline_tag.behavior == "raise":
         raise XmlDeserializationError(f"tag <{tag}> is not allowed in inline content")
-      return []
-    result = []
+      return result
     if (text := self.backend.get_text(source)) is not None:
       result.append(text)
     for child in self.backend.iter_children(source):

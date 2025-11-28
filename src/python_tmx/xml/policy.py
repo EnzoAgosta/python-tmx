@@ -29,6 +29,7 @@ class DeserializationPolicy:
   missing_handler: PolicyValue[Literal["raise", "ignore", "default"]] = _default_policy()
   missing_seg: PolicyValue[Literal["raise", "ignore"]] = _default_policy()
   multiple_seg: PolicyValue[Literal["raise", "keep_first", "keep_last"]] = _default_policy()
+  empty_seg: PolicyValue[Literal["raise", "ignore"]] = _default_policy()
 
 
 @dataclass(slots=True, kw_only=True)

@@ -29,7 +29,7 @@ class TestHeaderDeserializer[T_XmlElement]:
     tag: str = "header",
     creationtool: str | None = "pytest",
     creationtoolversion: str | None = "v1",
-    segtype: str | None = "sentence",
+    segtype: Segtype | None = Segtype.SENTENCE,
     o_tmf: str | None = "TestTMF",
     adminlang: str | None = "en-US",
     srclang: str | None = "en-US",
@@ -59,8 +59,8 @@ class TestHeaderDeserializer[T_XmlElement]:
     creationid: The creationid attribute to use (default: "User1")
     changedate: The changedate attribute to use (default: February 1st, 2025 at 14:30:00 UTC)
     changeid: The changeid attribute to use (default: "User2")
-    props: The number of props to add to the header (default: 1)
-    notes: The number of notes to add to the header (default: 1)
+    props: The number of props to add to the header (default: 0)
+    notes: The number of notes to add to the header (default: 0)
     """
     elem = self.backend.make_elem(tag)
     if creationtool is not None:
@@ -68,7 +68,7 @@ class TestHeaderDeserializer[T_XmlElement]:
     if creationtoolversion is not None:
       self.backend.set_attr(elem, "creationtoolversion", creationtoolversion)
     if segtype is not None:
-      self.backend.set_attr(elem, "segtype", segtype)
+      self.backend.set_attr(elem, "segtype", segtype.value)
     if o_tmf is not None:
       self.backend.set_attr(elem, "o-tmf", o_tmf)
     if adminlang is not None:
@@ -80,11 +80,11 @@ class TestHeaderDeserializer[T_XmlElement]:
     if o_encoding is not None:
       self.backend.set_attr(elem, "o-encoding", o_encoding)
     if creationdate is not None:
-      self.backend.set_attr(elem, "creationdate", creationdate.strftime("%Y%m%dT%H%M%SZ"))
+      self.backend.set_attr(elem, "creationdate", creationdate.isoformat())
     if creationid is not None:
       self.backend.set_attr(elem, "creationid", creationid)
     if changedate is not None:
-      self.backend.set_attr(elem, "changedate", changedate.strftime("%Y%m%dT%H%M%SZ"))
+      self.backend.set_attr(elem, "changedate", changedate.isoformat())
     if changeid is not None:
       self.backend.set_attr(elem, "changeid", changeid)
     for _ in range(props):
