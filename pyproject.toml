@@ -14,11 +14,7 @@ classifiers = [
   "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
 ]
-dependencies = [
-    "lxml>=6.0.2",
-    "pytest>=9.0.1",
-    "types-lxml>=2025.11.25",
-]
+dependencies = []
 
 
 [project.urls]
@@ -27,6 +23,17 @@ Issues = "https://github.com/ChonkyYoshi/python-tmx/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[dependency-groups]
+dev = [
+    "lxml>=6.0.2",
+    "pytest>=9.0.1",
+    "types-lxml>=2025.11.25",
+]
+test = [
+    "lxml>=6.0.2",
+    "pytest>=9.0.1",
+]
 
 [tool.setuptools]
 license-files = []
