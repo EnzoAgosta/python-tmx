@@ -1,4 +1,4 @@
-from collections.abc import Iterator
+from collections.abc import Collection, Iterator
 from functools import cache
 import lxml.etree as LET
 
@@ -35,7 +35,7 @@ class LxmlBackend:
   def set_tail(self, element: LET._Element, tail: str | None) -> None:
     element.tail = tail
 
-  def iter_children(self, element: LET._Element, tag: str | None = None) -> Iterator[LET._Element]:
+  def iter_children(self, element: LET._Element, tag: str | Collection[str] | None = None) -> Iterator[LET._Element]:
     for descendant in element:
       descendant_tag = self.get_tag(descendant)
       if tag is None or descendant_tag in tag:

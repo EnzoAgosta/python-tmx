@@ -6,10 +6,6 @@ from enum import StrEnum
 from typing import Self
 
 
-# ---------------------------------------------------------------------------
-# Type aliases
-# ---------------------------------------------------------------------------
-
 type BaseStructuralElement = Prop | Note | Header | Tu | Tuv | Tmx
 """Union of all structural TMX elements as defined in TMX 1.4b."""
 
@@ -18,11 +14,6 @@ type BaseInlineElement = Bpt | Ept | It | Hi | Ph | Sub
 
 type BaseElement = BaseInlineElement | BaseStructuralElement
 """Union of all element classes in a TMX document."""
-
-
-# ---------------------------------------------------------------------------
-# Enumerations
-# ---------------------------------------------------------------------------
 
 
 class Pos(StrEnum):
@@ -52,11 +43,6 @@ class Segtype(StrEnum):
   PARAGRAPH = "paragraph"
   SENTENCE = "sentence"
   PHRASE = "phrase"
-
-
-# ---------------------------------------------------------------------------
-# Structural elements
-# ---------------------------------------------------------------------------
 
 
 @dataclass(slots=True)
@@ -131,11 +117,6 @@ class Header:
   """Zero or more `<note>` child elements providing administrative comments."""
 
 
-# ---------------------------------------------------------------------------
-# Inline elements
-# ---------------------------------------------------------------------------
-
-
 @dataclass(slots=True)
 class Bpt:
   """Represents the `<bpt>` (begin paired tag) inline element (TMX 1.4b §3.7.3)."""
@@ -166,9 +147,9 @@ class Hi:
 
   content: list[str | Bpt | Ept | It | Ph | Self]
   """Element content. Contains text and other inline elements; `<hi>` elements may nest."""
-  x: int | None
+  x: int | None = None
   """`x` attribute (optional). User-defined numeric identifier."""
-  type: str | None
+  type: str | None = None
   """`type` attribute (optional). Describes the formatting or emphasis category."""
 
 
@@ -180,9 +161,9 @@ class It:
   """Element content. Contains text or nested `<sub>` elements."""
   pos: Pos
   """`pos` attribute (required). Specifies whether the tag is a BEGIN or END isolated tag."""
-  x: int | None
+  x: int | None = None
   """`x` attribute (optional). Provides an external reference number for tag alignment."""
-  type: str | None
+  type: str | None = None
   """`type` attribute (optional). Describes the function of the isolated tag."""
 
 
@@ -192,11 +173,11 @@ class Ph:
 
   content: list[Sub | str]
   """Element content. Contains placeholder text or nested `<sub>` elements."""
-  x: int | None
+  x: int | None = None
   """`x` attribute (optional). User-defined external identifier."""
-  type: str | None
+  type: str | None = None
   """`type` attribute (optional). Describes the nature of the placeholder."""
-  assoc: Assoc | None
+  assoc: Assoc | None = None
   """`assoc` attribute (optional). Specifies association with preceding or following tags."""
 
 
@@ -206,15 +187,10 @@ class Sub:
 
   content: list[Bpt | Ept | It | Ph | Hi | str]
   """Element content. May include text and inline elements representing sub-segments."""
-  datatype: str | None
+  datatype: str | None = None
   """`datatype` attribute (optional). Specifies the data type of the sub-segment."""
-  type: str | None
+  type: str | None = None
   """`type` attribute (optional). Indicates the function or classification of the sub-segment."""
-
-
-# ---------------------------------------------------------------------------
-# Translation unit elements
-# ---------------------------------------------------------------------------
 
 
 @dataclass(slots=True)

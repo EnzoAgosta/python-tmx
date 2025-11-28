@@ -1,4 +1,4 @@
-from collections.abc import Iterator
+from collections.abc import Collection, Iterator
 from functools import cache
 import xml.etree.ElementTree as ET
 
@@ -35,7 +35,7 @@ class StandardBackend:
   def set_tail(self, element: ET.Element, tail: str | None) -> None:
     element.tail = tail
 
-  def iter_children(self, element: ET.Element, tag: str | None = None) -> Iterator[ET.Element]:
+  def iter_children(self, element: ET.Element, tag: str | Collection[str] | None = None) -> Iterator[ET.Element]:
     for descendant in element:
       descendant_tag = self.get_tag(descendant)
       if tag is None or descendant_tag in tag:

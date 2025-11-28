@@ -133,17 +133,29 @@ wheels = [
 name = "python-tmx"
 version = "0.4"
 source = { editable = "." }
-dependencies = [
+
+[package.dev-dependencies]
+dev = [
     { name = "lxml" },
     { name = "pytest" },
     { name = "types-lxml" },
 ]
+test = [
+    { name = "lxml" },
+    { name = "pytest" },
+]
 
 [package.metadata]
-requires-dist = [
+
+[package.metadata.requires-dev]
+dev = [
     { name = "lxml", specifier = ">=6.0.2" },
     { name = "pytest", specifier = ">=9.0.1" },
     { name = "types-lxml", specifier = ">=2025.11.25" },
+]
+test = [
+    { name = "lxml", specifier = ">=6.0.2" },
+    { name = "pytest", specifier = ">=9.0.1" },
 ]
 
 [[package]]

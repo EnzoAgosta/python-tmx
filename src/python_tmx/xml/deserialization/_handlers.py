@@ -63,9 +63,9 @@ class PropDeserializer(BaseElementDeserializer[T_XmlElement]):
     text = self.backend.get_text(element)
     if text is None:
       self.logger.log(self.policy.missing_text.log_level, "Missing text content for <prop>")
-      if self.policy.missing_text == "raise":
+      if self.policy.missing_text.behavior == "raise":
         raise XmlDeserializationError("Element <prop> does not have any text content")
-      if self.policy.missing_text == "empty":
+      if self.policy.missing_text.behavior == "empty":
         text = ""
     return Prop(text=text, type=_type, lang=lang, o_encoding=o_encoding)  # type: ignore[arg-type]
 
@@ -225,7 +225,7 @@ class TuvDeserializer(BaseElementDeserializer[T_XmlElement], InlineContentDeseri
             raise XmlDeserializationError("multiple <seg> elements in <tuv>")
           if self.policy.multiple_seg.behavior == "keep_first":
             continue
-        content = [x for x in self.deserialize_content(child) if isinstance(x, (str, Bpt, Ept, Hi, It, Ph))]
+        content = self.deserialize_content(child)  # type: ignore[arg-type]
       else:
         self.logger.log(
           self.policy.invalid_child_element.log_level,
