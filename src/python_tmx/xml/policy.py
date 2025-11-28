@@ -12,7 +12,7 @@ class PolicyValue[Behavior]:
   log_level: int
 
 
-def _default_policy(behavior: Behavior = "raise", level: int = logging.ERROR) -> PolicyValue[Behavior]:
+def _default_policy(behavior: Behavior = "raise", level: int = logging.DEBUG) -> PolicyValue[Behavior]:
   return field(default_factory=lambda: PolicyValue(behavior, level))
 
 

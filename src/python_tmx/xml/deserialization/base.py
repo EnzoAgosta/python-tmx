@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
-from logging import Logger, getLogger
+from logging import Logger
 from typing import Callable, Final, LiteralString, Protocol, TypeVar
 
 from python_tmx.base.errors import AttributeDeserializationError, InvalidTagError, XmlDeserializationError
@@ -10,8 +10,6 @@ from python_tmx.xml.backends.base import XMLBackend
 from python_tmx.xml.policy import DeserializationPolicy
 
 T_Enum = TypeVar("T_Enum", Pos, Segtype, Assoc)
-
-_ModuleLogger = getLogger(__name__)
 
 __all__ = ["BaseElementDeserializer", "DeserializerHost", "InlineContentDeserializerMixin"]
 
@@ -29,12 +27,12 @@ class BaseElementDeserializer[T_XmlElement](ABC):
     self,
     backend: XMLBackend,
     policy: DeserializationPolicy,
-    logger: Logger = _ModuleLogger,
+    logger: Logger,
   ):
     self.backend: XMLBackend[T_XmlElement] = backend
     self.policy = policy
     self.logger = logger
-    self._emit: Callable[[T_XmlElement], BaseElement | None] | None = None
+    self._emit = None
 
   def _set_emit(self, emit: Callable[[T_XmlElement], BaseElement | None]) -> None:
     self._emit = emit
@@ -68,18 +66,14 @@ class BaseElementDeserializer[T_XmlElement](ABC):
           raise AttributeDeserializationError(f"Missing required attribute {attribute!r} on element <{tag}>")
       return None
     try:
-      return datetime.strptime(value, "%Y%m%dT%H%M%SZ")
-    except ValueError:
-      self.logger.info("Failed to parse %s using YYYYMMDDTHHMMSSZ format. Falling back to iso format parsing.", value)
-      try:
-        return datetime.fromisoformat(value)
-      except ValueError as e:
-        self.logger.log(
-          self.policy.invalid_attribute_value.log_level, "Invalid datetime value %r for attribute %s", value, attribute
-        )
-        if self.policy.invalid_attribute_value.behavior == "raise":
-          raise AttributeDeserializationError(f"Invalid datetime value {value!r} for attribute {attribute!r}") from e
-        return None
+      return datetime.fromisoformat(value)
+    except ValueError as e:
+      self.logger.log(
+        self.policy.invalid_attribute_value.log_level, "Invalid datetime value %r for attribute %s", value, attribute
+      )
+      if self.policy.invalid_attribute_value.behavior == "raise":
+        raise AttributeDeserializationError(f"Invalid datetime value {value!r} for attribute {attribute!r}") from e
+      return None
 
   def _parse_attribute_as_int(self, element: T_XmlElement, attribute: str, required: bool) -> int | None:
     value = self.backend.get_attr(element, attribute)

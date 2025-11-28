@@ -53,7 +53,9 @@ class StrictBackend:
     real_elem = self._store[element]
     for child in real_elem:
       if tag is None or child.tag in tag:
-        yield self._register(child)
+        for i in self._store:
+          if self._store[i] == child:
+            yield i
 
   def get_tag(self, element: int) -> str:
     return self._store[element].tag
