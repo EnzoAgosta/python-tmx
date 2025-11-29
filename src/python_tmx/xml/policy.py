@@ -26,6 +26,7 @@ class DeserializationPolicy:
   invalid_inline_tag: PolicyValue[Literal["raise", "ignore"]] = _default_policy()
   invalid_child_element: PolicyValue[Literal["raise", "ignore"]] = _default_policy()
   multiple_headers: PolicyValue[Literal["raise", "keep_first", "keep_last"]] = _default_policy()
+  missing_header: PolicyValue[Literal["raise", "ignore"]] = _default_policy()
   missing_handler: PolicyValue[Literal["raise", "ignore", "default"]] = _default_policy()
   missing_seg: PolicyValue[Literal["raise", "ignore"]] = _default_policy()
   multiple_seg: PolicyValue[Literal["raise", "keep_first", "keep_last"]] = _default_policy()
