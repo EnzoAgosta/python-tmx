@@ -276,7 +276,7 @@ class TuDeserializer(BaseElementDeserializer[T_XmlElement]):
       if text.strip():
         self.logger.log(self.policy.extra_text.log_level, "Element <tu> has extra text content '%s'", text)
         if self.policy.extra_text.behavior == "raise":
-          raise XmlDeserializationError("Element <tu> has extra text content")
+          raise XmlDeserializationError(f"Element <tu> has extra text content '{text}'")
     tuid = self._parse_attribute(element, "tuid", False)
     o_encoding = self._parse_attribute(element, "o-encoding", False)
     datatype = self._parse_attribute(element, "datatype", False)
@@ -340,19 +340,21 @@ class TmxDeserializer(BaseElementDeserializer[T_XmlElement]):
   def _deserialize(self, element: T_XmlElement) -> Tmx:
     self._check_tag(element, "tmx")
     version = self._parse_attribute(element, "version", True)
+    header_found: bool = False
     header: Header | None = None
     body: list[Tu] = []
     for child in self.backend.iter_children(element):
       if self.backend.get_tag(child) == "header":
-        if header is not None:
+        if header_found:
           self.logger.log(
-            self.policy.invalid_child_element.log_level,
+            self.policy.multiple_headers.log_level,
             "Multiple <header> elements in <tmx>",
           )
-          if self.policy.invalid_child_element.behavior == "raise":
+          if self.policy.multiple_headers.behavior == "raise":
             raise XmlDeserializationError("Multiple <header> elements in <tmx>")
           if self.policy.multiple_headers.behavior == "keep_first":
             continue
+        header_found = True
         header_obj = self.emit(child)
         if isinstance(header_obj, Header):
           header = header_obj
@@ -370,6 +372,10 @@ class TmxDeserializer(BaseElementDeserializer[T_XmlElement]):
         )
         if self.policy.invalid_child_element.behavior == "raise":
           raise XmlDeserializationError(f"Invalid child element <{self.backend.get_tag(child)}> in <tmx>")
+    if not header_found:
+      self.logger.log(self.policy.missing_header.log_level, "Element <tmx> is missing a <header> child element.")
+      if self.policy.missing_header.behavior == "raise":  # type: ignore[unreachable]
+        raise XmlDeserializationError("Element <tmx> is missing a <header> child element.")
     return Tmx(
       version=version,  # type: ignore[arg-type]
       header=header,  # type: ignore[arg-type]
