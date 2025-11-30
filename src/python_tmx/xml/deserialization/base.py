@@ -156,7 +156,7 @@ class BaseElementDeserializer[T_XmlElement](ABC):
       )
       if self.policy.invalid_attribute_value.behavior == "raise":
         raise AttributeDeserializationError(
-          f"value {value!r} is not a valid enum value for attribute {attribute!r}"
+          f"Value {value!r} is not a valid enum value for attribute {attribute}"
         ) from e
       return None
 
