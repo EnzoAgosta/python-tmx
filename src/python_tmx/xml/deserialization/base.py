@@ -3,7 +3,11 @@ from datetime import datetime
 from logging import Logger
 from typing import Callable, Final, LiteralString, Protocol, TypeVar
 
-from python_tmx.base.errors import AttributeDeserializationError, InvalidTagError, XmlDeserializationError
+from python_tmx.base.errors import (
+  AttributeDeserializationError,
+  InvalidTagError,
+  XmlDeserializationError,
+)
 from python_tmx.base.types import Assoc, BaseElement, BaseInlineElement, Pos, Segtype
 from python_tmx.xml import T_XmlElement
 from python_tmx.xml.backends.base import XMLBackend
@@ -47,11 +51,15 @@ class BaseElementDeserializer[T_XmlElement](ABC):
   def _check_tag(self, element: T_XmlElement, expected_tag: LiteralString) -> None:
     tag = self.backend.get_tag(element)
     if not tag == expected_tag:
-      self.logger.log(self.policy.invalid_tag.log_level, "Incorrect tag: expected %s, got %s", expected_tag, tag)
+      self.logger.log(
+        self.policy.invalid_tag.log_level, "Incorrect tag: expected %s, got %s", expected_tag, tag
+      )
       if self.policy.invalid_tag.behavior == "raise":
         raise InvalidTagError(f"Incorrect tag: expected {expected_tag}, got {tag}")
 
-  def _parse_attribute_as_dt(self, element: T_XmlElement, attribute: str, required: bool) -> datetime | None:
+  def _parse_attribute_as_dt(
+    self, element: T_XmlElement, attribute: str, required: bool
+  ) -> datetime | None:
     value = self.backend.get_attr(element, attribute)
     tag = self.backend.get_tag(element)
     if value is None:
@@ -63,19 +71,28 @@ class BaseElementDeserializer[T_XmlElement](ABC):
           tag,
         )
         if self.policy.required_attribute_missing.behavior == "raise":
-          raise AttributeDeserializationError(f"Missing required attribute {attribute!r} on element <{tag}>")
+          raise AttributeDeserializationError(
+            f"Missing required attribute {attribute!r} on element <{tag}>"
+          )
       return None
     try:
       return datetime.fromisoformat(value)
     except ValueError as e:
       self.logger.log(
-        self.policy.invalid_attribute_value.log_level, "Invalid datetime value %r for attribute %s", value, attribute
+        self.policy.invalid_attribute_value.log_level,
+        "Invalid datetime value %r for attribute %s",
+        value,
+        attribute,
       )
       if self.policy.invalid_attribute_value.behavior == "raise":
-        raise AttributeDeserializationError(f"Invalid datetime value {value!r} for attribute {attribute!r}") from e
+        raise AttributeDeserializationError(
+          f"Invalid datetime value {value!r} for attribute {attribute!r}"
+        ) from e
       return None
 
-  def _parse_attribute_as_int(self, element: T_XmlElement, attribute: str, required: bool) -> int | None:
+  def _parse_attribute_as_int(
+    self, element: T_XmlElement, attribute: str, required: bool
+  ) -> int | None:
     value = self.backend.get_attr(element, attribute)
     tag = self.backend.get_tag(element)
     if value is None:
@@ -87,16 +104,23 @@ class BaseElementDeserializer[T_XmlElement](ABC):
           tag,
         )
         if self.policy.required_attribute_missing.behavior == "raise":
-          raise AttributeDeserializationError(f"Missing required attribute {attribute!r} on element <{tag}>")
+          raise AttributeDeserializationError(
+            f"Missing required attribute {attribute!r} on element <{tag}>"
+          )
       return None
     try:
       return int(value)
     except ValueError as e:
       self.logger.log(
-        self.policy.invalid_attribute_value.log_level, "Invalid int value %r for attribute %s", value, attribute
+        self.policy.invalid_attribute_value.log_level,
+        "Invalid int value %r for attribute %s",
+        value,
+        attribute,
       )
       if self.policy.invalid_attribute_value.behavior == "raise":
-        raise AttributeDeserializationError(f"Invalid int value {value!r} for attribute {attribute!r}") from e
+        raise AttributeDeserializationError(
+          f"Invalid int value {value!r} for attribute {attribute!r}"
+        ) from e
       return None
 
   def _parse_attribute_as_enum(
@@ -117,16 +141,23 @@ class BaseElementDeserializer[T_XmlElement](ABC):
           tag,
         )
         if self.policy.required_attribute_missing.behavior == "raise":
-          raise AttributeDeserializationError(f"Missing required attribute {attribute!r} on element <{tag}>")
+          raise AttributeDeserializationError(
+            f"Missing required attribute {attribute!r} on element <{tag}>"
+          )
       return None
     try:
       return enum_type(value)
     except ValueError as e:
       self.logger.log(
-        self.policy.invalid_attribute_value.log_level, "Invalid enum value %r for attribute %s", value, attribute
+        self.policy.invalid_attribute_value.log_level,
+        "Invalid enum value %r for attribute %s",
+        value,
+        attribute,
       )
       if self.policy.invalid_attribute_value.behavior == "raise":
-        raise AttributeDeserializationError(f"Invalid enum value {value!r} for attribute {attribute!r}") from e
+        raise AttributeDeserializationError(
+          f"Invalid enum value {value!r} for attribute {attribute!r}"
+        ) from e
       return None
 
   def _parse_attribute(
@@ -146,7 +177,9 @@ class BaseElementDeserializer[T_XmlElement](ABC):
           tag,
         )
         if self.policy.required_attribute_missing.behavior == "raise":
-          raise AttributeDeserializationError(f"Missing required attribute {attribute!r} on element <{tag}>")
+          raise AttributeDeserializationError(
+            f"Missing required attribute {attribute!r} on element <{tag}>"
+          )
     return value
 
 
@@ -166,7 +199,9 @@ class InlineContentDeserializerMixin[T_XmlElement](DeserializerHost[T_XmlElement
     tag = self.backend.get_tag(source)
     result = []
     if tag not in self.ALLOWED:
-      self.logger.log(self.policy.invalid_inline_tag.log_level, "tag <%s> is not allowed in inline content", tag)
+      self.logger.log(
+        self.policy.invalid_inline_tag.log_level, "tag <%s> is not allowed in inline content", tag
+      )
       if self.policy.invalid_inline_tag.behavior == "raise":
         raise XmlDeserializationError(f"tag <{tag}> is not allowed in inline content")
       return result
@@ -182,7 +217,9 @@ class InlineContentDeserializerMixin[T_XmlElement](DeserializerHost[T_XmlElement
           child_tag,
         )
         if self.policy.invalid_child_element.behavior == "raise":
-          raise XmlDeserializationError(f"Incorrect content element: expected {self.ALLOWED[tag]}, got {child_tag}")
+          raise XmlDeserializationError(
+            f"Incorrect content element: expected {self.ALLOWED[tag]}, got {child_tag}"
+          )
         continue
       child_obj = self.emit(child)
       if child_obj is not None:

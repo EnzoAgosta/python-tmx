@@ -70,7 +70,9 @@ class TestNoteDeserializer[T_XmlElement]:
     for that event.
     """
     elem = self.make_note_elem(tag="prop")
-    self.policy.invalid_tag.behavior = "raise"  # Default but setting it explicitly for testing purposes
+    self.policy.invalid_tag.behavior = (
+      "raise"  # Default but setting it explicitly for testing purposes
+    )
     self.policy.invalid_tag.log_level = log_level
     with pytest.raises(InvalidTagError, match="Incorrect tag: expected note, got prop"):
       self.handler._deserialize(elem)
@@ -97,7 +99,7 @@ class TestNoteDeserializer[T_XmlElement]:
 
     expected_log = (self.logger.name, log_level, "Incorrect tag: expected note, got prop")
     assert caplog.record_tuples == [expected_log]
-    
+
   def test_missing_text_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
     """
     Tests that the Note deserializer raises an error when the text is missing
@@ -106,10 +108,14 @@ class TestNoteDeserializer[T_XmlElement]:
     """
     elem = self.make_note_elem(text=None)
 
-    self.policy.missing_text.behavior = "raise"  # Default but setting it explicitly for testing purposes
+    self.policy.missing_text.behavior = (
+      "raise"  # Default but setting it explicitly for testing purposes
+    )
     self.policy.missing_text.log_level = log_level
 
-    with pytest.raises(XmlDeserializationError, match="Element <note> does not have any text content"):
+    with pytest.raises(
+      XmlDeserializationError, match="Element <note> does not have any text content"
+    ):
       self.handler._deserialize(elem)
 
     expected_log = (self.logger.name, log_level, "Element <note> does not have any text content")

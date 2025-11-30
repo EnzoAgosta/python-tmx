@@ -1,7 +1,11 @@
 import logging
 import pytest
 from python_tmx.base.types import Prop
-from python_tmx.base.errors import AttributeDeserializationError, InvalidTagError, XmlDeserializationError
+from python_tmx.base.errors import (
+  AttributeDeserializationError,
+  InvalidTagError,
+  XmlDeserializationError,
+)
 from python_tmx.xml import XML_NS
 from python_tmx.xml.backends.base import XMLBackend
 from python_tmx.xml.deserialization._handlers import PropDeserializer
@@ -75,7 +79,9 @@ class TestPropDeserializer[T_XmlElement]:
     for that event.
     """
     elem = self.make_prop_elem(tag="note")
-    self.policy.invalid_tag.behavior = "raise"  # Default but setting it explicitly for testing purposes
+    self.policy.invalid_tag.behavior = (
+      "raise"  # Default but setting it explicitly for testing purposes
+    )
     self.policy.invalid_tag.log_level = log_level
     with pytest.raises(InvalidTagError, match="Incorrect tag: expected prop, got note"):
       self.handler._deserialize(elem)
@@ -104,21 +110,31 @@ class TestPropDeserializer[T_XmlElement]:
     expected_log = (self.logger.name, log_level, "Incorrect tag: expected prop, got note")
     assert caplog.record_tuples == [expected_log]
 
-  def test_missing_required_attribute_raises(self, caplog: pytest.LogCaptureFixture, log_level: int):
+  def test_missing_required_attribute_raises(
+    self, caplog: pytest.LogCaptureFixture, log_level: int
+  ):
     """
     Tests that the Prop deserializer raises an error when the required attribute is missing
     if the policy says so and that the error is logged using the policy's log level
     for that event.
     """
     elem = self.make_prop_elem(_type=None)
-    self.policy.required_attribute_missing.behavior = "raise"  # Default but setting it explicitly for testing purposes
+    self.policy.required_attribute_missing.behavior = (
+      "raise"  # Default but setting it explicitly for testing purposes
+    )
     self.policy.required_attribute_missing.log_level = log_level
     with pytest.raises(AttributeDeserializationError, match="Missing required attribute 'type'"):
       self.handler._deserialize(elem)
-    expected_log = (self.logger.name, log_level, "Missing required attribute 'type' on element <prop>")
+    expected_log = (
+      self.logger.name,
+      log_level,
+      "Missing required attribute 'type' on element <prop>",
+    )
     assert caplog.record_tuples == [expected_log]
 
-  def test_missing_required_attribute_ignores(self, caplog: pytest.LogCaptureFixture, log_level: int):
+  def test_missing_required_attribute_ignores(
+    self, caplog: pytest.LogCaptureFixture, log_level: int
+  ):
     """
     Tests that the Prop deserializer ignores an error when the required attribute is missing
     if the policy says so and that the error is logged using the policy's log level
@@ -133,7 +149,11 @@ class TestPropDeserializer[T_XmlElement]:
     assert isinstance(prop, Prop)
     assert prop.type is None
 
-    expected_log = (self.logger.name, log_level, "Missing required attribute 'type' on element <prop>")
+    expected_log = (
+      self.logger.name,
+      log_level,
+      "Missing required attribute 'type' on element <prop>",
+    )
     assert caplog.record_tuples == [expected_log]
 
   def test_missing_text_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
@@ -144,10 +164,14 @@ class TestPropDeserializer[T_XmlElement]:
     """
     elem = self.make_prop_elem(text=None)
 
-    self.policy.missing_text.behavior = "raise"  # Default but setting it explicitly for testing purposes
+    self.policy.missing_text.behavior = (
+      "raise"  # Default but setting it explicitly for testing purposes
+    )
     self.policy.missing_text.log_level = log_level
 
-    with pytest.raises(XmlDeserializationError, match="Element <prop> does not have any text content"):
+    with pytest.raises(
+      XmlDeserializationError, match="Element <prop> does not have any text content"
+    ):
       self.handler._deserialize(elem)
 
     expected_log = (self.logger.name, log_level, "Element <prop> does not have any text content")

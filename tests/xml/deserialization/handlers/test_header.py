@@ -3,7 +3,11 @@ import logging
 from unittest.mock import Mock
 import pytest
 from python_tmx.base.types import Header, Note, Prop, Segtype
-from python_tmx.base.errors import AttributeDeserializationError, InvalidTagError, XmlDeserializationError
+from python_tmx.base.errors import (
+  AttributeDeserializationError,
+  InvalidTagError,
+  XmlDeserializationError,
+)
 from python_tmx.xml.backends.base import XMLBackend
 from python_tmx.xml.deserialization._handlers import HeaderDeserializer
 from python_tmx.xml.policy import DeserializationPolicy
@@ -144,7 +148,9 @@ class TestHeaderDeserializer[T_XmlElement]:
     for that event.
     """
     elem = self.make_header_elem(tag="note")
-    self.policy.invalid_tag.behavior = "raise"  # Default but setting it explicitly for testing purposes
+    self.policy.invalid_tag.behavior = (
+      "raise"  # Default but setting it explicitly for testing purposes
+    )
     self.policy.invalid_tag.log_level = log_level
     with pytest.raises(InvalidTagError, match="Incorrect tag: expected header, got note"):
       self.handler._deserialize(elem)
@@ -169,21 +175,31 @@ class TestHeaderDeserializer[T_XmlElement]:
     expected_log = (self.logger.name, log_level, "Incorrect tag: expected header, got note")
     assert caplog.record_tuples == [expected_log]
 
-  def test_missing_required_attribute_raises(self, caplog: pytest.LogCaptureFixture, log_level: int):
+  def test_missing_required_attribute_raises(
+    self, caplog: pytest.LogCaptureFixture, log_level: int
+  ):
     """
     Tests that the Header deserializer raises an error when the required attribute is missing
     if the policy says so and that the error is logged using the policy's log level
     for that event.
     """
     elem = self.make_header_elem(creationtool=None)
-    self.policy.required_attribute_missing.behavior = "raise"  # Default but setting it explicitly for testing purposes
+    self.policy.required_attribute_missing.behavior = (
+      "raise"  # Default but setting it explicitly for testing purposes
+    )
     self.policy.required_attribute_missing.log_level = log_level
-    with pytest.raises(AttributeDeserializationError, match="Missing required attribute 'creationtool'"):
+    with pytest.raises(
+      AttributeDeserializationError, match="Missing required attribute 'creationtool'"
+    ):
       self.handler._deserialize(elem)
     assert caplog.records[-1].levelno == log_level
-    assert caplog.records[-1].message == "Missing required attribute 'creationtool' on element <header>"
+    assert (
+      caplog.records[-1].message == "Missing required attribute 'creationtool' on element <header>"
+    )
 
-  def test_missing_required_attribute_ignores(self, caplog: pytest.LogCaptureFixture, log_level: int):
+  def test_missing_required_attribute_ignores(
+    self, caplog: pytest.LogCaptureFixture, log_level: int
+  ):
     """
     Tests that the Header deserializer ignores an error when the required attribute is missing
     if the policy says so and that the error is logged using the policy's log level
@@ -198,7 +214,11 @@ class TestHeaderDeserializer[T_XmlElement]:
     assert isinstance(header, Header)
     assert header.creationtool is None
 
-    expected_log = (self.logger.name, log_level, "Missing required attribute 'creationtool' on element <header>")
+    expected_log = (
+      self.logger.name,
+      log_level,
+      "Missing required attribute 'creationtool' on element <header>",
+    )
     assert caplog.record_tuples == [expected_log]
 
   def test_extra_missing_text_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
@@ -210,15 +230,22 @@ class TestHeaderDeserializer[T_XmlElement]:
     elem = self.make_header_elem()
     self.backend.set_text(elem, "  I should not be here  ")
 
-    self.policy.extra_text.behavior = "raise"  # Default but setting it explicitly for testing purposes
+    self.policy.extra_text.behavior = (
+      "raise"  # Default but setting it explicitly for testing purposes
+    )
     self.policy.extra_text.log_level = log_level
 
     with pytest.raises(
-      XmlDeserializationError, match="Element <header> has extra text content '  I should not be here  '"
+      XmlDeserializationError,
+      match="Element <header> has extra text content '  I should not be here  '",
     ):
       self.handler._deserialize(elem)
 
-    expected_log = (self.logger.name, log_level, "Element <header> has extra text content '  I should not be here  '")
+    expected_log = (
+      self.logger.name,
+      log_level,
+      "Element <header> has extra text content '  I should not be here  '",
+    )
     assert caplog.record_tuples == [expected_log]
 
   def test_extra_text_ignores(self, caplog: pytest.LogCaptureFixture, log_level: int):
@@ -237,5 +264,9 @@ class TestHeaderDeserializer[T_XmlElement]:
 
     self.handler._deserialize(elem)
 
-    expected_log = (self.logger.name, log_level, "Element <header> has extra text content '  I should not be here  '")
+    expected_log = (
+      self.logger.name,
+      log_level,
+      "Element <header> has extra text content '  I should not be here  '",
+    )
     assert caplog.record_tuples == [expected_log]

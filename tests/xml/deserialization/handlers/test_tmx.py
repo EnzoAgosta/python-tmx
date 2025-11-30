@@ -85,13 +85,21 @@ class TestTmxDeserializer[T_XmlElement]:
   def test_missing_version_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
     elem = self.make_tmx_elem(version=None)
 
-    self.policy.required_attribute_missing.behavior = "raise"  # Default but setting it explicitly for testing purposes
+    self.policy.required_attribute_missing.behavior = (
+      "raise"  # Default but setting it explicitly for testing purposes
+    )
     self.policy.required_attribute_missing.log_level = log_level
 
-    with pytest.raises(AttributeDeserializationError, match="Missing required attribute 'version' on element <tmx>"):
+    with pytest.raises(
+      AttributeDeserializationError, match="Missing required attribute 'version' on element <tmx>"
+    ):
       self.handler._deserialize(elem)
 
-    expected_log = (self.logger.name, log_level, "Missing required attribute 'version' on element <tmx>")
+    expected_log = (
+      self.logger.name,
+      log_level,
+      "Missing required attribute 'version' on element <tmx>",
+    )
     assert caplog.record_tuples == [expected_log]
 
   def test_missing_version_ignore(self, caplog: pytest.LogCaptureFixture, log_level: int):
@@ -104,13 +112,19 @@ class TestTmxDeserializer[T_XmlElement]:
     assert isinstance(tmx, Tmx)
     assert tmx.version is None
 
-    expected_log = (self.logger.name, log_level, "Missing required attribute 'version' on element <tmx>")
+    expected_log = (
+      self.logger.name,
+      log_level,
+      "Missing required attribute 'version' on element <tmx>",
+    )
     assert caplog.record_tuples == [expected_log]
 
   def test_multiple_headers_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
     elem = self.make_tmx_elem(header=2)
 
-    self.policy.multiple_headers.behavior = "raise"  # Default but setting it explicitly for testing purposes
+    self.policy.multiple_headers.behavior = (
+      "raise"  # Default but setting it explicitly for testing purposes
+    )
     self.policy.multiple_headers.log_level = log_level
 
     with pytest.raises(XmlDeserializationError, match="Multiple <header> elements in <tmx>"):
@@ -204,19 +218,27 @@ class TestTmxDeserializer[T_XmlElement]:
 
     expected_log = (self.logger.name, log_level, "Multiple <header> elements in <tmx>")
     assert caplog.record_tuples == [expected_log]
-  
+
   def test_missing_header_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
     elem = self.make_tmx_elem(header=0)
 
-    self.policy.missing_header.behavior = "raise"  # Default but setting it explicitly for testing purposes
+    self.policy.missing_header.behavior = (
+      "raise"  # Default but setting it explicitly for testing purposes
+    )
     self.policy.missing_header.log_level = log_level
 
-    with pytest.raises(XmlDeserializationError, match="Element <tmx> is missing a <header> child element."):
+    with pytest.raises(
+      XmlDeserializationError, match="Element <tmx> is missing a <header> child element."
+    ):
       self.handler._deserialize(elem)
 
-    expected_log = (self.logger.name, log_level, "Element <tmx> is missing a <header> child element.")
+    expected_log = (
+      self.logger.name,
+      log_level,
+      "Element <tmx> is missing a <header> child element.",
+    )
     assert caplog.record_tuples == [expected_log]
-  
+
   def test_missing_header_ignore(self, caplog: pytest.LogCaptureFixture, log_level: int):
     elem = self.make_tmx_elem(header=0)
 
@@ -226,14 +248,20 @@ class TestTmxDeserializer[T_XmlElement]:
     tmx = self.handler._deserialize(elem)
     assert isinstance(tmx, Tmx)
 
-    expected_log = (self.logger.name, log_level, "Element <tmx> is missing a <header> child element.")
+    expected_log = (
+      self.logger.name,
+      log_level,
+      "Element <tmx> is missing a <header> child element.",
+    )
     assert caplog.record_tuples == [expected_log]
 
   def test_invalid_child_element_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
     elem = self.make_tmx_elem()
     self.backend.append(elem, self.backend.make_elem("wrong"))
 
-    self.policy.invalid_child_element.behavior = "raise"  # Default but setting it explicitly for testing purposes
+    self.policy.invalid_child_element.behavior = (
+      "raise"  # Default but setting it explicitly for testing purposes
+    )
     self.policy.invalid_child_element.log_level = log_level
 
     with pytest.raises(XmlDeserializationError, match="Invalid child element <wrong> in <tmx>"):

@@ -1,6 +1,20 @@
 from logging import Logger, getLogger
 from python_tmx.base.errors import MissingHandlerError
-from python_tmx.base.types import BaseElement, Bpt, Ept, Header, Hi, It, Note, Ph, Prop, Sub, Tmx, Tu, Tuv
+from python_tmx.base.types import (
+  BaseElement,
+  Bpt,
+  Ept,
+  Header,
+  Hi,
+  It,
+  Note,
+  Ph,
+  Prop,
+  Sub,
+  Tmx,
+  Tu,
+  Tuv,
+)
 from python_tmx.xml.backends.base import XMLBackend
 from python_tmx.xml.policy import SerializationPolicy
 from python_tmx.xml.serialization._handlers import (
@@ -62,7 +76,9 @@ class Serializer[T_XmlElement]:
     self.logger.debug("Serializing object %s", type(element).__name__)
     handler = self.handlers.get(type(element))
     if handler is None:
-      self.logger.log(self.policy.missing_handler.log_level, "Missing handler for %s", type(element).__name__)
+      self.logger.log(
+        self.policy.missing_handler.log_level, "Missing handler for %s", type(element).__name__
+      )
       if self.policy.missing_handler.behavior == "raise":
         raise MissingHandlerError(f"No serializer found for type {type(element).__name__}")
       elif self.policy.missing_handler.behavior == "ignore":
