@@ -1,4 +1,5 @@
 import logging
+from unittest.mock import Mock
 
 import pytest
 from python_tmx.base.errors import (
@@ -6,7 +7,7 @@ from python_tmx.base.errors import (
   InvalidTagError,
   XmlDeserializationError,
 )
-from python_tmx.base.types import Bpt
+from python_tmx.base.types import Bpt, Sub
 from python_tmx.xml.backends.base import XMLBackend
 from python_tmx.xml.deserialization._handlers import BptDeserializer
 from python_tmx.xml.policy import DeserializationPolicy
@@ -54,6 +55,25 @@ class TestBptDeserializer[T_XmlElement]:
     assert bpt.x == 1
     assert bpt.type == "bpt"
     assert bpt.content == ["Valid Bpt Content"]
+
+  def test_mixed_content(self):
+    elem = self.make_bpt_elem()
+    sub_elem = self.backend.make_elem("sub")
+    self.backend.set_text(sub_elem, "Sub Content")
+    self.backend.set_tail(sub_elem, "Sub Tail")
+    self.backend.append(elem, sub_elem)
+
+    mock_emit = Mock(return_value=Sub(content=["Sub Content"]))
+    self.handler._set_emit(mock_emit)
+
+    ept = self.handler._deserialize(elem)
+    
+    assert isinstance(ept, Bpt)
+    assert ept.content == ["Valid Bpt Content", mock_emit.return_value, "Sub Tail"]
+
+    assert mock_emit.call_count == 1
+    for i in self.backend.iter_children(elem):
+      mock_emit.assert_any_call(i)
 
   def test_check_tag_raises(self, caplog: pytest.LogCaptureFixture, log_level: int):
     elem = self.make_bpt_elem(tag="prop")
