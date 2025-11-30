@@ -23,7 +23,6 @@ class DeserializationPolicy:
   invalid_tag: PolicyValue[Literal["raise", "ignore"]] = _default_policy()
   required_attribute_missing: PolicyValue[Literal["raise", "ignore"]] = _default_policy()
   invalid_attribute_value: PolicyValue[Literal["raise", "ignore"]] = _default_policy()
-  missing_text: PolicyValue[Literal["raise", "empty", "ignore"]] = _default_policy()
   extra_text: PolicyValue[Literal["raise", "ignore"]] = _default_policy()
   invalid_inline_tag: PolicyValue[Literal["raise", "ignore"]] = _default_policy()
   invalid_child_element: PolicyValue[Literal["raise", "ignore"]] = _default_policy()
@@ -32,7 +31,7 @@ class DeserializationPolicy:
   missing_handler: PolicyValue[Literal["raise", "ignore", "default"]] = _default_policy()
   missing_seg: PolicyValue[Literal["raise", "ignore"]] = _default_policy()
   multiple_seg: PolicyValue[Literal["raise", "keep_first", "keep_last"]] = _default_policy()
-  empty_seg: PolicyValue[Literal["raise", "ignore"]] = _default_policy()
+  empty_content: PolicyValue[Literal["raise", "ignore", "empty"]] = _default_policy()
 
 
 @dataclass(slots=True, kw_only=True)

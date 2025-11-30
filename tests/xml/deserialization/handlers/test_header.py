@@ -46,26 +46,7 @@ class TestHeaderDeserializer[T_XmlElement]:
     props: int = 0,
     notes: int = 0,
   ) -> T_XmlElement:
-    """
-    Creates a <header> element.
-
-    extra kwargs:
-    tag: The tag to use for the element (default: "header")
-    creationtool: The creationtool attribute to use (default: "pytest")
-    creationtoolversion: The creationtoolversion attribute to use (default: "v1")
-    segtype: The segtype attribute to use (default: "sentence"). Must be one of "block", "paragraph", "sentence", "phrase".
-    o_tmf: The o-tmf attribute to use (default: "TestTMF")
-    adminlang: The adminlang attribute to use (default: "en-US")
-    srclang: The srclang attribute to use (default: "en-US")
-    datatype: The datatype attribute to use (default: "plaintext")
-    o_encoding: The o-encoding attribute to use (default: "UTF-8" if full is True)
-    creationdate: The creationdate attribute to use (default: January 1st, 2025 at 12:00:00 UTC)
-    creationid: The creationid attribute to use (default: "User1")
-    changedate: The changedate attribute to use (default: February 1st, 2025 at 14:30:00 UTC)
-    changeid: The changeid attribute to use (default: "User2")
-    props: The number of props to add to the header (default: 0)
-    notes: The number of notes to add to the header (default: 0)
-    """
+    
     elem = self.backend.make_elem(tag)
     if creationtool is not None:
       self.backend.set_attr(elem, "creationtool", creationtool)
@@ -98,10 +79,7 @@ class TestHeaderDeserializer[T_XmlElement]:
     return elem
 
   def test_basic_usage(self, caplog: pytest.LogCaptureFixture):
-    """
-    Simple and most common usage of the Header deserializer.
-    Tests that the Header is correctly constructed from the XML element.
-    """
+    
     mock_prop_obj = Prop(text="P", type="T")
     mock_note_obj = Note(text="N")
 
@@ -142,11 +120,7 @@ class TestHeaderDeserializer[T_XmlElement]:
     assert caplog.records == []
 
   def test_check_tag_raises(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    """
-    Tests that the Header deserializer raises an error when the tag is incorrect
-    if the policy says so and that the error is logged using the policy's log level
-    for that event.
-    """
+    
     elem = self.make_header_elem(tag="note")
     self.policy.invalid_tag.behavior = (
       "raise"  # Default but setting it explicitly for testing purposes
@@ -160,12 +134,7 @@ class TestHeaderDeserializer[T_XmlElement]:
     assert caplog.record_tuples == [expected_log]
 
   def test_check_tag_ignores(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    """
-    Tests that the Header deserializer ignores an incorrect tag if the policy says so
-    and that the error is logged using the policy's log level for that event.
-
-    Note: This creates a Header element that doesn't reflect the original XML.
-    """
+    
     elem = self.make_header_elem(tag="note")
     self.policy.invalid_tag.behavior = "ignore"
     self.policy.invalid_tag.log_level = log_level
@@ -178,11 +147,7 @@ class TestHeaderDeserializer[T_XmlElement]:
   def test_missing_required_attribute_raises(
     self, caplog: pytest.LogCaptureFixture, log_level: int
   ):
-    """
-    Tests that the Header deserializer raises an error when the required attribute is missing
-    if the policy says so and that the error is logged using the policy's log level
-    for that event.
-    """
+    
     elem = self.make_header_elem(creationtool=None)
     self.policy.required_attribute_missing.behavior = (
       "raise"  # Default but setting it explicitly for testing purposes
@@ -200,13 +165,7 @@ class TestHeaderDeserializer[T_XmlElement]:
   def test_missing_required_attribute_ignores(
     self, caplog: pytest.LogCaptureFixture, log_level: int
   ):
-    """
-    Tests that the Header deserializer ignores an error when the required attribute is missing
-    if the policy says so and that the error is logged using the policy's log level
-    for that event.
-
-    Note: This creates a invalid Header element that doesn't reflect the original XML.
-    """
+    
     elem = self.make_header_elem(creationtool=None)
     self.policy.required_attribute_missing.behavior = "ignore"
     self.policy.required_attribute_missing.log_level = log_level
@@ -221,12 +180,8 @@ class TestHeaderDeserializer[T_XmlElement]:
     )
     assert caplog.record_tuples == [expected_log]
 
-  def test_extra_missing_text_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    """
-    Tests that the Header deserializer raises an error when there is extra text content
-    if the policy says so and that the error is logged using the policy's log level
-    for that event.
-    """
+  def test_extra_text_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    
     elem = self.make_header_elem()
     self.backend.set_text(elem, "  I should not be here  ")
 
@@ -249,13 +204,7 @@ class TestHeaderDeserializer[T_XmlElement]:
     assert caplog.record_tuples == [expected_log]
 
   def test_extra_text_ignores(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    """
-    Tests that the Header deserializer ignores an error when there is extra text content
-    if the policy says so and that the error is logged using the policy's log level
-    for that event.
-
-    Note: This creates a invalid Header element that doesn't reflect the original XML.
-    """
+    
     elem = self.make_header_elem()
     self.backend.set_text(elem, "  I should not be here  ")
 

@@ -48,12 +48,12 @@ class NoteDeserializer(BaseElementDeserializer[T_XmlElement]):
     text = self.backend.get_text(element)
     if text is None:
       self.logger.log(
-        self.policy.missing_text.log_level, "Element <note> does not have any text content"
+        self.policy.empty_content.log_level, "Element <note> does not have any text content"
       )
-      if self.policy.missing_text.behavior == "raise":
+      if self.policy.empty_content.behavior == "raise":
         raise XmlDeserializationError("Element <note> does not have any text content")
-      if self.policy.missing_text.behavior == "empty":
-        self.logger.log(self.policy.missing_text.log_level, "Falling back to an empty string")
+      if self.policy.empty_content.behavior == "empty":
+        self.logger.log(self.policy.empty_content.log_level, "Falling back to an empty string")
         text = ""
     return Note(text=text, lang=lang, o_encoding=o_encoding)  # type: ignore[arg-type]
 
@@ -67,12 +67,12 @@ class PropDeserializer(BaseElementDeserializer[T_XmlElement]):
     text = self.backend.get_text(element)
     if text is None:
       self.logger.log(
-        self.policy.missing_text.log_level, "Element <prop> does not have any text content"
+        self.policy.empty_content.log_level, "Element <prop> does not have any text content"
       )
-      if self.policy.missing_text.behavior == "raise":
+      if self.policy.empty_content.behavior == "raise":
         raise XmlDeserializationError("Element <prop> does not have any text content")
-      if self.policy.missing_text.behavior == "empty":
-        self.logger.log(self.policy.missing_text.log_level, "Falling back to an empty string")
+      if self.policy.empty_content.behavior == "empty":
+        self.logger.log(self.policy.empty_content.log_level, "Falling back to an empty string")
         text = ""
     return Prop(text=text, type=_type, lang=lang, o_encoding=o_encoding)  # type: ignore[arg-type]
 
@@ -146,7 +146,7 @@ class BptDeserializer(
     i = self._parse_attribute_as_int(element, "i", True)
     x = self._parse_attribute_as_int(element, "x", False)
     type = self._parse_attribute(element, "type", False)
-    content = [x for x in self.deserialize_content(element) if isinstance(x, (str, Sub))]
+    content = self.deserialize_content(element, ("sub",))
     return Bpt(i=i, x=x, type=type, content=content)  # type: ignore[arg-type]
 
 
@@ -156,7 +156,7 @@ class EptDeserializer(
   def _deserialize(self, element: T_XmlElement) -> Ept:
     self._check_tag(element, "ept")
     i = self._parse_attribute_as_int(element, "i", True)
-    content = self.deserialize_content(element)
+    content = self.deserialize_content(element, ("sub",))
     return Ept(i=i, content=content)  # type: ignore[arg-type]
 
 
@@ -168,7 +168,7 @@ class ItDeserializer(
     pos = self._parse_attribute_as_enum(element, "pos", Pos, True)
     x = self._parse_attribute_as_int(element, "x", False)
     type = self._parse_attribute(element, "type", False)
-    content = self.deserialize_content(element)
+    content = self.deserialize_content(element, ("sub",))
     return It(pos=pos, x=x, type=type, content=content)  # type: ignore[arg-type]
 
 
@@ -180,7 +180,7 @@ class PhDeserializer(
     x = self._parse_attribute_as_int(element, "x", False)
     assoc = self._parse_attribute_as_enum(element, "assoc", Assoc, False)
     type = self._parse_attribute(element, "type", False)
-    content = self.deserialize_content(element)
+    content = self.deserialize_content(element, ("sub",))
     return Ph(x=x, assoc=assoc, type=type, content=content)  # type: ignore[arg-type]
 
 
@@ -191,7 +191,7 @@ class SubDeserializer(
     self._check_tag(element, "sub")
     datatype = self._parse_attribute(element, "datatype", False)
     type = self._parse_attribute(element, "type", False)
-    content = self.deserialize_content(element)
+    content = self.deserialize_content(element, ("bpt", "ept", "ph", "it", "hi"))
     return Sub(datatype=datatype, type=type, content=content)  # type: ignore[arg-type]
 
 
@@ -202,7 +202,7 @@ class HiDeserializer(
     self._check_tag(element, "hi")
     x = self._parse_attribute_as_int(element, "x", False)
     type = self._parse_attribute(element, "type", False)
-    content = self.deserialize_content(element)
+    content = self.deserialize_content(element, ("bpt", "ept", "ph", "it", "hi"))
     return Hi(x=x, type=type, content=content)  # type: ignore[arg-type]
 
 
@@ -254,7 +254,7 @@ class TuvDeserializer(
           if self.policy.multiple_seg.behavior == "keep_first":
             continue
         seg_found = True
-        content = self.deserialize_content(child)
+        content = self.deserialize_content(child, ("bpt", "ept", "ph", "it", "hi"))
       else:
         self.logger.log(
           self.policy.invalid_child_element.log_level,
@@ -265,14 +265,7 @@ class TuvDeserializer(
           raise XmlDeserializationError(
             f"Invalid child element <{self.backend.get_tag(child)}> in <tuv>"
           )
-    if seg_found:
-      if content == []:
-        self.logger.log(
-          self.policy.empty_seg.log_level, "Element <tuv> has an empty <seg> child element"
-        )
-        if self.policy.empty_seg.behavior == "raise":
-          raise XmlDeserializationError("Element <tuv> has an empty <seg> child element")
-    else:
+    if not seg_found:
       self.logger.log(
         self.policy.missing_seg.log_level, "Element <tuv> is missing a <seg> child element"
       )

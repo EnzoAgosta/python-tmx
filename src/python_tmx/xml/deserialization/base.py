@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
 from logging import Logger
-from typing import Callable, Final, LiteralString, Protocol, TypeVar
+from typing import Callable, LiteralString, Protocol, TypeVar
 
 from python_tmx.base.errors import (
   AttributeDeserializationError,
@@ -80,13 +80,13 @@ class BaseElementDeserializer[T_XmlElement](ABC):
     except ValueError as e:
       self.logger.log(
         self.policy.invalid_attribute_value.log_level,
-        "Invalid datetime value %r for attribute %s",
+        "Cannot convert %r to a datetime object for attribute %s",
         value,
         attribute,
       )
       if self.policy.invalid_attribute_value.behavior == "raise":
         raise AttributeDeserializationError(
-          f"Invalid datetime value {value!r} for attribute {attribute!r}"
+          f"Cannot convert {value!r} to a datetime object for attribute {attribute!r}"
         ) from e
       return None
 
@@ -113,13 +113,13 @@ class BaseElementDeserializer[T_XmlElement](ABC):
     except ValueError as e:
       self.logger.log(
         self.policy.invalid_attribute_value.log_level,
-        "Invalid int value %r for attribute %s",
+        "Cannot convert %r to an int for attribute %s",
         value,
         attribute,
       )
       if self.policy.invalid_attribute_value.behavior == "raise":
         raise AttributeDeserializationError(
-          f"Invalid int value {value!r} for attribute {attribute!r}"
+          f"Cannot convert {value!r} to an int for attribute {attribute}"
         ) from e
       return None
 
@@ -150,13 +150,13 @@ class BaseElementDeserializer[T_XmlElement](ABC):
     except ValueError as e:
       self.logger.log(
         self.policy.invalid_attribute_value.log_level,
-        "Invalid enum value %r for attribute %s",
+        "Value %r is not a valid enum value for attribute %s",
         value,
         attribute,
       )
       if self.policy.invalid_attribute_value.behavior == "raise":
         raise AttributeDeserializationError(
-          f"Invalid enum value {value!r} for attribute {attribute!r}"
+          f"value {value!r} is not a valid enum value for attribute {attribute!r}"
         ) from e
       return None
 
@@ -185,40 +185,27 @@ class BaseElementDeserializer[T_XmlElement](ABC):
 
 class InlineContentDeserializerMixin[T_XmlElement](DeserializerHost[T_XmlElement]):
   __slots__ = tuple()
-  ALLOWED: Final[dict[str, tuple[str, ...]]] = {
-    "bpt": ("sub",),
-    "ept": ("sub",),
-    "it": ("sub",),
-    "ph": ("sub",),
-    "sub": ("bpt", "ept", "ph", "it", "hi"),
-    "hi": ("bpt", "ept", "ph", "it", "hi"),
-    "seg": ("bpt", "ept", "ph", "it", "hi"),
-  }
 
-  def deserialize_content(self, source: T_XmlElement) -> list[BaseInlineElement | str]:
-    tag = self.backend.get_tag(source)
+  def deserialize_content(
+    self, source: T_XmlElement, allowed: tuple[str, ...]
+  ) -> list[BaseInlineElement | str]:
+    source_tag = self.backend.get_tag(source)
     result = []
-    if tag not in self.ALLOWED:
-      self.logger.log(
-        self.policy.invalid_inline_tag.log_level, "tag <%s> is not allowed in inline content", tag
-      )
-      if self.policy.invalid_inline_tag.behavior == "raise":
-        raise XmlDeserializationError(f"tag <{tag}> is not allowed in inline content")
-      return result
     if (text := self.backend.get_text(source)) is not None:
       result.append(text)
     for child in self.backend.iter_children(source):
       child_tag = self.backend.get_tag(child)
-      if child_tag not in self.ALLOWED[tag]:
+      if child_tag not in allowed:
         self.logger.log(
           self.policy.invalid_child_element.log_level,
-          "Incorrect content element: expected %s, got %s",
-          self.ALLOWED[tag],
+          "Incorrect child element in %s: expected one of %s, got %s",
+          source_tag,
+          ", ".join(allowed),
           child_tag,
         )
         if self.policy.invalid_child_element.behavior == "raise":
           raise XmlDeserializationError(
-            f"Incorrect content element: expected {self.ALLOWED[tag]}, got {child_tag}"
+            f"Incorrect child element in {source_tag}: expected one of {', '.join(allowed)}, got {child_tag}"
           )
         continue
       child_obj = self.emit(child)
@@ -226,4 +213,13 @@ class InlineContentDeserializerMixin[T_XmlElement](DeserializerHost[T_XmlElement
         result.append(child_obj)
       if (tail := self.backend.get_tail(child)) is not None:
         result.append(tail)
+    if result == []:
+      self.logger.log(
+        self.policy.empty_content.log_level, "Element <%s> is empty", source_tag
+      )
+      if self.policy.empty_content.behavior == "raise":
+        raise XmlDeserializationError(f"Element <{source_tag}> is empty")
+      if self.policy.empty_content.behavior == "empty":
+        self.logger.log(self.policy.empty_content.log_level, "Falling back to an empty string")
+        result.append("")
     return result

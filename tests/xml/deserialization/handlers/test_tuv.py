@@ -45,27 +45,7 @@ class TestTuvDeserializer[T_XmlElement]:
     notes: int = 0,
     seg_text: str | None = "Tuv Content",
   ) -> T_XmlElement:
-    """
-    Creates a <tuv> element
-
-    extra kwargs:
-    tag: The tag to use for the element (default: "tuv")
-    lang: The lang attribute to use (default: "en-US")
-    o_encoding: The o-encoding attribute to use (default: "UTF-8")
-    datatype: The datatype attribute to use (default: "plaintext")
-    usagecount: The usagecount attribute to use (default: 1)
-    lastusagedate: The lastusagedate attribute to use (default: 2023-03-01T00:00:00Z)
-    creationtool: The creationtool attribute to use (default: "pytest")
-    creationtoolversion: The creationtoolversion attribute to use (default: "v1")
-    creationdate: The creationdate attribute to use (default: 2023-01-01T00:00:00Z)
-    creationid: The creationid attribute to use (default: "User1")
-    changedate: The changedate attribute to use (default: 2023-02-01T00:00:00Z)
-    changeid: The changeid attribute to use (default: "User2")
-    o_tmf: The o-tmf attribute to use (default: "TestTMF")
-    props: The number of props to add to the tuv (default: 0)
-    notes: The number of notes to add to the tuv (default: 0)
-    seg_text: The text content of the <seg> element (default: "Tuv Content")
-    """
+    
     elem = self.backend.make_elem(tag)
     if lang is not None:
       self.backend.set_attr(elem, f"{XML_NS}lang", lang)
@@ -211,7 +191,9 @@ class TestTuvDeserializer[T_XmlElement]:
   def test_multiple_seg_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
     elem = self.make_tuv_elem(seg_text=None)
     seg1 = self.backend.make_elem("seg")
+    self.backend.set_text(seg1, "First")
     seg2 = self.backend.make_elem("seg")
+    self.backend.set_text(seg2, "Second")
     self.backend.append(elem, seg1)
     self.backend.append(elem, seg2)
 
@@ -265,27 +247,27 @@ class TestTuvDeserializer[T_XmlElement]:
     elem = self.make_tuv_elem(seg_text=None)
     seg = self.backend.make_elem("seg")
     self.backend.append(elem, seg)
-    self.policy.empty_seg.behavior = (
+    self.policy.empty_content.behavior = (
       "raise"  # Default but setting it explicitly for testing purposes
     )
-    self.policy.empty_seg.log_level = log_level
+    self.policy.empty_content.log_level = log_level
     with pytest.raises(
-      XmlDeserializationError, match="Element <tuv> has an empty <seg> child element"
+      XmlDeserializationError, match="Element <seg> is empty"
     ):
       self.handler._deserialize(elem)
-    expected_log = (self.logger.name, log_level, "Element <tuv> has an empty <seg> child element")
+    expected_log = (self.logger.name, log_level, "Element <seg> is empty")
     assert caplog.record_tuples == [expected_log]
 
   def test_empty_seg_ignore(self, caplog: pytest.LogCaptureFixture, log_level: int):
     elem = self.make_tuv_elem(seg_text=None)
     seg = self.backend.make_elem("seg")
     self.backend.append(elem, seg)
-    self.policy.empty_seg.behavior = "ignore"
-    self.policy.empty_seg.log_level = log_level
+    self.policy.empty_content.behavior = "ignore"
+    self.policy.empty_content.log_level = log_level
     tuv = self.handler._deserialize(elem)
     assert isinstance(tuv, Tuv)
     assert tuv.content == []
-    expected_log = (self.logger.name, log_level, "Element <tuv> has an empty <seg> child element")
+    expected_log = (self.logger.name, log_level, "Element <seg> is empty")
     assert caplog.record_tuples == [expected_log]
 
   def test_missing_required_attribute_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
