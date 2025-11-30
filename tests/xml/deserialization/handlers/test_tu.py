@@ -142,13 +142,21 @@ class TestTuDeserializer[T_XmlElement]:
     elem = self.make_tu_elem()
     self.backend.set_text(elem, "Garbage Data")
 
-    self.policy.extra_text.behavior = "raise"  # Default but setting it explicitly for testing purposes
+    self.policy.extra_text.behavior = (
+      "raise"  # Default but setting it explicitly for testing purposes
+    )
     self.policy.extra_text.log_level = log_level
 
-    with pytest.raises(XmlDeserializationError, match="Element <tu> has extra text content 'Garbage Data'"):
+    with pytest.raises(
+      XmlDeserializationError, match="Element <tu> has extra text content 'Garbage Data'"
+    ):
       self.handler._deserialize(elem)
 
-    expected_log = (self.logger.name, log_level, "Element <tu> has extra text content 'Garbage Data'")
+    expected_log = (
+      self.logger.name,
+      log_level,
+      "Element <tu> has extra text content 'Garbage Data'",
+    )
     assert caplog.record_tuples == [expected_log]
 
   def test_extra_text_ignore(self, caplog: pytest.LogCaptureFixture, log_level: int):
@@ -161,14 +169,20 @@ class TestTuDeserializer[T_XmlElement]:
     tu = self.handler._deserialize(elem)
     assert isinstance(tu, Tu)
 
-    expected_log = (self.logger.name, log_level, "Element <tu> has extra text content 'Garbage Data'")
+    expected_log = (
+      self.logger.name,
+      log_level,
+      "Element <tu> has extra text content 'Garbage Data'",
+    )
     assert caplog.record_tuples == [expected_log]
 
   def test_invalid_child_element_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
     elem = self.make_tu_elem()
     self.backend.append(elem, self.backend.make_elem("wrong"))
 
-    self.policy.invalid_child_element.behavior = "raise"  # Default but setting it explicitly for testing purposes
+    self.policy.invalid_child_element.behavior = (
+      "raise"  # Default but setting it explicitly for testing purposes
+    )
     self.policy.invalid_child_element.log_level = log_level
 
     with pytest.raises(XmlDeserializationError, match="Invalid child element <wrong> in <tu>"):
@@ -189,4 +203,3 @@ class TestTuDeserializer[T_XmlElement]:
 
     expected_log = (self.logger.name, log_level, "Invalid child element <wrong> in <tu>")
     assert caplog.record_tuples == [expected_log]
- 

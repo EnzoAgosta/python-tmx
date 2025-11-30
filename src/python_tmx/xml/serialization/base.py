@@ -55,36 +55,13 @@ class BaseElementSerializer[T_XmlElement](ABC):
         type(obj).__name__,
       )
       if self.policy.invalid_object_type.behavior == "raise":
-        raise XmlSerializationError(f"Invalid element type: expected {expected_type}, got {type(obj).__name__!r}")
+        raise XmlSerializationError(
+          f"Invalid element type: expected {expected_type}, got {type(obj).__name__!r}"
+        )
     return cast(T_BaseElement, obj)
 
-  def _set_int_attribute(self, element: T_XmlElement, name: str, value: int | None, required: bool) -> None:
-    if value is None:
-      if required:
-        self.logger.log(
-          self.policy.missing_required_attribute.log_level,
-          "Missing required attribute %r on element <%s>",
-          name,
-          self.backend.get_tag(element),
-        )
-        if self.policy.missing_required_attribute.behavior == "raise":
-          raise AttributeSerializationError(f"Missing required attribute {name!r} for element <{self.backend.get_tag(element)}>")
-      return
-    if not isinstance(value, int):
-      self.logger.log(
-        self.policy.invalid_attribute_type.log_level,
-        "Invalid attribute type %r for attribute %s: expected int",
-        value,
-        name,
-      )
-      if self.policy.invalid_attribute_type.behavior == "raise":
-        raise AttributeSerializationError(f"Invalid attribute type {value!r} for attribute {name!r}")
-      return
-    else:
-      self.backend.set_attr(element, name, str(value))
-
-  def _set_enum_attribute(
-    self, element: T_XmlElement, name: str, value: T_Enum | None, enum_type: type[T_Enum], required: bool
+  def _set_int_attribute(
+    self, element: T_XmlElement, name: str, value: int | None, required: bool
   ) -> None:
     if value is None:
       if required:
@@ -95,7 +72,45 @@ class BaseElementSerializer[T_XmlElement](ABC):
           self.backend.get_tag(element),
         )
         if self.policy.missing_required_attribute.behavior == "raise":
-          raise AttributeSerializationError(f"Missing required attribute {name!r} for element <{self.backend.get_tag(element)}>")
+          raise AttributeSerializationError(
+            f"Missing required attribute {name!r} for element <{self.backend.get_tag(element)}>"
+          )
+      return
+    if not isinstance(value, int):
+      self.logger.log(
+        self.policy.invalid_attribute_type.log_level,
+        "Invalid attribute type %r for attribute %s: expected int",
+        value,
+        name,
+      )
+      if self.policy.invalid_attribute_type.behavior == "raise":
+        raise AttributeSerializationError(
+          f"Invalid attribute type {value!r} for attribute {name!r}"
+        )
+      return
+    else:
+      self.backend.set_attr(element, name, str(value))
+
+  def _set_enum_attribute(
+    self,
+    element: T_XmlElement,
+    name: str,
+    value: T_Enum | None,
+    enum_type: type[T_Enum],
+    required: bool,
+  ) -> None:
+    if value is None:
+      if required:
+        self.logger.log(
+          self.policy.missing_required_attribute.log_level,
+          "Missing required attribute %r on element <%s>",
+          name,
+          self.backend.get_tag(element),
+        )
+        if self.policy.missing_required_attribute.behavior == "raise":
+          raise AttributeSerializationError(
+            f"Missing required attribute {name!r} for element <{self.backend.get_tag(element)}>"
+          )
       return
     if not isinstance(value, enum_type):
       self.logger.log(
@@ -106,12 +121,16 @@ class BaseElementSerializer[T_XmlElement](ABC):
         enum_type.__name__,
       )
       if self.policy.invalid_attribute_type.behavior == "raise":
-        raise AttributeSerializationError(f"Invalid attribute type {value!r} for attribute {name!r}")
+        raise AttributeSerializationError(
+          f"Invalid attribute type {value!r} for attribute {name!r}"
+        )
       return
     else:
       self.backend.set_attr(element, name, str(value.value))
 
-  def _set_dt_attribute(self, element: T_XmlElement, name: str, value: datetime | None, required: bool) -> None:
+  def _set_dt_attribute(
+    self, element: T_XmlElement, name: str, value: datetime | None, required: bool
+  ) -> None:
     if value is None:
       if required:
         self.logger.log(
@@ -121,7 +140,9 @@ class BaseElementSerializer[T_XmlElement](ABC):
           self.backend.get_tag(element),
         )
         if self.policy.missing_required_attribute.behavior == "raise":
-          raise AttributeSerializationError(f"Missing required attribute {name!r} for element <{self.backend.get_tag(element)}>")
+          raise AttributeSerializationError(
+            f"Missing required attribute {name!r} for element <{self.backend.get_tag(element)}>"
+          )
       return
     if not isinstance(value, datetime):
       self.logger.log(
@@ -131,12 +152,16 @@ class BaseElementSerializer[T_XmlElement](ABC):
         name,
       )
       if self.policy.invalid_attribute_type.behavior == "raise":
-        raise AttributeSerializationError(f"Invalid attribute type {value!r} for attribute {name!r}")
+        raise AttributeSerializationError(
+          f"Invalid attribute type {value!r} for attribute {name!r}"
+        )
       return
     else:
       self.backend.set_attr(element, name, value.isoformat())
 
-  def _set_attribute(self, element: T_XmlElement, name: str, value: str | None, required: bool) -> None:
+  def _set_attribute(
+    self, element: T_XmlElement, name: str, value: str | None, required: bool
+  ) -> None:
     if value is None:
       if required:
         self.logger.log(
@@ -146,7 +171,9 @@ class BaseElementSerializer[T_XmlElement](ABC):
           self.backend.get_tag(element),
         )
         if self.policy.missing_required_attribute.behavior == "raise":
-          raise AttributeSerializationError(f"Missing required attribute {name!r} for element <{self.backend.get_tag(element)}>")
+          raise AttributeSerializationError(
+            f"Missing required attribute {name!r} for element <{self.backend.get_tag(element)}>"
+          )
       return
     if not isinstance(value, str):
       self.logger.log(
@@ -156,7 +183,9 @@ class BaseElementSerializer[T_XmlElement](ABC):
         name,
       )
       if self.policy.invalid_attribute_type.behavior == "raise":
-        raise AttributeSerializationError(f"Invalid attribute type {value!r} for attribute {name!r}")
+        raise AttributeSerializationError(
+          f"Invalid attribute type {value!r} for attribute {name!r}"
+        )
       return
     else:
       self.backend.set_attr(element, name, value)
@@ -179,7 +208,9 @@ class InlineContentSerializerMixin[T_XmlElement](SerializerHost[T_XmlElement]):
     allowed = self.ALLOWED.get(tag)
     last_child: T_XmlElement | None = None
     if allowed is None:
-      self.logger.log(self.policy.invalid_inline_tag.log_level, "tag <%s> is does not allow inline content", tag)
+      self.logger.log(
+        self.policy.invalid_inline_tag.log_level, "tag <%s> is does not allow inline content", tag
+      )
       if self.policy.invalid_inline_tag.behavior == "raise":
         raise XmlSerializationError(f"tag <{tag}> is does not allow inline content")
       return
@@ -199,7 +230,9 @@ class InlineContentSerializerMixin[T_XmlElement](SerializerHost[T_XmlElement]):
           type(item).__name__,
         )
         if self.policy.invalid_inline_content.behavior == "raise":
-          raise XmlSerializationError(f"Incorrect content element: expected {allowed}, got {type(item).__name__!r}")
+          raise XmlSerializationError(
+            f"Incorrect content element: expected {allowed}, got {type(item).__name__!r}"
+          )
         continue
       else:
         child_element = self.emit(item)

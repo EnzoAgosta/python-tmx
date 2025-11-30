@@ -83,7 +83,9 @@ class HeaderSerializer(BaseElementSerializer[T_XmlElement]):
     return element
 
 
-class TuvSerializer(BaseElementSerializer[T_XmlElement], InlineContentSerializerMixin[T_XmlElement]):
+class TuvSerializer(
+  BaseElementSerializer[T_XmlElement], InlineContentSerializerMixin[T_XmlElement]
+):
   def _serialize(self, obj: BaseElement) -> T_XmlElement:
     obj = self._check_obj_type(obj, Tuv)
     element = self.backend.make_elem("tuv")
@@ -151,7 +153,9 @@ class TmxSerializer(BaseElementSerializer[T_XmlElement]):
     return element
 
 
-class BptSerializer(BaseElementSerializer[T_XmlElement], InlineContentSerializerMixin[T_XmlElement]):
+class BptSerializer(
+  BaseElementSerializer[T_XmlElement], InlineContentSerializerMixin[T_XmlElement]
+):
   def _serialize(self, obj: BaseElement) -> T_XmlElement:
     obj = self._check_obj_type(obj, Bpt)
     element = self.backend.make_elem("bpt")
@@ -162,7 +166,9 @@ class BptSerializer(BaseElementSerializer[T_XmlElement], InlineContentSerializer
     return element
 
 
-class EptSerializer(BaseElementSerializer[T_XmlElement], InlineContentSerializerMixin[T_XmlElement]):
+class EptSerializer(
+  BaseElementSerializer[T_XmlElement], InlineContentSerializerMixin[T_XmlElement]
+):
   def _serialize(self, obj: BaseElement) -> T_XmlElement:
     obj = self._check_obj_type(obj, Ept)
     element = self.backend.make_elem("ept")
@@ -203,7 +209,9 @@ class PhSerializer(BaseElementSerializer[T_XmlElement], InlineContentSerializerM
     return element
 
 
-class SubSerializer(BaseElementSerializer[T_XmlElement], InlineContentSerializerMixin[T_XmlElement]):
+class SubSerializer(
+  BaseElementSerializer[T_XmlElement], InlineContentSerializerMixin[T_XmlElement]
+):
   def _serialize(self, obj: BaseElement) -> T_XmlElement:
     obj = self._check_obj_type(obj, Sub)
     element = self.backend.make_elem("sub")

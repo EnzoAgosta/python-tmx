@@ -31,11 +31,13 @@ class StandardBackend:
 
   def get_tail(self, element: ET.Element) -> str | None:
     return element.tail
-  
+
   def set_tail(self, element: ET.Element, tail: str | None) -> None:
     element.tail = tail
 
-  def iter_children(self, element: ET.Element, tag: str | Collection[str] | None = None) -> Iterator[ET.Element]:
+  def iter_children(
+    self, element: ET.Element, tag: str | Collection[str] | None = None
+  ) -> Iterator[ET.Element]:
     for descendant in element:
       descendant_tag = self.get_tag(descendant)
       if tag is None or descendant_tag in tag:
@@ -44,6 +46,6 @@ class StandardBackend:
   @cache
   def get_tag(self, element: ET.Element) -> str:
     return normalize_tag(element.tag)
-  
+
   def find(self, element: ET.Element, tag: str) -> ET.Element | None:
     return element.find(tag)

@@ -185,9 +185,13 @@ class TestTuvDeserializer[T_XmlElement]:
 
   def test_missing_seg_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
     elem = self.make_tuv_elem(seg_text=None)
-    self.policy.missing_seg.behavior = "raise"  # Default but setting it explicitly for testing purposes
+    self.policy.missing_seg.behavior = (
+      "raise"  # Default but setting it explicitly for testing purposes
+    )
     self.policy.missing_seg.log_level = log_level
-    with pytest.raises(XmlDeserializationError, match="Element <tuv> is missing a <seg> child element"):
+    with pytest.raises(
+      XmlDeserializationError, match="Element <tuv> is missing a <seg> child element"
+    ):
       self.handler._deserialize(elem)
 
     expected_log = (self.logger.name, log_level, "Element <tuv> is missing a <seg> child element")
@@ -211,7 +215,9 @@ class TestTuvDeserializer[T_XmlElement]:
     self.backend.append(elem, seg1)
     self.backend.append(elem, seg2)
 
-    self.policy.multiple_seg.behavior = "raise"  # Default but setting it explicitly for testing purposes
+    self.policy.multiple_seg.behavior = (
+      "raise"  # Default but setting it explicitly for testing purposes
+    )
     self.policy.multiple_seg.log_level = log_level
 
     with pytest.raises(XmlDeserializationError, match="Multiple <seg> elements in <tuv>"):
@@ -259,9 +265,13 @@ class TestTuvDeserializer[T_XmlElement]:
     elem = self.make_tuv_elem(seg_text=None)
     seg = self.backend.make_elem("seg")
     self.backend.append(elem, seg)
-    self.policy.empty_seg.behavior = "raise"  # Default but setting it explicitly for testing purposes
+    self.policy.empty_seg.behavior = (
+      "raise"  # Default but setting it explicitly for testing purposes
+    )
     self.policy.empty_seg.log_level = log_level
-    with pytest.raises(XmlDeserializationError, match="Element <tuv> has an empty <seg> child element"):
+    with pytest.raises(
+      XmlDeserializationError, match="Element <tuv> has an empty <seg> child element"
+    ):
       self.handler._deserialize(elem)
     expected_log = (self.logger.name, log_level, "Element <tuv> has an empty <seg> child element")
     assert caplog.record_tuples == [expected_log]
@@ -280,27 +290,43 @@ class TestTuvDeserializer[T_XmlElement]:
 
   def test_missing_required_attribute_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
     elem = self.make_tuv_elem(lang=None)
-    self.policy.required_attribute_missing.behavior = "raise"  # Default but setting it explicitly for testing purposes
+    self.policy.required_attribute_missing.behavior = (
+      "raise"  # Default but setting it explicitly for testing purposes
+    )
     self.policy.required_attribute_missing.log_level = log_level
-    with pytest.raises(AttributeDeserializationError, match=f"Missing required attribute '{XML_NS}lang'"):
+    with pytest.raises(
+      AttributeDeserializationError, match=f"Missing required attribute '{XML_NS}lang'"
+    ):
       self.handler._deserialize(elem)
-    expected_log = (self.logger.name, log_level, f"Missing required attribute '{XML_NS}lang' on element <tuv>")
+    expected_log = (
+      self.logger.name,
+      log_level,
+      f"Missing required attribute '{XML_NS}lang' on element <tuv>",
+    )
     assert caplog.record_tuples == [expected_log]
 
-  def test_missing_required_attribute_ignore(self, caplog: pytest.LogCaptureFixture, log_level: int):
+  def test_missing_required_attribute_ignore(
+    self, caplog: pytest.LogCaptureFixture, log_level: int
+  ):
     elem = self.make_tuv_elem(lang=None)
     self.policy.required_attribute_missing.behavior = "ignore"
     self.policy.required_attribute_missing.log_level = log_level
     tuv = self.handler._deserialize(elem)
     assert isinstance(tuv, Tuv)
     assert tuv.lang is None
-    expected_log = (self.logger.name, log_level, f"Missing required attribute '{XML_NS}lang' on element <tuv>")
+    expected_log = (
+      self.logger.name,
+      log_level,
+      f"Missing required attribute '{XML_NS}lang' on element <tuv>",
+    )
     assert caplog.record_tuples == [expected_log]
 
   def test_invalid_child_element_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
     elem = self.make_tuv_elem()
     self.backend.append(elem, self.backend.make_elem("wrong"))
-    self.policy.invalid_child_element.behavior = "raise"  # Default but setting it explicitly for testing purposes
+    self.policy.invalid_child_element.behavior = (
+      "raise"  # Default but setting it explicitly for testing purposes
+    )
     self.policy.invalid_child_element.log_level = log_level
     with pytest.raises(XmlDeserializationError, match="Invalid child element <wrong> in <tuv>"):
       self.handler._deserialize(elem)
