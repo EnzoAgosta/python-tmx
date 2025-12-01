@@ -40,3 +40,4 @@ class SerializationPolicy:
   invalid_content_type: PolicyValue[Literal["raise", "ignore"]] = _default_policy()
   missing_handler: PolicyValue[Literal["raise", "ignore", "default"]] = _default_policy()
   invalid_object_type: PolicyValue[Literal["raise", "ignore"]] = _default_policy()
+  invalid_child_element: PolicyValue[Literal["raise", "ignore"]] = _default_policy()

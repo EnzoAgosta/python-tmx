@@ -50,18 +50,24 @@ class BaseElementSerializer[T_XmlElement](ABC):
     if not isinstance(obj, expected_type):
       self.logger.log(
         self.policy.invalid_object_type.log_level,
-        "Invalid object type %s",
-        type(obj),
+        "Cannot serialize object of type %r to xml element using %r",
+        type(obj).__name__,
+        type(self).__name__,
       )
       if self.policy.invalid_object_type.behavior == "raise":
-        raise XmlSerializationError(f"Invalid object type {type(obj)}")
+        raise XmlSerializationError(
+          f"Cannot serialize object of type {type(obj).__name__!r} to xml element using {type(self).__name__!r}"
+        )
       return False
     return True
 
   def _set_dt_attribute(
-    self, source: BaseElement, target: T_XmlElement, attribute: str, required: bool
+    self,
+    target: T_XmlElement,
+    value: datetime | None,
+    attribute: str,
+    required: bool,
   ) -> None:
-    value = getattr(source, attribute)
     if value is None:
       if required:
         self.logger.log(
@@ -84,9 +90,12 @@ class BaseElementSerializer[T_XmlElement](ABC):
     self.backend.set_attr(target, attribute, value.isoformat())
 
   def _set_int_attribute(
-    self, source: BaseElement, target: T_XmlElement, attribute: str, required: bool
+    self,
+    target: T_XmlElement,
+    value: int | None,
+    attribute: str,
+    required: bool,
   ) -> None:
-    value = getattr(source, attribute)
     if value is None:
       if required:
         self.logger.log(
@@ -108,13 +117,12 @@ class BaseElementSerializer[T_XmlElement](ABC):
 
   def _set_enum_attribute(
     self,
-    source: BaseElement,
     target: T_XmlElement,
+    value: T_Enum | None,
     attribute: str,
     enum_type: type[T_Enum],
     required: bool,
   ) -> None:
-    value = getattr(source, attribute)
     if value is None:
       if required:
         self.logger.log(
@@ -138,9 +146,12 @@ class BaseElementSerializer[T_XmlElement](ABC):
     self.backend.set_attr(target, attribute, value.value)
 
   def _set_attribute(
-    self, source: BaseElement, target: T_XmlElement, attribute: str, required: bool = False
+    self,
+    target: T_XmlElement,
+    value: str | None,
+    attribute: str,
+    required: bool,
   ) -> None:
-    value = getattr(source, attribute)
     if value is None:
       if required:
         self.logger.log(
