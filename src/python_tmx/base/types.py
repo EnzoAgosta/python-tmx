@@ -195,7 +195,7 @@ class Sub:
 
 @dataclass(slots=True)
 class Tuv:
-  """Represents the `<tuv>` (Translation Unit Variant) element (TMX 1.4b §3.4)."""
+  """Represents the `<tuv>` (Translation Unit Variant) element."""
 
   lang: str
   """`xml:lang` attribute (required). Specifies the language of this translation variant."""

@@ -1,7 +1,8 @@
 import logging
+from unittest.mock import Mock
 import pytest
+from python_tmx.base.errors import XmlDeserializationError
 from python_tmx.base.types import Note
-from python_tmx.base.errors import InvalidTagError, XmlDeserializationError
 from python_tmx.xml import XML_NS
 from python_tmx.xml.backends.base import XMLBackend
 from python_tmx.xml.deserialization._handlers import NoteDeserializer
@@ -38,62 +39,49 @@ class TestNoteDeserializer[T_XmlElement]:
     if o_encoding is not None:
       self.backend.set_attr(elem, "o-encoding", o_encoding)
     return elem
-
-  def test_basic_usage(self, caplog: pytest.LogCaptureFixture):
+  
+  def test_returns_Note(self):
     elem = self.make_note_elem()
     note = self.handler._deserialize(elem)
-
     assert isinstance(note, Note)
-    assert note.text == "Valid Note Content"
-    assert note.lang == "en-US"
-    assert note.o_encoding == "UTF-8"
 
-    assert caplog.records == []
+  def test_calls_check_tag(self):
+    mock_check_tag = Mock()
+    self.handler._check_tag = mock_check_tag
+    elem = self.make_note_elem()
+    self.handler._deserialize(elem)
 
-  def test_check_tag_raises(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.make_note_elem(tag="prop")
-    self.policy.invalid_tag.behavior = (
-      "raise"  # Default but setting it explicitly for testing purposes
-    )
-    self.policy.invalid_tag.log_level = log_level
-    with pytest.raises(InvalidTagError, match="Incorrect tag: expected note, got prop"):
-      self.handler._deserialize(elem)
+    mock_check_tag.assert_called_once_with(elem, "note")
 
-    expected_log = (self.logger.name, log_level, "Incorrect tag: expected note, got prop")
+  def test_calls_parse_attribute(self):
+    mock_parse_attributes = Mock()
+    self.handler._parse_attribute = mock_parse_attributes
 
-    assert caplog.record_tuples == [expected_log]
+    elem = self.make_note_elem()
+    self.handler._deserialize(elem)
 
-  def test_check_tag_ignores(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.make_note_elem(tag="prop")
-    self.policy.invalid_tag.behavior = "ignore"
-    self.policy.invalid_tag.log_level = log_level
-    note = self.handler._deserialize(elem)
-    assert isinstance(note, Note)
-    assert note.text == "Valid Note Content"
-    assert note.lang == "en-US"
-    assert note.o_encoding == "UTF-8"
-
-    expected_log = (self.logger.name, log_level, "Incorrect tag: expected note, got prop")
-    assert caplog.record_tuples == [expected_log]
+    assert mock_parse_attributes.call_count == 2
+    mock_parse_attributes.assert_any_call(elem, f"{XML_NS}lang", False)
+    mock_parse_attributes.assert_any_call(elem, "o-encoding", False)
 
   def test_empty_content_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
     elem = self.make_note_elem(text=None)
+    log_message = "Element <note> does not have any text content"
 
-    self.policy.empty_content.behavior = (
-      "raise"  # Default but setting it explicitly for testing purposes
-    )
+    self.policy.empty_content.behavior = "raise"
     self.policy.empty_content.log_level = log_level
 
-    with pytest.raises(
-      XmlDeserializationError, match="Element <note> does not have any text content"
-    ):
+    with pytest.raises(XmlDeserializationError, match=log_message):
       self.handler._deserialize(elem)
 
-    expected_log = (self.logger.name, log_level, "Element <note> does not have any text content")
+    expected_log = (self.logger.name, log_level, log_message)
     assert caplog.record_tuples == [expected_log]
 
-  def test_empty_content_empty_string_fallback(self, caplog: pytest.LogCaptureFixture, log_level: int):
+  def test_empty_content_empty_string_fallback(
+    self, caplog: pytest.LogCaptureFixture, log_level: int
+  ):
     elem = self.make_note_elem(text=None)
+    log_message = "Element <note> does not have any text content"
 
     self.policy.empty_content.behavior = "empty"
     self.policy.empty_content.log_level = log_level
@@ -102,7 +90,7 @@ class TestNoteDeserializer[T_XmlElement]:
     assert note.text == ""
 
     expected_logs = [
-      (self.logger.name, log_level, "Element <note> does not have any text content"),
+      (self.logger.name, log_level, log_message),
       (self.logger.name, log_level, "Falling back to an empty string"),
     ]
 
@@ -110,10 +98,42 @@ class TestNoteDeserializer[T_XmlElement]:
 
   def test_empty_content_ignores(self, caplog: pytest.LogCaptureFixture, log_level: int):
     elem = self.make_note_elem(text=None)
+    log_message = "Element <note> does not have any text content"
     self.policy.empty_content.behavior = "ignore"
     self.policy.empty_content.log_level = log_level
     note = self.handler._deserialize(elem)
     assert note.text is None
 
-    expected_log = (self.logger.name, log_level, "Element <note> does not have any text content")
+    expected_log = (self.logger.name, log_level, log_message)
+    assert caplog.record_tuples == [expected_log]
+
+  def test_invalid_child_element_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    elem = self.make_note_elem()
+    self.backend.append(elem, self.backend.make_elem("wrong"))
+    log_message = "Invalid child element <wrong> in <note>"
+
+    self.policy.invalid_child_element.behavior = "raise"
+    self.policy.invalid_child_element.log_level = log_level
+
+    with pytest.raises(
+      XmlDeserializationError,
+      match=log_message,
+    ):
+      self.handler._deserialize(elem)
+
+    expected_log = (self.logger.name, log_level, log_message)
+    assert caplog.record_tuples == [expected_log]
+
+  def test_invalid_child_element_ignore(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    elem = self.make_note_elem()
+    self.backend.append(elem, self.backend.make_elem("wrong"))
+    log_message = "Invalid child element <wrong> in <note>"
+
+    self.policy.invalid_child_element.behavior = "ignore"
+    self.policy.invalid_child_element.log_level = log_level
+
+    note = self.handler._deserialize(elem)
+    assert note.text == "Valid Note Content"
+
+    expected_log = (self.logger.name, log_level, log_message)
     assert caplog.record_tuples == [expected_log]

@@ -2,12 +2,8 @@ from datetime import UTC, datetime
 import logging
 from unittest.mock import Mock
 import pytest
-from python_tmx.base.types import Header, Note, Prop, Segtype
-from python_tmx.base.errors import (
-  AttributeDeserializationError,
-  InvalidTagError,
-  XmlDeserializationError,
-)
+from python_tmx.base.errors import XmlDeserializationError
+from python_tmx.base.types import Header, Segtype
 from python_tmx.xml.backends.base import XMLBackend
 from python_tmx.xml.deserialization._handlers import HeaderDeserializer
 from python_tmx.xml.policy import DeserializationPolicy
@@ -26,6 +22,7 @@ class TestHeaderDeserializer[T_XmlElement]:
     self.policy = DeserializationPolicy()
 
     self.handler = HeaderDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
+    self.handler._set_emit(lambda x: None)
 
   def make_header_elem(
     self,
@@ -43,10 +40,9 @@ class TestHeaderDeserializer[T_XmlElement]:
     creationid: str | None = "User1",
     changedate: datetime | None = datetime(2025, 2, 1, 14, 30, 0, tzinfo=UTC),
     changeid: str | None = "User2",
-    props: int = 0,
-    notes: int = 0,
+    props: int = 1,
+    notes: int = 1,
   ) -> T_XmlElement:
-    
     elem = self.backend.make_elem(tag)
     if creationtool is not None:
       self.backend.set_attr(elem, "creationtool", creationtool)
@@ -77,117 +73,63 @@ class TestHeaderDeserializer[T_XmlElement]:
     for _ in range(notes):
       self.backend.append(elem, self.backend.make_elem("note"))
     return elem
-
-  def test_basic_usage(self, caplog: pytest.LogCaptureFixture):
-    
-    mock_prop_obj = Prop(text="P", type="T")
-    mock_note_obj = Note(text="N")
-
-    def side_effect(child_id):
-      tag = self.backend.get_tag(child_id)
-      if tag == "prop":
-        return mock_prop_obj
-      if tag == "note":
-        return mock_note_obj
-      return None
-
-    mock_emit = Mock(side_effect=side_effect)
-    self.handler._set_emit(mock_emit)
-    elem = self.make_header_elem(props=1, notes=1)
+  
+  def test_returns_Header(self):
+    elem = self.make_header_elem()
     header = self.handler._deserialize(elem)
-
     assert isinstance(header, Header)
-    assert header.creationtool == "pytest"
-    assert header.creationtoolversion == "v1"
-    assert header.segtype == Segtype.SENTENCE
-    assert header.o_tmf == "TestTMF"
-    assert header.adminlang == "en-US"
-    assert header.srclang == "en-US"
-    assert header.datatype == "plaintext"
-    assert header.o_encoding == "UTF-8"
-    assert header.creationdate == datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
-    assert header.creationid == "User1"
-    assert header.changedate == datetime(2025, 2, 1, 14, 30, 0, tzinfo=UTC)
-    assert header.changeid == "User2"
 
-    assert header.props == [mock_prop_obj]
-    assert header.notes == [mock_note_obj]
+  def test_calls_check_tag(self):
+    mock_check_tag = Mock()
+    self.handler._check_tag = mock_check_tag
+    elem = self.make_header_elem()
+    self.handler._deserialize(elem)
+
+    mock_check_tag.assert_called_once_with(elem, "header")
+
+  def test_calls_parses_attribute_correctly(self):
+    mock_parse_attributes = Mock()
+    mock_parse_attributes_as_enum = Mock()
+    mock_parse_attributes_as_dt = Mock()
+    self.handler._parse_attribute = mock_parse_attributes
+    self.handler._parse_attribute_as_enum = mock_parse_attributes_as_enum
+    self.handler._parse_attribute_as_dt = mock_parse_attributes_as_dt
+
+    elem = self.make_header_elem()
+    self.handler._deserialize(elem)
+
+    assert mock_parse_attributes.call_count == 9
+    mock_parse_attributes.assert_any_call(elem, "creationtool", True)
+    mock_parse_attributes.assert_any_call(elem, "creationtoolversion", True)
+    mock_parse_attributes.assert_any_call(elem, "o-tmf", True)
+    mock_parse_attributes.assert_any_call(elem, "adminlang", True)
+    mock_parse_attributes.assert_any_call(elem, "srclang", True)
+    mock_parse_attributes.assert_any_call(elem, "datatype", True)
+    mock_parse_attributes.assert_any_call(elem, "o-encoding", False)
+    mock_parse_attributes.assert_any_call(elem, "creationid", False)
+    mock_parse_attributes.assert_any_call(elem, "changeid", False)
+
+    mock_parse_attributes_as_enum.assert_called_once_with(elem, "segtype", Segtype, True)
+
+    assert mock_parse_attributes_as_dt.call_count == 2
+    mock_parse_attributes_as_dt.assert_any_call(elem, "creationdate", False)
+    mock_parse_attributes_as_dt.assert_any_call(elem, "changedate", False)
+
+  def test_emits_correctly(self):
+    mock_emit = Mock()
+    self.handler._set_emit(mock_emit)
+    elem = self.make_header_elem()
+    self.handler._deserialize(elem)
 
     assert mock_emit.call_count == 2
     for i in self.backend.iter_children(elem):
       mock_emit.assert_any_call(i)
 
-    assert caplog.records == []
-
-  def test_check_tag_raises(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    
-    elem = self.make_header_elem(tag="note")
-    self.policy.invalid_tag.behavior = (
-      "raise"  # Default but setting it explicitly for testing purposes
-    )
-    self.policy.invalid_tag.log_level = log_level
-    with pytest.raises(InvalidTagError, match="Incorrect tag: expected header, got note"):
-      self.handler._deserialize(elem)
-
-    expected_log = (self.logger.name, log_level, "Incorrect tag: expected header, got note")
-
-    assert caplog.record_tuples == [expected_log]
-
-  def test_check_tag_ignores(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    
-    elem = self.make_header_elem(tag="note")
-    self.policy.invalid_tag.behavior = "ignore"
-    self.policy.invalid_tag.log_level = log_level
-    header = self.handler._deserialize(elem)
-    assert isinstance(header, Header)
-
-    expected_log = (self.logger.name, log_level, "Incorrect tag: expected header, got note")
-    assert caplog.record_tuples == [expected_log]
-
-  def test_missing_required_attribute_raises(
-    self, caplog: pytest.LogCaptureFixture, log_level: int
-  ):
-    
-    elem = self.make_header_elem(creationtool=None)
-    self.policy.required_attribute_missing.behavior = (
-      "raise"  # Default but setting it explicitly for testing purposes
-    )
-    self.policy.required_attribute_missing.log_level = log_level
-    with pytest.raises(
-      AttributeDeserializationError, match="Missing required attribute 'creationtool'"
-    ):
-      self.handler._deserialize(elem)
-    assert caplog.records[-1].levelno == log_level
-    assert (
-      caplog.records[-1].message == "Missing required attribute 'creationtool' on element <header>"
-    )
-
-  def test_missing_required_attribute_ignores(
-    self, caplog: pytest.LogCaptureFixture, log_level: int
-  ):
-    
-    elem = self.make_header_elem(creationtool=None)
-    self.policy.required_attribute_missing.behavior = "ignore"
-    self.policy.required_attribute_missing.log_level = log_level
-    header = self.handler._deserialize(elem)
-    assert isinstance(header, Header)
-    assert header.creationtool is None
-
-    expected_log = (
-      self.logger.name,
-      log_level,
-      "Missing required attribute 'creationtool' on element <header>",
-    )
-    assert caplog.record_tuples == [expected_log]
-
   def test_extra_text_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    
     elem = self.make_header_elem()
     self.backend.set_text(elem, "  I should not be here  ")
 
-    self.policy.extra_text.behavior = (
-      "raise"  # Default but setting it explicitly for testing purposes
-    )
+    self.policy.extra_text.behavior = "raise"
     self.policy.extra_text.log_level = log_level
 
     with pytest.raises(
@@ -204,7 +146,6 @@ class TestHeaderDeserializer[T_XmlElement]:
     assert caplog.record_tuples == [expected_log]
 
   def test_extra_text_ignores(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    
     elem = self.make_header_elem()
     self.backend.set_text(elem, "  I should not be here  ")
 
@@ -218,4 +159,36 @@ class TestHeaderDeserializer[T_XmlElement]:
       log_level,
       "Element <header> has extra text content '  I should not be here  '",
     )
+    assert caplog.record_tuples == [expected_log]
+
+  def test_invalid_child_element_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    elem = self.make_header_elem()
+    self.backend.append(elem, self.backend.make_elem("wrong"))
+    log_message = "Invalid child element <wrong> in <header>"
+
+    self.policy.invalid_child_element.behavior = "raise"
+    self.policy.invalid_child_element.log_level = log_level
+
+    with pytest.raises(
+      XmlDeserializationError,
+      match=log_message,
+    ):
+      self.handler._deserialize(elem)
+
+    expected_log = (self.logger.name, log_level, log_message)
+    assert caplog.record_tuples == [expected_log]
+
+  def test_invalid_child_element_ignore(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    elem = self.make_header_elem()
+    self.backend.append(elem, self.backend.make_elem("wrong"))
+    log_message = "Invalid child element <wrong> in <header>"
+
+    self.policy.invalid_child_element.behavior = "ignore"
+    self.policy.invalid_child_element.log_level = log_level
+
+    header = self.handler._deserialize(elem)
+    
+    assert isinstance(header, Header)
+
+    expected_log = (self.logger.name, log_level, log_message)
     assert caplog.record_tuples == [expected_log]

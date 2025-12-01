@@ -86,7 +86,7 @@ class BaseElementDeserializer[T_XmlElement](ABC):
       )
       if self.policy.invalid_attribute_value.behavior == "raise":
         raise AttributeDeserializationError(
-          f"Cannot convert {value!r} to a datetime object for attribute {attribute!r}"
+          f"Cannot convert {value!r} to a datetime object for attribute {attribute}"
         ) from e
       return None
 
@@ -214,9 +214,7 @@ class InlineContentDeserializerMixin[T_XmlElement](DeserializerHost[T_XmlElement
       if (tail := self.backend.get_tail(child)) is not None:
         result.append(tail)
     if result == []:
-      self.logger.log(
-        self.policy.empty_content.log_level, "Element <%s> is empty", source_tag
-      )
+      self.logger.log(self.policy.empty_content.log_level, "Element <%s> is empty", source_tag)
       if self.policy.empty_content.behavior == "raise":
         raise XmlDeserializationError(f"Element <{source_tag}> is empty")
       if self.policy.empty_content.behavior == "empty":

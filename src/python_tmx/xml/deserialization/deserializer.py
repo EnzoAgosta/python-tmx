@@ -35,14 +35,18 @@ class Deserializer[T_XmlElement]:
     self.backend = backend
     self.policy = policy or DeserializationPolicy()
     self.logger = logger or _ModuleLogger
-    self.handlers = handlers or self._get_default_handlers()
+    if handlers is None:
+      self.logger.info("Using default handlers")
+      handlers = self._get_default_handlers()
+    else:
+      self.logger.debug("Using custom handlers")
+    self.handlers = handlers
 
     for handler in self.handlers.values():
       if handler._emit is None:
         handler._set_emit(self.deserialize)
 
   def _get_default_handlers(self) -> dict[str, BaseElementDeserializer[T_XmlElement]]:
-    self.logger.info("using default handlers")
     return {
       "note": NoteDeserializer(self.backend, self.policy, self.logger),
       "prop": PropDeserializer(self.backend, self.policy, self.logger),
@@ -69,6 +73,7 @@ class Deserializer[T_XmlElement]:
       elif self.policy.missing_handler.behavior == "ignore":
         return None
       else:
+        self.logger.log(self.policy.missing_handler.log_level, "Falling back to default handler for <%s>", tag)
         handler = self._get_default_handlers().get(tag)
         if handler is None:
           raise MissingHandlerError(f"Missing handler for <{tag}>") from None

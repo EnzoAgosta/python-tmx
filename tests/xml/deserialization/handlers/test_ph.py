@@ -2,12 +2,7 @@ import logging
 from unittest.mock import Mock
 
 import pytest
-from python_tmx.base.errors import (
-  AttributeDeserializationError,
-  InvalidTagError,
-  XmlDeserializationError,
-)
-from python_tmx.base.types import Assoc, Ph, Sub
+from python_tmx.base.types import Assoc, Ph
 from python_tmx.xml.backends.base import XMLBackend
 from python_tmx.xml.deserialization._handlers import PhDeserializer
 from python_tmx.xml.policy import DeserializationPolicy
@@ -47,219 +42,39 @@ class TestPhDeserializer[T_XmlElement]:
       self.backend.set_attr(elem, "assoc", assoc.value)
     return elem
 
-  def test_basic_usage(self):
+  def test_returns_Ph(self):
     elem = self.make_ph_elem()
     ph = self.handler._deserialize(elem)
     assert isinstance(ph, Ph)
-    assert ph.x == 1
-    assert ph.type == "ph"
-    assert ph.assoc is Assoc.P
-    assert ph.content == ["Valid Ph Content"]
 
-  def test_mixed_content(self):
+  def test_calls_check_tag(self):
+    mock_check_tag = Mock()
+    self.handler._check_tag = mock_check_tag
     elem = self.make_ph_elem()
-    sub_elem = self.backend.make_elem("sub")
-    self.backend.set_text(sub_elem, "Sub Content")
-    self.backend.set_tail(sub_elem, "Sub Tail")
-    self.backend.append(elem, sub_elem)
+    self.handler._deserialize(elem)
 
-    mock_emit = Mock(return_value=Sub(content=["Sub Content"]))
-    self.handler._set_emit(mock_emit)
+    mock_check_tag.assert_called_once_with(elem, "ph")
 
-    ept = self.handler._deserialize(elem)
-    
-    assert isinstance(ept, Ph)
-    assert ept.content == ["Valid Ph Content", mock_emit.return_value, "Sub Tail"]
+  def test_calls_parse_attribute_correctly(self):
+    mock_parse_attributes = Mock()
+    mock_parse_attributes_as_int = Mock()
+    mock_parse_attributes_as_enum = Mock()
+    self.handler._parse_attribute = mock_parse_attributes
+    self.handler._parse_attribute_as_int = mock_parse_attributes_as_int
+    self.handler._parse_attribute_as_enum = mock_parse_attributes_as_enum
 
-    assert mock_emit.call_count == 1
-    for i in self.backend.iter_children(elem):
-      mock_emit.assert_any_call(i)
-
-  def test_check_tag_raises(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.make_ph_elem(tag="prop")
-
-    self.policy.invalid_tag.behavior = (
-      "raise"  # Default but setting it explicitly for testing purposes
-    )
-    self.policy.invalid_tag.log_level = log_level
-
-    with pytest.raises(InvalidTagError, match="Incorrect tag: expected ph, got prop"):
-      self.handler._deserialize(elem)
-
-    expected_log = (self.logger.name, log_level, "Incorrect tag: expected ph, got prop")
-    assert caplog.record_tuples == [expected_log]
-
-  def test_check_tag_ignores(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.make_ph_elem(tag="prop")
-
-    self.policy.invalid_tag.behavior = "ignore"
-    self.policy.invalid_tag.log_level = log_level
-
-    ph = self.handler._deserialize(elem)
-    assert isinstance(ph, Ph)
-
-    expected_log = (self.logger.name, log_level, "Incorrect tag: expected ph, got prop")
-    assert caplog.record_tuples == [expected_log]
-
-  def test_missing_content_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.make_ph_elem(text=None)
-    self.policy.empty_content.behavior = (
-      "raise"  # Default but setting it explicitly for testing purposes
-    )
-    self.policy.empty_content.log_level = log_level
-
-    with pytest.raises(XmlDeserializationError, match="Element <ph> is empty"):
-      self.handler._deserialize(elem)
-
-    expected_log = (self.logger.name, log_level, "Element <ph> is empty")
-    assert caplog.record_tuples == [expected_log]
-
-  def test_empty_content_empty_string_fallback(
-    self, caplog: pytest.LogCaptureFixture, log_level: int
-  ):
-    elem = self.make_ph_elem(text=None)
-
-    self.policy.empty_content.behavior = "empty"
-    self.policy.empty_content.log_level = log_level
-    ph = self.handler._deserialize(elem)
-
-    assert ph.content == [""]
-
-    expected_logs = [
-      (self.logger.name, log_level, "Element <ph> is empty"),
-      (self.logger.name, log_level, "Falling back to an empty string"),
-    ]
-
-    assert caplog.record_tuples == expected_logs
-
-  def test_empty_content_ignores(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.make_ph_elem(text=None)
-
-    self.policy.empty_content.behavior = "ignore"
-    self.policy.empty_content.log_level = log_level
-
-    ph = self.handler._deserialize(elem)
-    assert isinstance(ph, Ph)
-    assert ph.content == []
-
-    expected_log = (self.logger.name, log_level, "Element <ph> is empty")
-    assert caplog.record_tuples == [expected_log]
-
-  def test_invalid_child_element_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
     elem = self.make_ph_elem()
-    self.backend.append(elem, self.backend.make_elem("wrong"))
+    self.handler._deserialize(elem)
 
-    self.policy.invalid_child_element.behavior = (
-      "raise"  # Default but setting it explicitly for testing purposes
-    )
-    self.policy.invalid_child_element.log_level = log_level
+    mock_parse_attributes.assert_any_call(elem, "type", False)
+    mock_parse_attributes_as_int.assert_called_once_with(elem, "x", False)
+    mock_parse_attributes_as_enum.assert_called_once_with(elem, "assoc", Assoc, False)
 
-    with pytest.raises(
-      XmlDeserializationError,
-      match="Incorrect child element in ph: expected one of sub, got wrong",
-    ):
-      self.handler._deserialize(elem)
-
-    expected_log = (
-      self.logger.name,
-      log_level,
-      "Incorrect child element in ph: expected one of sub, got wrong",
-    )
-    assert caplog.record_tuples == [expected_log]
-
-  def test_invalid_child_element_ignore(self, caplog: pytest.LogCaptureFixture, log_level: int):
+  def test_calls_deserialize_content(self):
+    mock_deserialize_content = Mock()
+    self.handler.deserialize_content = mock_deserialize_content
     elem = self.make_ph_elem()
-    self.backend.append(elem, self.backend.make_elem("wrong"))
 
-    self.policy.invalid_child_element.behavior = "ignore"
-    self.policy.invalid_child_element.log_level = log_level
+    self.handler._deserialize(elem)
 
-    ph = self.handler._deserialize(elem)
-    assert isinstance(ph, Ph)
-    assert ph.content == ["Valid Ph Content"]
-
-    expected_log = (
-      self.logger.name,
-      log_level,
-      "Incorrect child element in ph: expected one of sub, got wrong",
-    )
-    assert caplog.record_tuples == [expected_log]
-
-
-  def test_parse_attribute_as_int_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.make_ph_elem(x="invalid")  # type: ignore[arg-type]
-
-    self.policy.invalid_attribute_value.behavior = (
-      "raise"  # Default but setting it explicitly for testing purposes
-    )
-    self.policy.invalid_attribute_value.log_level = log_level
-
-    with pytest.raises(
-      AttributeDeserializationError,
-      match="Cannot convert 'invalid' to an int for attribute x",
-    ):
-      self.handler._deserialize(elem)
-
-    expected_log = (
-      self.logger.name,
-      log_level,
-      "Cannot convert 'invalid' to an int for attribute x",
-    )
-    assert caplog.record_tuples == [expected_log]
-
-  def test_parse_attribute_as_int_ignore(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.make_ph_elem(x="invalid")  # type: ignore[arg-type]
-
-    self.policy.invalid_attribute_value.behavior = "ignore"
-    self.policy.invalid_attribute_value.log_level = log_level
-
-    ph = self.handler._deserialize(elem)
-    assert isinstance(ph, Ph)
-    assert ph.x is None
-
-    expected_log = (
-      self.logger.name,
-      log_level,
-      "Cannot convert 'invalid' to an int for attribute x",
-    )
-    assert caplog.record_tuples == [expected_log]
-
-  def test_parse_attribute_as_enum_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.make_ph_elem()
-    self.backend.set_attr(elem, "assoc", "invalid")
-
-    self.policy.invalid_attribute_value.behavior = (
-      "raise"  # Default but setting it explicitly for testing purposes
-    )
-    self.policy.invalid_attribute_value.log_level = log_level
-
-    with pytest.raises(
-      AttributeDeserializationError,
-      match="Value 'invalid' is not a valid enum value for attribute assoc",
-    ):
-      self.handler._deserialize(elem)
-
-    expected_log = (
-      self.logger.name,
-      log_level,
-      "Value 'invalid' is not a valid enum value for attribute assoc",
-    )
-    assert caplog.record_tuples == [expected_log]
-
-  def test_parse_attribute_as_enum_ignore(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.make_ph_elem()
-    self.backend.set_attr(elem, "assoc", "invalid")
-
-    self.policy.invalid_attribute_value.behavior = "ignore"
-    self.policy.invalid_attribute_value.log_level = log_level
-
-    ph = self.handler._deserialize(elem)
-    assert isinstance(ph, Ph)
-    assert ph.assoc is None
-
-    expected_log = (
-      self.logger.name,
-      log_level,
-      "Value 'invalid' is not a valid enum value for attribute assoc",
-    )
-    assert caplog.record_tuples == [expected_log]
+    mock_deserialize_content.assert_called_once_with(elem, ("sub",))
