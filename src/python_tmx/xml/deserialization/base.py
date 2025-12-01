@@ -1,19 +1,17 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
 from logging import Logger
-from typing import Callable, LiteralString, Protocol, TypeVar
+from typing import Callable, LiteralString, Protocol
 
 from python_tmx.base.errors import (
   AttributeDeserializationError,
   InvalidTagError,
   XmlDeserializationError,
 )
-from python_tmx.base.types import Assoc, BaseElement, BaseInlineElement, Pos, Segtype
-from python_tmx.xml import T_XmlElement
+from python_tmx.base.types import BaseElement, BaseInlineElement
+from python_tmx.xml import T_Enum, T_XmlElement
 from python_tmx.xml.backends.base import XMLBackend
 from python_tmx.xml.policy import DeserializationPolicy
-
-T_Enum = TypeVar("T_Enum", Pos, Segtype, Assoc)
 
 __all__ = ["BaseElementDeserializer", "DeserializerHost", "InlineContentDeserializerMixin"]
 

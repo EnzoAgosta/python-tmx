@@ -35,9 +35,8 @@ class DeserializationPolicy:
 
 @dataclass(slots=True, kw_only=True)
 class SerializationPolicy:
-  missing_required_attribute: PolicyValue[Literal["raise", "ignore"]] = _default_policy()
+  required_attribute_missing: PolicyValue[Literal["raise", "ignore"]] = _default_policy()
   invalid_attribute_type: PolicyValue[Literal["raise", "ignore"]] = _default_policy()
-  invalid_inline_tag: PolicyValue[Literal["raise", "ignore"]] = _default_policy()
-  invalid_inline_content: PolicyValue[Literal["raise", "ignore"]] = _default_policy()
-  invalid_object_type: PolicyValue[Literal["raise", "ignore"]] = _default_policy()
+  invalid_content_type: PolicyValue[Literal["raise", "ignore"]] = _default_policy()
   missing_handler: PolicyValue[Literal["raise", "ignore", "default"]] = _default_policy()
+  invalid_object_type: PolicyValue[Literal["raise", "ignore"]] = _default_policy()

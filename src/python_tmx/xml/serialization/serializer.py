@@ -1,4 +1,5 @@
 from logging import Logger, getLogger
+
 from python_tmx.base.errors import MissingHandlerError
 from python_tmx.base.types import (
   BaseElement,
@@ -32,6 +33,7 @@ from python_tmx.xml.serialization._handlers import (
   TuvSerializer,
 )
 from python_tmx.xml.serialization.base import BaseElementSerializer
+
 
 _ModuleLogger = getLogger(__name__)
 
