@@ -1,4 +1,3 @@
-from itertools import chain
 from python_tmx.base.errors import XmlSerializationError
 from python_tmx.base.types import (
   Assoc,
@@ -57,7 +56,7 @@ class NoteSerializer(BaseElementSerializer[T_XmlElement]):
     if not self._check_obj_type(obj, Note):
       return None
     element = self.backend.make_elem("note")
-    self._set_attribute(element, obj.lang, f"{XML_NS}lang", True)
+    self._set_attribute(element, obj.lang, f"{XML_NS}lang", False)
     self._set_attribute(element, obj.o_encoding, "o-encoding", False)
     self.backend.set_text(element, obj.text)
     return element
@@ -80,20 +79,35 @@ class HeaderSerializer(BaseElementSerializer[T_XmlElement]):
     self._set_attribute(element, obj.creationid, "creationid", False)
     self._set_dt_attribute(element, obj.changedate, "changedate", False)
     self._set_attribute(element, obj.changeid, "changeid", False)
-    for child in chain[Prop | Note](obj.props, obj.notes):
-      if isinstance(child, (Prop, Note)):
-        child_element = self.emit(child)
+    for note in obj.notes:
+      if isinstance(note, Note):
+        child_element = self.emit(note)
         if child_element is not None:
           self.backend.append(element, child_element)
       else:
         self.logger.log(
           self.policy.invalid_child_element.log_level,
-          "Invalid child element %r in Header",
-          type(child).__name__,
+          "Invalid child element %r in Header.notes",
+          type(note).__name__,
         )
         if self.policy.invalid_child_element.behavior == "raise":
           raise XmlSerializationError(
-            f"Invalid child element {type(child).__name__!r} in Header"
+            f"Invalid child element {type(note).__name__!r} in Header.notes"
+          )
+    for prop in obj.props:
+      if isinstance(prop, Prop):
+        child_element = self.emit(prop)
+        if child_element is not None:
+          self.backend.append(element, child_element)
+      else:
+        self.logger.log(
+          self.policy.invalid_child_element.log_level,
+          "Invalid child element %r in Header.props",
+          type(prop).__name__,
+        )
+        if self.policy.invalid_child_element.behavior == "raise":
+          raise XmlSerializationError(
+            f"Invalid child element {type(prop).__name__!r} in Header.props"
           )
     return element
 
@@ -117,10 +131,32 @@ class TuvSerializer(
     self._set_dt_attribute(element, obj.changedate, "changedate", False)
     self._set_attribute(element, obj.changeid, "changeid", False)
     self._set_attribute(element, obj.o_tmf, "o-tmf", False)
-    for child in chain[Prop | Note](obj.props, obj.notes):
-      child_element = self.emit(child)
-      if child_element is not None:
-        self.backend.append(element, child_element)
+    for note in obj.notes:
+      if isinstance(note, Note):
+        child_element = self.emit(note)
+        if child_element is not None:
+          self.backend.append(element, child_element)
+      else:
+        self.logger.log(
+          self.policy.invalid_child_element.log_level,
+          "Invalid child element %r in Tuv.notes",
+          type(note).__name__,
+        )
+        if self.policy.invalid_child_element.behavior == "raise":
+          raise XmlSerializationError(f"Invalid child element {type(note).__name__!r} in Tuv.notes")
+    for prop in obj.props:
+      if isinstance(prop, Prop):
+        child_element = self.emit(prop)
+        if child_element is not None:
+          self.backend.append(element, child_element)
+      else:
+        self.logger.log(
+          self.policy.invalid_child_element.log_level,
+          "Invalid child element %r in Tuv.props",
+          type(prop).__name__,
+        )
+        if self.policy.invalid_child_element.behavior == "raise":
+          raise XmlSerializationError(f"Invalid child element {type(prop).__name__!r} in Tuv.props")
     seg_element = self.backend.make_elem("seg")
     self.serialize_content(obj, seg_element, (Bpt, Ept, Ph, It, Hi))
     self.backend.append(element, seg_element)
@@ -146,10 +182,47 @@ class TuSerializer(BaseElementSerializer[T_XmlElement]):
     self._set_attribute(element, obj.changeid, "changeid", False)
     self._set_attribute(element, obj.o_tmf, "o-tmf", False)
     self._set_attribute(element, obj.srclang, "srclang", False)
-    for child in chain[Prop | Note | Tuv](obj.props, obj.notes, obj.variants):
-      child_element = self.emit(child)
-      if child_element is not None:
-        self.backend.append(element, child_element)
+    for note in obj.notes:
+      if isinstance(note, Note):
+        child_element = self.emit(note)
+        if child_element is not None:
+          self.backend.append(element, child_element)
+      else:
+        self.logger.log(
+          self.policy.invalid_child_element.log_level,
+          "Invalid child element %r in Tu.notes",
+          type(note).__name__,
+        )
+        if self.policy.invalid_child_element.behavior == "raise":
+          raise XmlSerializationError(f"Invalid child element {type(note).__name__!r} in Tu.notes")
+    for prop in obj.props:
+      if isinstance(prop, Prop):
+        child_element = self.emit(prop)
+        if child_element is not None:
+          self.backend.append(element, child_element)
+      else:
+        self.logger.log(
+          self.policy.invalid_child_element.log_level,
+          "Invalid child element %r in Tu.props",
+          type(prop).__name__,
+        )
+        if self.policy.invalid_child_element.behavior == "raise":
+          raise XmlSerializationError(f"Invalid child element {type(prop).__name__!r} in Tu.props")
+    for tuv in obj.variants:
+      if isinstance(tuv, Tuv):
+        child_element = self.emit(tuv)
+        if child_element is not None:
+          self.backend.append(element, child_element)
+      else:
+        self.logger.log(
+          self.policy.invalid_child_element.log_level,
+          "Invalid child element %r in Tu.variants",
+          type(tuv).__name__,
+        )
+        if self.policy.invalid_child_element.behavior == "raise":
+          raise XmlSerializationError(
+            f"Invalid child element {type(tuv).__name__!r} in Tu.variants"
+          )
     return element
 
 
@@ -159,15 +232,34 @@ class TmxSerializer(BaseElementSerializer[T_XmlElement]):
       return None
     element = self.backend.make_elem("tmx")
     self._set_attribute(element, obj.version, "version", True)
+    if not isinstance(obj.header, Header):
+      self.logger.log(
+        self.policy.invalid_child_element.log_level,
+        "Tmx.header is not a Header object. Expected %s, got %r",
+        "Header",
+        type(obj.header).__name__,
+      )
+      if self.policy.invalid_child_element.behavior == "raise":
+        raise XmlSerializationError(
+          f"Tmx.header is not a Header object. Expected Header, got {type(obj.header).__name__!r}"
+        )
     header_element = self.emit(obj.header)
     if header_element is not None:
       self.backend.append(element, header_element)
-    body_element = self.backend.make_elem("body")
+    body = self.backend.make_elem("body")
     for child in obj.body:
+      if not isinstance(child, Tu):
+        self.logger.log(
+          self.policy.invalid_child_element.log_level,
+          "Invalid child element %r in Tmx.body",
+          type(child).__name__,
+        )
+        if self.policy.invalid_child_element.behavior == "raise":
+          raise XmlSerializationError(f"Invalid child element {type(child).__name__!r} in Tmx.body")
       child_element = self.emit(child)
       if child_element is not None:
-        self.backend.append(body_element, child_element)
-    self.backend.append(element, body_element)
+        self.backend.append(body, child_element)
+    self.backend.append(element, body)
     return element
 
 

@@ -1,7 +1,7 @@
 import logging
-from unittest.mock import Mock
 
 import pytest
+from pytest_mock import MockerFixture
 from python_tmx.base.types import Ept
 from python_tmx.xml.backends.base import XMLBackend
 from python_tmx.xml.deserialization._handlers import EptDeserializer
@@ -15,25 +15,20 @@ class TestEptDeserializer[T_XmlElement]:
   policy: DeserializationPolicy
 
   @pytest.fixture(autouse=True)
-  def setup_method_fixture(self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger):
+  def setup_method_fixture(
+    self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+  ):
     self.backend = backend
     self.logger = test_logger
     self.policy = DeserializationPolicy()
-
+    self.mocker = mocker
     self.handler = EptDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
     self.handler._set_emit(lambda x: None)
 
-  def make_ept_elem(
-    self,
-    *,
-    tag: str = "ept",
-    text: str | None = "Valid Ept Content",
-    i: int | None = 1,
-  ) -> T_XmlElement:
-    elem = self.backend.make_elem(tag)
-    self.backend.set_text(elem, text)
-    if i is not None:
-      self.backend.set_attr(elem, "i", str(i))
+  def make_ept_elem(self) -> T_XmlElement:
+    elem = self.backend.make_elem("ept")
+    self.backend.set_text(elem, "Valid Ept Content")
+    self.backend.set_attr(elem, "i", "1")
     return elem
 
   def test_returns_Ept(self):
@@ -42,27 +37,39 @@ class TestEptDeserializer[T_XmlElement]:
     assert isinstance(ept, Ept)
 
   def test_calls_check_tag(self):
-    mock_check_tag = Mock()
-    self.handler._check_tag = mock_check_tag
-    elem = self.make_ept_elem()
-    self.handler._deserialize(elem)
+    spy_check_tag = self.mocker.spy(self.handler, "_check_tag")
+    ept = self.make_ept_elem()
 
-    mock_check_tag.assert_called_once_with(elem, "ept")
+    self.handler._deserialize(ept)
 
-  def test_calls_parse_attribute_correctly(self):
-    mock_parse_attributes_as_int = Mock()
-    self.handler._parse_attribute_as_int = mock_parse_attributes_as_int
+    spy_check_tag.assert_called_once_with(ept, "ept")
 
-    elem = self.make_ept_elem()
-    self.handler._deserialize(elem)
+  def test_calls_parse_attribute_as_int(self):
+    spy_parse_attribute_as_int = self.mocker.spy(self.handler, "_parse_attribute_as_int")
 
-    mock_parse_attributes_as_int.assert_called_once_with(elem, "i", True)
-  
+    ept = self.make_ept_elem()
+    self.handler._deserialize(ept)
+
+    spy_parse_attribute_as_int.assert_called_once_with(ept, "i", True)
+
+  def test_calls_emit(self):
+    spy_emit = self.mocker.spy(self.handler, "emit")
+
+    ept = self.make_ept_elem()
+    sub_elem = self.backend.make_elem("sub")
+    self.backend.append(ept, sub_elem)
+
+    self.handler._deserialize(ept)
+
+    assert spy_emit.call_count == 1
+    spy_emit.assert_called_with(sub_elem)
+
   def test_calls_deserialize_content(self):
-    mock_deserialize_content = Mock()
-    self.handler.deserialize_content = mock_deserialize_content
-    elem = self.make_ept_elem()
-    
-    self.handler._deserialize(elem)
+    spy_deserialize_content = self.mocker.spy(self.handler, "deserialize_content")
 
-    mock_deserialize_content.assert_called_once_with(elem, ("sub",))
+    ept = self.make_ept_elem()
+
+    self.handler._deserialize(ept)
+
+    assert spy_deserialize_content.call_count == 1
+    spy_deserialize_content.assert_called_with(ept, ("sub",))

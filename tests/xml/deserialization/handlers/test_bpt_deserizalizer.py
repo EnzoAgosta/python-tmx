@@ -1,7 +1,7 @@
 import logging
-from unittest.mock import Mock
 
 import pytest
+from pytest_mock import MockerFixture
 from python_tmx.base.types import Bpt
 from python_tmx.xml.backends.base import XMLBackend
 from python_tmx.xml.deserialization._handlers import BptDeserializer
@@ -15,31 +15,23 @@ class TestBptDeserializer[T_XmlElement]:
   policy: DeserializationPolicy
 
   @pytest.fixture(autouse=True)
-  def setup_method_fixture(self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger):
+  def setup_method_fixture(
+    self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+  ):
     self.backend = backend
     self.logger = test_logger
     self.policy = DeserializationPolicy()
-
+    self.mocker = mocker
     self.handler = BptDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
     self.handler._set_emit(lambda x: None)
 
   def make_bpt_elem(
-    self,
-    *,
-    tag: str = "bpt",
-    text: str | None = "Valid Bpt Content",
-    i: int | None = 1,
-    x: int | None = 1,
-    _type: str | None = "bpt",
-  ) -> T_XmlElement:
-    elem = self.backend.make_elem(tag)
-    self.backend.set_text(elem, text)
-    if i is not None:
-      self.backend.set_attr(elem, "i", str(i))
-    if x is not None:
-      self.backend.set_attr(elem, "x", str(x))
-    if _type is not None:
-      self.backend.set_attr(elem, "type", _type)
+    self) -> T_XmlElement:
+    elem = self.backend.make_elem("bpt")
+    self.backend.set_text(elem, "Valid Bpt Content")
+    self.backend.set_attr(elem, "i", "1")
+    self.backend.set_attr(elem, "x", "1")
+    self.backend.set_attr(elem, "type", "bpt")
     return elem
 
   def test_returns_Bpt(self):
@@ -48,33 +40,47 @@ class TestBptDeserializer[T_XmlElement]:
     assert isinstance(bpt, Bpt)
 
   def test_calls_check_tag(self):
-    mock_check_tag = Mock()
-    self.handler._check_tag = mock_check_tag
-    elem = self.make_bpt_elem()
-    self.handler._deserialize(elem)
+    spy_check_tag = self.mocker.spy(self.handler, "_check_tag")
+    bpt = self.make_bpt_elem()
 
-    mock_check_tag.assert_called_once_with(elem, "bpt")
+    self.handler._deserialize(bpt)
+
+    spy_check_tag.assert_called_once_with(bpt, "bpt")
 
   def test_calls_parse_attribute_correctly(self):
-    mock_parse_attributes = Mock()
-    mock_parse_attributes_as_int = Mock()
-    self.handler._parse_attribute = mock_parse_attributes
-    self.handler._parse_attribute_as_int = mock_parse_attributes_as_int
+    spy_parse_attributes = self.mocker.spy(self.handler, "_parse_attribute")
+    bpt = self.make_bpt_elem()
+    self.handler._deserialize(bpt)
 
-    elem = self.make_bpt_elem()
-    self.handler._deserialize(elem)
+    spy_parse_attributes.assert_called_once_with(bpt, "type", False)
 
-    mock_parse_attributes.assert_any_call(elem, "type", False)
+  def test_calls_parse_attribute_as_int_correctly(self):
+    spy_parse_attributes_as_int = self.mocker.spy(self.handler, "_parse_attribute_as_int")
+    bpt = self.make_bpt_elem()
+    self.handler._deserialize(bpt)
 
-    assert mock_parse_attributes_as_int.call_count == 2
-    mock_parse_attributes_as_int.assert_any_call(elem, "i", True)
-    mock_parse_attributes_as_int.assert_any_call(elem, "x", False)
+    assert spy_parse_attributes_as_int.call_count == 2
+    spy_parse_attributes_as_int.assert_any_call(bpt, "i", True)
+    spy_parse_attributes_as_int.assert_any_call(bpt, "x", False)
+
+  def test_calls_emit(self):
+    spy_emit = self.mocker.spy(self.handler, "emit")
+
+    bpt = self.make_bpt_elem()
+    sub_elem = self.backend.make_elem("sub")
+    self.backend.append(bpt, sub_elem)
+
+    self.handler._deserialize(bpt)
+
+    assert spy_emit.call_count == 1
+    spy_emit.assert_called_with(sub_elem)
 
   def test_calls_deserialize_content(self):
-    mock_deserialize_content = Mock()
-    self.handler.deserialize_content = mock_deserialize_content
-    elem = self.make_bpt_elem()
+    spy_deserialize_content = self.mocker.spy(self.handler, "deserialize_content")
 
-    self.handler._deserialize(elem)
+    bpt = self.make_bpt_elem()
 
-    mock_deserialize_content.assert_called_once_with(elem, ("sub",))
+    self.handler._deserialize(bpt)
+
+    assert spy_deserialize_content.call_count == 1
+    spy_deserialize_content.assert_called_with(bpt, ("sub",))

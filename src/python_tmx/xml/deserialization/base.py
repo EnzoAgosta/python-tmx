@@ -72,7 +72,7 @@ class BaseElementDeserializer[T_XmlElement](ABC):
           raise AttributeDeserializationError(
             f"Missing required attribute {attribute!r} on element <{tag}>"
           )
-      return None
+      return
     try:
       return datetime.fromisoformat(value)
     except ValueError as e:
@@ -86,7 +86,7 @@ class BaseElementDeserializer[T_XmlElement](ABC):
         raise AttributeDeserializationError(
           f"Cannot convert {value!r} to a datetime object for attribute {attribute}"
         ) from e
-      return None
+      return
 
   def _parse_attribute_as_int(
     self, element: T_XmlElement, attribute: str, required: bool
@@ -105,7 +105,7 @@ class BaseElementDeserializer[T_XmlElement](ABC):
           raise AttributeDeserializationError(
             f"Missing required attribute {attribute!r} on element <{tag}>"
           )
-      return None
+      return
     try:
       return int(value)
     except ValueError as e:
@@ -119,7 +119,7 @@ class BaseElementDeserializer[T_XmlElement](ABC):
         raise AttributeDeserializationError(
           f"Cannot convert {value!r} to an int for attribute {attribute}"
         ) from e
-      return None
+      return
 
   def _parse_attribute_as_enum(
     self,
@@ -142,7 +142,7 @@ class BaseElementDeserializer[T_XmlElement](ABC):
           raise AttributeDeserializationError(
             f"Missing required attribute {attribute!r} on element <{tag}>"
           )
-      return None
+      return
     try:
       return enum_type(value)
     except ValueError as e:
@@ -156,7 +156,7 @@ class BaseElementDeserializer[T_XmlElement](ABC):
         raise AttributeDeserializationError(
           f"Value {value!r} is not a valid enum value for attribute {attribute}"
         ) from e
-      return None
+      return
 
   def _parse_attribute(
     self,

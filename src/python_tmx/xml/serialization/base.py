@@ -77,7 +77,7 @@ class BaseElementSerializer[T_XmlElement](ABC):
         )
         if self.policy.required_attribute_missing.behavior == "raise":
           raise AttributeSerializationError(f"Required attribute {attribute!r} is None")
-        return
+      return
     if not isinstance(value, datetime):
       self.logger.log(
         self.policy.invalid_attribute_type.log_level,
@@ -105,7 +105,7 @@ class BaseElementSerializer[T_XmlElement](ABC):
         )
         if self.policy.required_attribute_missing.behavior == "raise":
           raise AttributeSerializationError(f"Required attribute {attribute!r} is None")
-        return
+      return
     if not isinstance(value, int):
       self.logger.log(
         self.policy.invalid_attribute_type.log_level, "Attribute %r is not an int", attribute
@@ -132,7 +132,7 @@ class BaseElementSerializer[T_XmlElement](ABC):
         )
         if self.policy.required_attribute_missing.behavior == "raise":
           raise AttributeSerializationError(f"Required attribute {attribute!r} is None")
-        return
+      return
     if not isinstance(value, enum_type):
       self.logger.log(
         self.policy.invalid_attribute_type.log_level,
@@ -161,7 +161,7 @@ class BaseElementSerializer[T_XmlElement](ABC):
         )
         if self.policy.required_attribute_missing.behavior == "raise":
           raise AttributeSerializationError(f"Required attribute {attribute!r} is None")
-        return
+      return
     if not isinstance(value, str):
       self.logger.log(
         self.policy.invalid_attribute_type.log_level,

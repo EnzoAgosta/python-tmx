@@ -1,7 +1,7 @@
 import logging
-from unittest.mock import Mock
 
 import pytest
+from pytest_mock import MockerFixture
 from python_tmx.base.types import Hi
 from python_tmx.xml.backends.base import XMLBackend
 from python_tmx.xml.deserialization._handlers import HiDeserializer
@@ -15,28 +15,21 @@ class TestHiDeserializer[T_XmlElement]:
   policy: DeserializationPolicy
 
   @pytest.fixture(autouse=True)
-  def setup_method_fixture(self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger):
+  def setup_method_fixture(
+    self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+  ):
     self.backend = backend
     self.logger = test_logger
     self.policy = DeserializationPolicy()
-
+    self.mocker = mocker
     self.handler = HiDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
     self.handler._set_emit(lambda x: None)
 
-  def make_hi_elem(
-    self,
-    *,
-    tag: str = "hi",
-    text: str | None = "Valid Hi Content",
-    x: int | None = 1,
-    _type: str | None = "hi",
-  ) -> T_XmlElement:
-    elem = self.backend.make_elem(tag)
-    self.backend.set_text(elem, text)
-    if x is not None:
-      self.backend.set_attr(elem, "x", str(x))
-    if _type is not None:
-      self.backend.set_attr(elem, "type", _type)
+  def make_hi_elem(self) -> T_XmlElement:
+    elem = self.backend.make_elem("hi")
+    self.backend.set_text(elem, "Valid Hi Content")
+    self.backend.set_attr(elem, "i", "1")
+    self.backend.set_attr(elem, "type", "hi")
     return elem
 
   def test_returns_Hi(self):
@@ -45,30 +38,39 @@ class TestHiDeserializer[T_XmlElement]:
     assert isinstance(hi, Hi)
 
   def test_calls_check_tag(self):
-    mock_check_tag = Mock()
-    self.handler._check_tag = mock_check_tag
-    elem = self.make_hi_elem()
-    self.handler._deserialize(elem)
+    spy_check_tag = self.mocker.spy(self.handler, "_check_tag")
+    hi = self.make_hi_elem()
 
-    mock_check_tag.assert_called_once_with(elem, "hi")
+    self.handler._deserialize(hi)
 
-  def test_calls_parse_attribute_correctly(self):
-    mock_parse_attributes = Mock()
-    mock_parse_attributes_as_int = Mock()
-    self.handler._parse_attribute = mock_parse_attributes
-    self.handler._parse_attribute_as_int = mock_parse_attributes_as_int
+    spy_check_tag.assert_called_once_with(hi, "hi")
 
-    elem = self.make_hi_elem()
-    self.handler._deserialize(elem)
+  def test_calls_parse_attribute_as_int(self):
+    spy_parse_attribute_as_int = self.mocker.spy(self.handler, "_parse_attribute_as_int")
 
-    mock_parse_attributes.assert_any_call(elem, "type", False)
-    mock_parse_attributes_as_int.assert_called_once_with(elem, "x", False)
+    hi = self.make_hi_elem()
+    self.handler._deserialize(hi)
+
+    spy_parse_attribute_as_int.assert_called_once_with(hi, "x", False)
+
+  def test_calls_emit(self):
+    spy_emit = self.mocker.spy(self.handler, "emit")
+
+    hi = self.make_hi_elem()
+    bpt_elem = self.backend.make_elem("bpt")
+    self.backend.append(hi, bpt_elem)
+
+    self.handler._deserialize(hi)
+
+    assert spy_emit.call_count == 1
+    spy_emit.assert_called_with(bpt_elem)
 
   def test_calls_deserialize_content(self):
-    mock_deserialize_content = Mock()
-    self.handler.deserialize_content = mock_deserialize_content
-    elem = self.make_hi_elem()
+    spy_deserialize_content = self.mocker.spy(self.handler, "deserialize_content")
 
-    self.handler._deserialize(elem)
+    hi = self.make_hi_elem()
 
-    mock_deserialize_content.assert_called_once_with(elem, ("bpt", "ept", "ph", "it", "hi"))
+    self.handler._deserialize(hi)
+
+    assert spy_deserialize_content.call_count == 1
+    spy_deserialize_content.assert_called_with(hi, ("bpt", "ept", "ph", "it", "hi"))
