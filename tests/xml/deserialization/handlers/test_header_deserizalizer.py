@@ -3,7 +3,7 @@ import logging
 from unittest.mock import Mock
 import pytest
 from python_tmx.base.errors import XmlDeserializationError
-from python_tmx.base.types import Header, Segtype
+from python_tmx.base.types import Header, Note, Prop, Segtype
 from python_tmx.xml.backends.base import XMLBackend
 from python_tmx.xml.deserialization._handlers import HeaderDeserializer
 from python_tmx.xml.policy import DeserializationPolicy
@@ -121,6 +121,30 @@ class TestHeaderDeserializer[T_XmlElement]:
     elem = self.make_header_elem()
     self.handler._deserialize(elem)
 
+    assert mock_emit.call_count == 2
+    for i in self.backend.iter_children(elem):
+      mock_emit.assert_any_call(i)
+    
+  def test_only_appends_prop_and_notes_if_correct_type(self):
+    mock_prop = Prop(text="prop", type="x-test")
+    mock_note = Note(text="note")
+
+    def side_effect(element: T_XmlElement):
+      if self.backend.get_tag(element) == "prop":
+        return mock_prop
+      elif self.backend.get_tag(element) == "note":
+        return mock_note
+      return None
+
+    mock_emit = Mock(side_effect=side_effect)
+    self.handler._set_emit(mock_emit)
+    elem = self.make_header_elem()
+
+    header = self.handler._deserialize(elem)
+
+    assert header.props == [mock_prop]
+    assert header.notes == [mock_note]
+    
     assert mock_emit.call_count == 2
     for i in self.backend.iter_children(elem):
       mock_emit.assert_any_call(i)

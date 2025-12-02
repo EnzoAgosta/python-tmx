@@ -46,6 +46,3 @@ class LxmlBackend:
   @cache
   def get_tag(self, element: LET._Element) -> str:
     return normalize_tag(element.tag)
-
-  def find(self, element: LET._Element, tag: str) -> LET._Element | None:
-    return element.find(tag)

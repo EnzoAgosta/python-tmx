@@ -59,11 +59,3 @@ class StrictBackend:
 
   def get_tag(self, element: int) -> str:
     return self._store[element].tag
-
-  def find(self, element: int, tag: str) -> int | None:
-    found = self._store[element].find(tag)
-    if found is not None:
-      for i in self._store:
-        if self._store[i] == found:
-          return i
-    return None

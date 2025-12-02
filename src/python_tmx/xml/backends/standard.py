@@ -46,6 +46,3 @@ class StandardBackend:
   @cache
   def get_tag(self, element: ET.Element) -> str:
     return normalize_tag(element.tag)
-
-  def find(self, element: ET.Element, tag: str) -> ET.Element | None:
-    return element.find(tag)

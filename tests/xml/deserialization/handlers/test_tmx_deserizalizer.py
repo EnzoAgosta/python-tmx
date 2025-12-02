@@ -3,7 +3,7 @@ from unittest.mock import Mock
 
 import pytest
 from python_tmx.base.errors import XmlDeserializationError
-from python_tmx.base.types import Header, Tmx
+from python_tmx.base.types import Header, Segtype, Tmx, Tu
 from python_tmx.xml.backends.base import XMLBackend
 from python_tmx.xml.deserialization._handlers import TmxDeserializer
 from python_tmx.xml.policy import DeserializationPolicy
@@ -84,6 +84,36 @@ class TestTmxDeserializer[T_XmlElement]:
     assert mock_emit.call_count == 2
     mock_emit.assert_any_call(tu)
     mock_emit.assert_any_call(header)
+  
+  def test_only_tu_and_header_if_correct_type(self):
+    mock_tu = Tu()
+    mock_header = Header(creationtool="pytest", creationtoolversion="v1", segtype=Segtype.SENTENCE, o_tmf="TestTMF", adminlang="en-US", srclang="en-US", datatype="plaintext")
+    
+    def side_effect(element: T_XmlElement):
+      tag = self.backend.get_tag(element)
+      if tag == "tu":
+        return mock_tu
+      elif tag == "header":
+        return mock_header
+      return None
+    
+    mock_emit = Mock(side_effect=side_effect)
+    self.handler._set_emit(mock_emit)
+    elem = self.make_tmx_elem()
+    
+    tmx = self.handler._deserialize(elem)
+    
+    assert tmx.body == [mock_tu]
+    assert tmx.header == mock_header
+    
+    assert mock_emit.call_count == 2
+    for i in self.backend.iter_children(elem):
+      if self.backend.get_tag(i) == "header":
+        mock_emit.assert_any_call(i)
+      else:
+        # Need to recurse since tus are children of body
+        for j in self.backend.iter_children(i):
+          mock_emit.assert_any_call(j)
 
   def test_mutliple_headers_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
     elem = self.make_tmx_elem(header=2)

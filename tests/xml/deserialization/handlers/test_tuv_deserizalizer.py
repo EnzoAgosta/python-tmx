@@ -4,7 +4,7 @@ from unittest.mock import Mock
 import pytest
 
 from python_tmx.base.errors import XmlDeserializationError
-from python_tmx.base.types import Tuv
+from python_tmx.base.types import Note, Prop, Tuv
 from python_tmx.xml import XML_NS
 from python_tmx.xml.backends.base import XMLBackend
 from python_tmx.xml.deserialization._handlers import TuvDeserializer
@@ -130,6 +130,31 @@ class TestTuvDeserializer[T_XmlElement]:
     elem = self.make_tuv_elem()
     self.handler._deserialize(elem)
 
+    assert mock_emit.call_count == 2
+    for i in self.backend.iter_children(elem, ("note", "prop")):
+      mock_emit.assert_any_call(i)
+
+  def test_only_appends_prop_and_notes_if_correct_type(self):
+    mock_prop = Prop(text="prop", type="x-test")
+    mock_note = Note(text="note")
+
+    def side_effect(element: T_XmlElement):
+      tag = self.backend.get_tag(element)
+      if tag == "prop":
+        return mock_prop
+      elif tag == "note":
+        return mock_note
+      return None
+
+    mock_emit = Mock(side_effect=side_effect)
+    self.handler._set_emit(mock_emit)
+    elem = self.make_tuv_elem()
+
+    tuv = self.handler._deserialize(elem)
+
+    assert tuv.props == [mock_prop]
+    assert tuv.notes == [mock_note]
+    
     assert mock_emit.call_count == 2
     for i in self.backend.iter_children(elem, ("note", "prop")):
       mock_emit.assert_any_call(i)

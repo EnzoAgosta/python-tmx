@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 from python_tmx.base.errors import XmlDeserializationError
-from python_tmx.base.types import Segtype, Tu
+from python_tmx.base.types import Note, Prop, Segtype, Tu, Tuv
 from python_tmx.xml.backends.base import XMLBackend
 from python_tmx.xml.deserialization._handlers import TuDeserializer
 from python_tmx.xml.policy import DeserializationPolicy
@@ -136,14 +136,43 @@ class TestTuDeserializer[T_XmlElement]:
   def test_calls_emit(self):
     mock_emit = Mock()
     self.handler._set_emit(mock_emit)
-    
+
     elem = self.make_tu_elem()
     self.handler._deserialize(elem)
 
     assert mock_emit.call_count == 4
     for i in self.backend.iter_children(elem):
       mock_emit.assert_any_call(i)
-  
+
+  def test_only_appends_prop_notes_and_tuvs_if_correct_type(self):
+    mock_prop = Prop(text="prop", type="x-test")
+    mock_note = Note(text="note", lang="en-US")
+    mock_tuv = Tuv(lang="en-US")
+
+    def side_effect(element: T_XmlElement):
+      tag = self.backend.get_tag(element)
+      if tag == "prop":
+        return mock_prop
+      elif tag == "note":
+        return mock_note
+      elif tag == "tuv":
+        return mock_tuv
+      return None
+    
+    mock_emit = Mock(side_effect=side_effect)
+    self.handler._set_emit(mock_emit)
+    elem = self.make_tu_elem()
+
+    tu = self.handler._deserialize(elem)
+
+    assert tu.props == [mock_prop]
+    assert tu.notes == [mock_note]
+    assert tu.variants == [mock_tuv, mock_tuv]
+
+    assert mock_emit.call_count == 4
+    for i in self.backend.iter_children(elem):
+      mock_emit.assert_any_call(i)
+
   def test_invalid_child_element_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
     elem = self.make_tu_elem()
     self.backend.append(elem, self.backend.make_elem("wrong"))
@@ -153,22 +182,22 @@ class TestTuDeserializer[T_XmlElement]:
 
     with pytest.raises(XmlDeserializationError, match="Invalid child element <wrong> in <tu>"):
       self.handler._deserialize(elem)
-    
+
     expected_log = (self.logger.name, log_level, "Invalid child element <wrong> in <tu>")
     assert caplog.record_tuples == [expected_log]
-  
+
   def test_invalid_child_element_ignore(self, caplog: pytest.LogCaptureFixture, log_level: int):
     elem = self.make_tu_elem()
     self.backend.append(elem, self.backend.make_elem("wrong"))
-    
+
     self.policy.invalid_child_element.behavior = "ignore"
     self.policy.invalid_child_element.log_level = log_level
-    
+
     self.handler._deserialize(elem)
-        
+
     expected_log = (self.logger.name, log_level, "Invalid child element <wrong> in <tu>")
     assert caplog.record_tuples == [expected_log]
-  
+
   def test_extra_text_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
     elem = self.make_tu_elem()
     self.backend.set_text(elem, "  I should not be here  ")
@@ -176,12 +205,19 @@ class TestTuDeserializer[T_XmlElement]:
     self.policy.extra_text.behavior = "raise"
     self.policy.extra_text.log_level = log_level
 
-    with pytest.raises(XmlDeserializationError, match="Element <tu> has extra text content '  I should not be here  '"):
+    with pytest.raises(
+      XmlDeserializationError,
+      match="Element <tu> has extra text content '  I should not be here  '",
+    ):
       self.handler._deserialize(elem)
-    
-    expected_log = (self.logger.name, log_level, "Element <tu> has extra text content '  I should not be here  '")
+
+    expected_log = (
+      self.logger.name,
+      log_level,
+      "Element <tu> has extra text content '  I should not be here  '",
+    )
     assert caplog.record_tuples == [expected_log]
-  
+
   def test_extra_text_ignore(self, caplog: pytest.LogCaptureFixture, log_level: int):
     elem = self.make_tu_elem()
     self.backend.set_text(elem, "  I should not be here  ")
@@ -190,6 +226,10 @@ class TestTuDeserializer[T_XmlElement]:
     self.policy.extra_text.log_level = log_level
 
     self.handler._deserialize(elem)
-    
-    expected_log = (self.logger.name, log_level, "Element <tu> has extra text content '  I should not be here  '")
+
+    expected_log = (
+      self.logger.name,
+      log_level,
+      "Element <tu> has extra text content '  I should not be here  '",
+    )
     assert caplog.record_tuples == [expected_log]
