@@ -40,6 +40,13 @@ __all__ = [
 
 
 class PropSerializer(BaseElementSerializer[T_XmlElement]):
+  """
+  Serializer for the `<prop>` element.
+
+  Type Checks:
+      - Ensures input is `Prop`. Returns None (if ignored) or raises error otherwise.
+  """
+
   def _serialize(self, obj: BaseElement) -> T_XmlElement | None:
     if not self._check_obj_type(obj, Prop):
       return None
@@ -52,6 +59,10 @@ class PropSerializer(BaseElementSerializer[T_XmlElement]):
 
 
 class NoteSerializer(BaseElementSerializer[T_XmlElement]):
+  """
+  Serializer for the `<note>` element.
+  """
+
   def _serialize(self, obj: BaseElement) -> T_XmlElement | None:
     if not self._check_obj_type(obj, Note):
       return None
@@ -63,6 +74,16 @@ class NoteSerializer(BaseElementSerializer[T_XmlElement]):
 
 
 class HeaderSerializer(BaseElementSerializer[T_XmlElement]):
+  """
+  Serializer for the `<header>` element.
+
+  Serializes simple attributes and recursively processes `props` and `notes` lists.
+
+  Policies Enforced:
+      - `invalid_child_element`: Checks that `obj.notes` and `obj.props` contain
+        valid `Note` and `Prop` objects respectively.
+  """
+
   def _serialize(self, obj: BaseElement) -> T_XmlElement | None:
     if not self._check_obj_type(obj, Header):
       return None
@@ -115,6 +136,13 @@ class HeaderSerializer(BaseElementSerializer[T_XmlElement]):
 class TuvSerializer(
   BaseElementSerializer[T_XmlElement], InlineContentSerializerMixin[T_XmlElement]
 ):
+  """
+  Serializer for the `<tuv>` element.
+
+  Constructs the structural `<tuv>` container and delegates the creation of the
+  inner `<seg>` element to the `InlineContentSerializerMixin`.
+  """
+
   def _serialize(self, obj: BaseElement) -> T_XmlElement | None:
     if not self._check_obj_type(obj, Tuv):
       return None
@@ -164,6 +192,12 @@ class TuvSerializer(
 
 
 class TuSerializer(BaseElementSerializer[T_XmlElement]):
+  """
+  Serializer for the `<tu>` element.
+
+  Iterates over `variants` (Tuv), `props`, and `notes`.
+  """
+
   def _serialize(self, obj: BaseElement) -> T_XmlElement | None:
     if not self._check_obj_type(obj, Tu):
       return None
@@ -227,6 +261,12 @@ class TuSerializer(BaseElementSerializer[T_XmlElement]):
 
 
 class TmxSerializer(BaseElementSerializer[T_XmlElement]):
+  """
+  Serializer for the root `<tmx>` element.
+
+  Constructs the Header and the Body (containing TUs).
+  """
+
   def _serialize(self, obj: BaseElement) -> T_XmlElement | None:
     if not self._check_obj_type(obj, Tmx):
       return None
@@ -266,6 +306,8 @@ class TmxSerializer(BaseElementSerializer[T_XmlElement]):
 class BptSerializer(
   BaseElementSerializer[T_XmlElement], InlineContentSerializerMixin[T_XmlElement]
 ):
+  """Serializer for `<bpt>` (Begin Paired Tag)."""
+
   def _serialize(self, obj: BaseElement) -> T_XmlElement | None:
     if not self._check_obj_type(obj, Bpt):
       return None
@@ -280,6 +322,8 @@ class BptSerializer(
 class EptSerializer(
   BaseElementSerializer[T_XmlElement], InlineContentSerializerMixin[T_XmlElement]
 ):
+  """Serializer for `<ept>` (End Paired Tag)."""
+
   def _serialize(self, obj: BaseElement) -> T_XmlElement | None:
     if not self._check_obj_type(obj, Ept):
       return None
@@ -290,6 +334,8 @@ class EptSerializer(
 
 
 class HiSerializer(BaseElementSerializer[T_XmlElement], InlineContentSerializerMixin[T_XmlElement]):
+  """Serializer for `<hi>` (Highlight)."""
+
   def _serialize(self, obj: BaseElement) -> T_XmlElement | None:
     if not self._check_obj_type(obj, Hi):
       return None
@@ -301,6 +347,8 @@ class HiSerializer(BaseElementSerializer[T_XmlElement], InlineContentSerializerM
 
 
 class ItSerializer(BaseElementSerializer[T_XmlElement], InlineContentSerializerMixin[T_XmlElement]):
+  """Serializer for `<it>` (Isolated Tag)."""
+
   def _serialize(self, obj: BaseElement) -> T_XmlElement | None:
     if not self._check_obj_type(obj, It):
       return None
@@ -313,6 +361,8 @@ class ItSerializer(BaseElementSerializer[T_XmlElement], InlineContentSerializerM
 
 
 class PhSerializer(BaseElementSerializer[T_XmlElement], InlineContentSerializerMixin[T_XmlElement]):
+  """Serializer for `<ph>` (Placeholder)."""
+
   def _serialize(self, obj: BaseElement) -> T_XmlElement | None:
     if not self._check_obj_type(obj, Ph):
       return None
@@ -327,6 +377,8 @@ class PhSerializer(BaseElementSerializer[T_XmlElement], InlineContentSerializerM
 class SubSerializer(
   BaseElementSerializer[T_XmlElement], InlineContentSerializerMixin[T_XmlElement]
 ):
+  """Serializer for `<sub>` (Sub-flow)."""
+
   def _serialize(self, obj: BaseElement) -> T_XmlElement | None:
     if not self._check_obj_type(obj, Sub):
       return None

@@ -41,11 +41,29 @@ __all__ = [
 
 
 class NoteDeserializer(BaseElementDeserializer[T_XmlElement]):
+  """
+  Deserializer for the `<note>` element.
+
+  Structure:
+      <note xml:lang="..." o-encoding="...">Content</note>
+
+  Policies Enforced:
+      - `empty_content`: Checks if the note has text. Default behavior is `raise`.
+      - `invalid_child_element`: Checks if the note contains nested tags (it should be text-only).
+  """
+
   def _deserialize(self, element: T_XmlElement) -> Note:
+    """
+    Parses a <note> element.
+
+    Args:
+        element (T_XmlElement): The element to parse.
+    """
     self._check_tag(element, "note")
     lang = self._parse_attribute(element, f"{XML_NS}lang", False)
     o_encoding = self._parse_attribute(element, "o-encoding", False)
     text = self.backend.get_text(element)
+
     if text is None:
       self.logger.log(
         self.policy.empty_content.log_level, "Element <note> does not have any text content"
@@ -55,6 +73,7 @@ class NoteDeserializer(BaseElementDeserializer[T_XmlElement]):
       if self.policy.empty_content.behavior == "empty":
         self.logger.log(self.policy.empty_content.log_level, "Falling back to an empty string")
         text = ""
+
     for child in self.backend.iter_children(element):
       self.logger.log(
         self.policy.invalid_child_element.log_level,
@@ -69,12 +88,25 @@ class NoteDeserializer(BaseElementDeserializer[T_XmlElement]):
 
 
 class PropDeserializer(BaseElementDeserializer[T_XmlElement]):
+  """
+  Deserializer for the `<prop>` element.
+
+  Structure:
+      <prop type="..." xml:lang="..." o-encoding="...">Value</prop>
+
+  Policies Enforced:
+      - `required_attribute_missing`: Checks for 'type'.
+      - `empty_content`: Checks if the property has a value.
+      - `invalid_child_element`: Ensures no nested tags.
+  """
+
   def _deserialize(self, element: T_XmlElement) -> Prop:
     self._check_tag(element, "prop")
     _type = self._parse_attribute(element, "type", True)
     lang = self._parse_attribute(element, f"{XML_NS}lang", False)
     o_encoding = self._parse_attribute(element, "o-encoding", False)
     text = self.backend.get_text(element)
+
     if text is None:
       self.logger.log(
         self.policy.empty_content.log_level, "Element <prop> does not have any text content"
@@ -84,6 +116,7 @@ class PropDeserializer(BaseElementDeserializer[T_XmlElement]):
       if self.policy.empty_content.behavior == "empty":
         self.logger.log(self.policy.empty_content.log_level, "Falling back to an empty string")
         text = ""
+
     for child in self.backend.iter_children(element):
       self.logger.log(
         self.policy.invalid_child_element.log_level,
@@ -98,8 +131,23 @@ class PropDeserializer(BaseElementDeserializer[T_XmlElement]):
 
 
 class HeaderDeserializer(BaseElementDeserializer[T_XmlElement]):
+  """
+  Deserializer for the `<header>` element.
+
+  Structure:
+      <header creationtool="..." ...>
+          <prop>...</prop>
+          <note>...</note>
+      </header>
+
+  Policies Enforced:
+      - `extra_text`: Detects non-whitespace text inside the header (which should only contain tags).
+      - `invalid_child_element`: Detects tags other than <prop> or <note>.
+  """
+
   def _deserialize(self, element: T_XmlElement) -> Header:
     self._check_tag(element, "header")
+
     if (text := self.backend.get_text(element)) is not None:
       if text.strip():
         self.logger.log(
@@ -107,6 +155,7 @@ class HeaderDeserializer(BaseElementDeserializer[T_XmlElement]):
         )
         if self.policy.extra_text.behavior == "raise":
           raise XmlDeserializationError(f"Element <header> has extra text content '{text}'")
+
     creationtool = self._parse_attribute(element, "creationtool", True)
     creationtoolversion = self._parse_attribute(element, "creationtoolversion", True)
     segtype = self._parse_attribute_as_enum(element, "segtype", Segtype, True)
@@ -119,14 +168,17 @@ class HeaderDeserializer(BaseElementDeserializer[T_XmlElement]):
     creationid = self._parse_attribute(element, "creationid", False)
     changedate = self._parse_attribute_as_dt(element, "changedate", False)
     changeid = self._parse_attribute(element, "changeid", False)
+
     notes: list[Note] = []
     props: list[Prop] = []
+
     for child in self.backend.iter_children(element):
-      if self.backend.get_tag(child) == "prop":
+      tag = self.backend.get_tag(child)
+      if tag == "prop":
         prop = self.emit(child)
         if isinstance(prop, Prop):
           props.append(prop)
-      elif self.backend.get_tag(child) == "note":
+      elif tag == "note":
         note = self.emit(child)
         if isinstance(note, Note):
           notes.append(note)
@@ -134,12 +186,11 @@ class HeaderDeserializer(BaseElementDeserializer[T_XmlElement]):
         self.logger.log(
           self.policy.invalid_child_element.log_level,
           "Invalid child element <%s> in <header>",
-          self.backend.get_tag(child),
+          tag,
         )
         if self.policy.invalid_child_element.behavior == "raise":
-          raise XmlDeserializationError(
-            f"Invalid child element <{self.backend.get_tag(child)}> in <header>"
-          )
+          raise XmlDeserializationError(f"Invalid child element <{tag}> in <header>")
+
     return Header(
       creationtool=creationtool,  # type: ignore[arg-type]
       creationtoolversion=creationtoolversion,  # type: ignore[arg-type]
@@ -161,6 +212,12 @@ class HeaderDeserializer(BaseElementDeserializer[T_XmlElement]):
 class BptDeserializer(
   BaseElementDeserializer[T_XmlElement], InlineContentDeserializerMixin[T_XmlElement]
 ):
+  """
+  Deserializer for the `<bpt>` (Begin Paired Tag) element.
+
+  Uses `InlineContentDeserializerMixin` to process its `<sub>` children.
+  """
+
   def _deserialize(self, element: T_XmlElement) -> Bpt:
     self._check_tag(element, "bpt")
     i = self._parse_attribute_as_int(element, "i", True)
@@ -173,6 +230,10 @@ class BptDeserializer(
 class EptDeserializer(
   BaseElementDeserializer[T_XmlElement], InlineContentDeserializerMixin[T_XmlElement]
 ):
+  """
+  Deserializer for the `<ept>` (End Paired Tag) element.
+  """
+
   def _deserialize(self, element: T_XmlElement) -> Ept:
     self._check_tag(element, "ept")
     i = self._parse_attribute_as_int(element, "i", True)
@@ -183,6 +244,10 @@ class EptDeserializer(
 class ItDeserializer(
   BaseElementDeserializer[T_XmlElement], InlineContentDeserializerMixin[T_XmlElement]
 ):
+  """
+  Deserializer for the `<it>` (Isolated Tag) element.
+  """
+
   def _deserialize(self, element: T_XmlElement) -> It:
     self._check_tag(element, "it")
     pos = self._parse_attribute_as_enum(element, "pos", Pos, True)
@@ -195,6 +260,10 @@ class ItDeserializer(
 class PhDeserializer(
   BaseElementDeserializer[T_XmlElement], InlineContentDeserializerMixin[T_XmlElement]
 ):
+  """
+  Deserializer for the `<ph>` (Placeholder) element.
+  """
+
   def _deserialize(self, element: T_XmlElement) -> Ph:
     self._check_tag(element, "ph")
     x = self._parse_attribute_as_int(element, "x", False)
@@ -207,6 +276,12 @@ class PhDeserializer(
 class SubDeserializer(
   BaseElementDeserializer[T_XmlElement], InlineContentDeserializerMixin[T_XmlElement]
 ):
+  """
+  Deserializer for the `<sub>` (Sub-flow) element.
+
+  Contains recursive inline markup.
+  """
+
   def _deserialize(self, element: T_XmlElement) -> Sub:
     self._check_tag(element, "sub")
     datatype = self._parse_attribute(element, "datatype", False)
@@ -218,6 +293,10 @@ class SubDeserializer(
 class HiDeserializer(
   BaseElementDeserializer[T_XmlElement], InlineContentDeserializerMixin[T_XmlElement]
 ):
+  """
+  Deserializer for the `<hi>` (Highlight) element.
+  """
+
   def _deserialize(self, element: T_XmlElement) -> Hi:
     self._check_tag(element, "hi")
     x = self._parse_attribute_as_int(element, "x", False)
@@ -229,8 +308,27 @@ class HiDeserializer(
 class TuvDeserializer(
   BaseElementDeserializer[T_XmlElement], InlineContentDeserializerMixin[T_XmlElement]
 ):
+  """
+  Deserializer for the `<tuv>` (Translation Unit Variant) element.
+
+  Structure:
+      <tuv xml:lang="...">
+          <prop>...</prop>
+          <seg>Mixed Content</seg>
+          <note>...</note>
+      </tuv>
+
+  This handler bridges the structural world (Props/Notes) and the inline world (<seg>).
+
+  Policies Enforced:
+      - `missing_seg`: Controls behavior if no <seg> child is found.
+      - `multiple_seg`: Controls behavior if multiple <seg> children are found.
+      - `extra_text`: Ensures no text exists directly in <tuv> (text must be in <seg>).
+  """
+
   def _deserialize(self, element: T_XmlElement) -> Tuv:
     self._check_tag(element, "tuv")
+
     if (text := self.backend.get_text(element)) is not None:
       if text.strip():
         self.logger.log(
@@ -238,6 +336,7 @@ class TuvDeserializer(
         )
         if self.policy.extra_text.behavior == "raise":
           raise XmlDeserializationError(f"Element <tuv> has extra text content '{text}'")
+
     lang = self._parse_attribute(element, f"{XML_NS}lang", True)
     o_encoding = self._parse_attribute(element, "o-encoding", False)
     datatype = self._parse_attribute(element, "datatype", False)
@@ -250,20 +349,23 @@ class TuvDeserializer(
     changedate = self._parse_attribute_as_dt(element, "changedate", False)
     changeid = self._parse_attribute(element, "changeid", False)
     o_tmf = self._parse_attribute(element, "o-tmf", False)
+
     props: list[Prop] = []
     notes: list[Note] = []
     content: list[str | BaseInlineElement] | None = None
     seg_found = False
+
     for child in self.backend.iter_children(element):
-      if self.backend.get_tag(child) == "prop":
+      tag = self.backend.get_tag(child)
+      if tag == "prop":
         prop = self.emit(child)
         if isinstance(prop, Prop):
           props.append(prop)
-      elif self.backend.get_tag(child) == "note":
+      elif tag == "note":
         note = self.emit(child)
         if isinstance(note, Note):
           notes.append(note)
-      elif self.backend.get_tag(child) == "seg":
+      elif tag == "seg":
         if seg_found:
           self.logger.log(
             self.policy.multiple_seg.log_level,
@@ -279,12 +381,11 @@ class TuvDeserializer(
         self.logger.log(
           self.policy.invalid_child_element.log_level,
           "Invalid child element <%s> in <tuv>",
-          self.backend.get_tag(child),
+          tag,
         )
         if self.policy.invalid_child_element.behavior == "raise":
-          raise XmlDeserializationError(
-            f"Invalid child element <{self.backend.get_tag(child)}> in <tuv>"
-          )
+          raise XmlDeserializationError(f"Invalid child element <{tag}> in <tuv>")
+
     if not seg_found:
       self.logger.log(
         self.policy.missing_seg.log_level, "Element <tuv> is missing a <seg> child element"
@@ -293,6 +394,7 @@ class TuvDeserializer(
         raise XmlDeserializationError("Element <tuv> is missing a <seg> child element")
       if self.policy.missing_seg.behavior == "ignore":
         content = []
+
     return Tuv(
       lang=lang,  # type: ignore[arg-type]
       o_encoding=o_encoding,
@@ -313,8 +415,15 @@ class TuvDeserializer(
 
 
 class TuDeserializer(BaseElementDeserializer[T_XmlElement]):
+  """
+  Deserializer for the `<tu>` (Translation Unit) element.
+
+  Container for `<tuv>`, `<prop>`, and `<note>` elements.
+  """
+
   def _deserialize(self, element: T_XmlElement) -> Tu:
     self._check_tag(element, "tu")
+
     if (text := self.backend.get_text(element)) is not None:
       if text.strip():
         self.logger.log(
@@ -322,6 +431,7 @@ class TuDeserializer(BaseElementDeserializer[T_XmlElement]):
         )
         if self.policy.extra_text.behavior == "raise":
           raise XmlDeserializationError(f"Element <tu> has extra text content '{text}'")
+
     tuid = self._parse_attribute(element, "tuid", False)
     o_encoding = self._parse_attribute(element, "o-encoding", False)
     datatype = self._parse_attribute(element, "datatype", False)
@@ -336,19 +446,22 @@ class TuDeserializer(BaseElementDeserializer[T_XmlElement]):
     changeid = self._parse_attribute(element, "changeid", False)
     o_tmf = self._parse_attribute(element, "o-tmf", False)
     srclang = self._parse_attribute(element, "srclang", False)
+
     props: list[Prop] = []
     notes: list[Note] = []
     variants: list[Tuv] = []
+
     for child in self.backend.iter_children(element):
-      if self.backend.get_tag(child) == "prop":
+      tag = self.backend.get_tag(child)
+      if tag == "prop":
         prop = self.emit(child)
         if isinstance(prop, Prop):
           props.append(prop)
-      elif self.backend.get_tag(child) == "note":
+      elif tag == "note":
         note = self.emit(child)
         if isinstance(note, Note):
           notes.append(note)
-      elif self.backend.get_tag(child) == "tuv":
+      elif tag == "tuv":
         tuv = self.emit(child)
         if isinstance(tuv, Tuv):
           variants.append(tuv)
@@ -356,12 +469,11 @@ class TuDeserializer(BaseElementDeserializer[T_XmlElement]):
         self.logger.log(
           self.policy.invalid_child_element.log_level,
           "Invalid child element <%s> in <tu>",
-          self.backend.get_tag(child),
+          tag,
         )
         if self.policy.invalid_child_element.behavior == "raise":
-          raise XmlDeserializationError(
-            f"Invalid child element <{self.backend.get_tag(child)}> in <tu>"
-          )
+          raise XmlDeserializationError(f"Invalid child element <{tag}> in <tu>")
+
     return Tu(
       tuid=tuid,
       o_encoding=o_encoding,
@@ -384,12 +496,30 @@ class TuDeserializer(BaseElementDeserializer[T_XmlElement]):
 
 
 class TmxDeserializer(BaseElementDeserializer[T_XmlElement]):
+  """
+  Deserializer for the root `<tmx>` element.
+
+  Structure:
+      <tmx version="...">
+          <header>...</header>
+          <body>
+              <tu>...</tu>
+              ...
+          </body>
+      </tmx>
+
+  Policies Enforced:
+      - `missing_header`: Valid TMX must have a header.
+      - `multiple_headers`: Valid TMX must have exactly one header.
+  """
+
   def _deserialize(self, element: T_XmlElement) -> Tmx:
     self._check_tag(element, "tmx")
     version = self._parse_attribute(element, "version", True)
     header_found: bool = False
     header: Header | None = None
     body: list[Tu] = []
+
     if (text := self.backend.get_text(element)) is not None:
       if text.strip():
         self.logger.log(
@@ -397,8 +527,10 @@ class TmxDeserializer(BaseElementDeserializer[T_XmlElement]):
         )
         if self.policy.extra_text.behavior == "raise":
           raise XmlDeserializationError(f"Element <tmx> has extra text content '{text}'")
+
     for child in self.backend.iter_children(element):
-      if self.backend.get_tag(child) == "header":
+      tag = self.backend.get_tag(child)
+      if tag == "header":
         if header_found:
           self.logger.log(
             self.policy.multiple_headers.log_level,
@@ -412,7 +544,7 @@ class TmxDeserializer(BaseElementDeserializer[T_XmlElement]):
         header_obj = self.emit(child)
         if isinstance(header_obj, Header):
           header = header_obj
-      elif self.backend.get_tag(child) == "body":
+      elif tag == "body":
         for grandchild in self.backend.iter_children(child):
           if self.backend.get_tag(grandchild) == "tu":
             tu_obj = self.emit(grandchild)
@@ -422,18 +554,18 @@ class TmxDeserializer(BaseElementDeserializer[T_XmlElement]):
         self.logger.log(
           self.policy.invalid_child_element.log_level,
           "Invalid child element <%s> in <tmx>",
-          self.backend.get_tag(child),
+          tag,
         )
         if self.policy.invalid_child_element.behavior == "raise":
-          raise XmlDeserializationError(
-            f"Invalid child element <{self.backend.get_tag(child)}> in <tmx>"
-          )
+          raise XmlDeserializationError(f"Invalid child element <{tag}> in <tmx>")
+
     if not header_found:
       self.logger.log(
         self.policy.missing_header.log_level, "Element <tmx> is missing a <header> child element"
       )
       if self.policy.missing_header.behavior == "raise":
         raise XmlDeserializationError("Element <tmx> is missing a <header> child element")
+
     return Tmx(
       version=version,  # type: ignore[arg-type]
       header=header,  # type: ignore[arg-type]

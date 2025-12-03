@@ -17,14 +17,45 @@ __all__ = ["BaseElementDeserializer", "DeserializerHost", "InlineContentDeserial
 
 
 class DeserializerHost(Protocol[T_XmlElement]):
+  """
+  Protocol defining the contract for the orchestrator driving the deserialization process.
+
+  This is primarily used by the `InlineContentDeserializerMixin` to callback into
+  the main recursion loop (via `emit`) without creating a circular import dependency
+  on the concrete `Deserializer` class.
+  """
+
   backend: XMLBackend[T_XmlElement]
   policy: DeserializationPolicy
   logger: Logger
 
-  def emit(self, obj: T_XmlElement) -> BaseElement | None: ...
+  def emit(self, obj: T_XmlElement) -> BaseElement | None:
+    """
+    Dispatches a child XML element to its appropriate handler.
+
+    Args:
+        obj (T_XmlElement): The XML element to deserialize.
+
+    Returns:
+        BaseElement | None: The deserialized Python object, or None if the
+        handler was missing/ignored based on policy.
+    """
+    ...
 
 
 class BaseElementDeserializer[T_XmlElement](ABC):
+  """
+  Abstract base class for all TMX element deserializers.
+
+  Provides common utilities for parsing attributes, enforcing tag names, and
+  interacting with the `DeserializationPolicy`.
+
+  Attributes:
+      backend (XMLBackend): The abstraction layer for the underlying XML library (lxml/etree).
+      policy (DeserializationPolicy): Configuration controlling error handling behavior.
+      logger (Logger): Logger instance for recording debug/warning/error events.
+  """
+
   def __init__(
     self,
     backend: XMLBackend,
@@ -34,19 +65,63 @@ class BaseElementDeserializer[T_XmlElement](ABC):
     self.backend: XMLBackend[T_XmlElement] = backend
     self.policy = policy
     self.logger = logger
-    self._emit = None
+    self._emit: Callable[[T_XmlElement], BaseElement | None] | None = None
 
   def _set_emit(self, emit: Callable[[T_XmlElement], BaseElement | None]) -> None:
+    """
+    Injects the orchestrator's callback function.
+
+    This must be called before `emit()` or `_deserialize()` is used.
+
+    Args:
+        emit (Callable): The main dispatch function (usually `Deserializer.deserialize`).
+    """
     self._emit = emit
 
   def emit(self, obj: T_XmlElement) -> BaseElement | None:
+    """
+    Delegates deserialization of a child element to the orchestrator.
+
+    Args:
+        obj (T_XmlElement): The child XML element.
+
+    Returns:
+        BaseElement | None: The resulting object.
+
+    Raises:
+        AssertionError: If `_set_emit` has not been called yet.
+    """
     assert self._emit is not None, "emit() called before set_emit() was called"
     return self._emit(obj)
 
   @abstractmethod
-  def _deserialize(self, element: T_XmlElement) -> BaseElement | None: ...
+  def _deserialize(self, element: T_XmlElement) -> BaseElement | None:
+    """
+    Parses the given XML element into a TMX data object.
+
+    Args:
+        element (T_XmlElement): The specific XML node to parse (e.g., <header>).
+
+    Returns:
+        BaseElement | None: The fully populated TMX object.
+    """
+    ...
 
   def _check_tag(self, element: T_XmlElement, expected_tag: LiteralString) -> None:
+    """
+    Validates that the XML element's tag matches the handler's expectation.
+
+    Policy Impact (`policy.invalid_tag`):
+        - `raise`: Raises `InvalidTagError` if tags mismatch.
+        - `ignore`: Logs the mismatch at the configured level and proceeds.
+
+    Args:
+        element (T_XmlElement): The element being inspected.
+        expected_tag (LiteralString): The required tag name (e.g., "header").
+
+    Raises:
+        InvalidTagError: If validation fails and policy is 'raise'.
+    """
     tag = self.backend.get_tag(element)
     if not tag == expected_tag:
       self.logger.log(
@@ -58,6 +133,29 @@ class BaseElementDeserializer[T_XmlElement](ABC):
   def _parse_attribute_as_dt(
     self, element: T_XmlElement, attribute: str, required: bool
   ) -> datetime | None:
+    """
+    Parses a string attribute into a `datetime` object.
+
+    Uses `datetime.fromisoformat()` for broad compatibility.
+
+    Policy Impact:
+        - `policy.required_attribute_missing`: Controls behavior if `required=True`
+          but the attribute is absent.
+        - `policy.invalid_attribute_value`: Controls behavior if the string cannot
+          be parsed as a date.
+
+    Args:
+        element (T_XmlElement): The XML element.
+        attribute (str): The attribute name to retrieve.
+        required (bool): Whether the attribute is mandatory in TMX 1.4b.
+
+    Returns:
+        datetime | None: The parsed datetime, or None if missing/failed (and policy allowed it).
+
+    Raises:
+        AttributeDeserializationError: If a required attribute is missing or invalid,
+        and the policy is set to 'raise'.
+    """
     value = self.backend.get_attr(element, attribute)
     tag = self.backend.get_tag(element)
     if value is None:
@@ -72,7 +170,7 @@ class BaseElementDeserializer[T_XmlElement](ABC):
           raise AttributeDeserializationError(
             f"Missing required attribute {attribute!r} on element <{tag}>"
           )
-      return
+      return None
     try:
       return datetime.fromisoformat(value)
     except ValueError as e:
@@ -86,11 +184,29 @@ class BaseElementDeserializer[T_XmlElement](ABC):
         raise AttributeDeserializationError(
           f"Cannot convert {value!r} to a datetime object for attribute {attribute}"
         ) from e
-      return
+      return None
 
   def _parse_attribute_as_int(
     self, element: T_XmlElement, attribute: str, required: bool
   ) -> int | None:
+    """
+    Parses a string attribute into an `int`.
+
+    Policy Impact:
+        - `policy.required_attribute_missing`: Controls missing required attributes.
+        - `policy.invalid_attribute_value`: Controls `ValueError` during conversion.
+
+    Args:
+        element (T_XmlElement): The XML element.
+        attribute (str): The attribute name.
+        required (bool): Whether the attribute is mandatory.
+
+    Returns:
+        int | None: The integer value, or None.
+
+    Raises:
+        AttributeDeserializationError: If validation fails and policy is 'raise'.
+    """
     value = self.backend.get_attr(element, attribute)
     tag = self.backend.get_tag(element)
     if value is None:
@@ -105,7 +221,7 @@ class BaseElementDeserializer[T_XmlElement](ABC):
           raise AttributeDeserializationError(
             f"Missing required attribute {attribute!r} on element <{tag}>"
           )
-      return
+      return None
     try:
       return int(value)
     except ValueError as e:
@@ -119,7 +235,7 @@ class BaseElementDeserializer[T_XmlElement](ABC):
         raise AttributeDeserializationError(
           f"Cannot convert {value!r} to an int for attribute {attribute}"
         ) from e
-      return
+      return None
 
   def _parse_attribute_as_enum(
     self,
@@ -128,6 +244,25 @@ class BaseElementDeserializer[T_XmlElement](ABC):
     enum_type: type[T_Enum],
     required: bool,
   ) -> T_Enum | None:
+    """
+    Parses a string attribute into a specific `Enum` type.
+
+    Policy Impact:
+        - `policy.required_attribute_missing`: Controls missing required attributes.
+        - `policy.invalid_attribute_value`: Controls `ValueError` during enum instantiation.
+
+    Args:
+        element (T_XmlElement): The XML element.
+        attribute (str): The attribute name.
+        enum_type (type[T_Enum]): The Enum class to instantiate (e.g., `Segtype`).
+        required (bool): Whether the attribute is mandatory.
+
+    Returns:
+        T_Enum | None: The enum member, or None.
+
+    Raises:
+        AttributeDeserializationError: If validation fails and policy is 'raise'.
+    """
     value = self.backend.get_attr(element, attribute)
     tag = self.backend.get_tag(element)
     if value is None:
@@ -142,7 +277,7 @@ class BaseElementDeserializer[T_XmlElement](ABC):
           raise AttributeDeserializationError(
             f"Missing required attribute {attribute!r} on element <{tag}>"
           )
-      return
+      return None
     try:
       return enum_type(value)
     except ValueError as e:
@@ -156,7 +291,7 @@ class BaseElementDeserializer[T_XmlElement](ABC):
         raise AttributeDeserializationError(
           f"Value {value!r} is not a valid enum value for attribute {attribute}"
         ) from e
-      return
+      return None
 
   def _parse_attribute(
     self,
@@ -164,6 +299,24 @@ class BaseElementDeserializer[T_XmlElement](ABC):
     attribute: str,
     required: bool,
   ) -> str | None:
+    """
+    Retrieves a string attribute.
+
+    Policy Impact:
+        - `policy.required_attribute_missing`: Controls behavior if `required=True`
+          but the attribute is absent.
+
+    Args:
+        element (T_XmlElement): The XML element.
+        attribute (str): The attribute name.
+        required (bool): Whether the attribute is mandatory.
+
+    Returns:
+        str | None: The string value, or None.
+
+    Raises:
+        AttributeDeserializationError: If missing and policy is 'raise'.
+    """
     value = self.backend.get_attr(element, attribute)
     tag = self.backend.get_tag(element)
     if value is None:
@@ -182,11 +335,39 @@ class BaseElementDeserializer[T_XmlElement](ABC):
 
 
 class InlineContentDeserializerMixin[T_XmlElement](DeserializerHost[T_XmlElement]):
+  """
+  Mixin for Deserializers that process mixed inline content (text + tags).
+
+  Used by handlers like `TuvDeserializer`, `BptDeserializer`, etc., to process
+  content that contains strings interspersed with other TMX elements (e.g.,
+  "Hello <bpt>...</bpt> world").
+  """
+
   __slots__ = tuple()
 
   def deserialize_content(
     self, source: T_XmlElement, allowed: tuple[str, ...]
   ) -> list[BaseInlineElement | str]:
+    """
+    Iterates over children and text nodes to build a flat list of content.
+
+    This method respects XML 'tails' (text occurring after a closing tag) to
+    preserve full fidelity of the segment content.
+
+    Policy Impact:
+        - `policy.invalid_child_element`: Checks if a child's tag is in the `allowed` list.
+        - `policy.empty_content`: Checks if the resulting list is empty.
+
+    Args:
+        source (T_XmlElement): The parent element (e.g., <seg>, <bpt>).
+        allowed (tuple[str, ...]): A whitelist of allowed child tag names.
+
+    Returns:
+        list[BaseInlineElement | str]: The ordered content list.
+
+    Raises:
+        XmlDeserializationError: If policy violation triggers a raise.
+    """
     source_tag = self.backend.get_tag(source)
     result = []
     if (text := self.backend.get_text(source)) is not None:
