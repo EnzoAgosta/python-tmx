@@ -59,7 +59,7 @@ class TestItDeserializer[T_XmlElement]:
     self.handler._deserialize(it)
 
     spy_parse_attributes_as_int.assert_called_once_with(it, "x", False)
-  
+
   def test_calls_parse_attribute_as_enum_correctly(self):
     spy_parse_attributes_as_enum = self.mocker.spy(self.handler, "_parse_attribute_as_enum")
     it = self.make_it_elem()

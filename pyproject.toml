@@ -8,9 +8,11 @@ authors = [{ name = "Enzo Agosta", email = "agosta.enzowork@gmail.com" }]
 description = "Python library for manipulating, creating and editing tmx files"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = { text = "MIT" }
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 classifiers = [
   "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.12",
   "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
 ]
@@ -18,23 +20,28 @@ dependencies = []
 
 
 [project.urls]
-Homepage = "https://github.com/ChonkyYoshi/python-tmx"
-Issues = "https://github.com/ChonkyYoshi/python-tmx/issues"
+Homepage = "https://github.com/EnzoAgosta/python-tmx"
+Issues = "https://github.com/EnzoAgosta/python-tmx/issues"
+
+[project.optional-dependencies]
+lxml = ["lxml>=6.0.2"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [dependency-groups]
 dev = [
-    "lxml>=6.0.2",
-    "pytest>=9.0.1",
-    "pytest-cov>=7.0.0",
-    "pytest-mock>=3.15.1",
-    "types-lxml>=2025.11.25",
+  "lxml>=6.0.2",
+  "pytest>=9.0.1",
+  "pytest-cov>=7.0.0",
+  "pytest-mock>=3.15.1",
+  "types-lxml>=2025.11.25",
 ]
 test = [
-    "lxml>=6.0.2",
-    "pytest>=9.0.1",
+  "lxml>=6.0.2",
+  "pytest>=9.0.1",
+  "pytest-cov>=7.0.0",
+  "pytest-mock>=3.15.1",
 ]
 
 [tool.setuptools]

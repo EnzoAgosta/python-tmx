@@ -105,7 +105,6 @@ class TestTuvDeserializer[T_XmlElement]:
     assert spy_emit.call_count == 2
     for i in self.backend.iter_children(elem, ("prop", "note")):
       spy_emit.assert_any_call(i)
-      
 
   def test_appends_if_emit_does_not_return_none(self):
     self.handler._set_emit(
@@ -206,7 +205,7 @@ class TestTuvDeserializer[T_XmlElement]:
     expected_log = (self.logger.name, log_level, log_message)
 
     assert caplog.record_tuples == [expected_log]
-    
+
   def test_ignore_if_no_seg(self, caplog: pytest.LogCaptureFixture, log_level: int):
     self.policy.missing_seg.log_level = log_level
     self.policy.missing_seg.behavior = "ignore"
@@ -221,7 +220,7 @@ class TestTuvDeserializer[T_XmlElement]:
     expected_log = (self.logger.name, log_level, log_message)
 
     assert caplog.record_tuples == [expected_log]
-  
+
   def test_raise_if_multiple_seg(self, caplog: pytest.LogCaptureFixture, log_level: int):
     self.policy.multiple_seg.log_level = log_level
     self.policy.multiple_seg.behavior = "raise"
@@ -254,7 +253,7 @@ class TestTuvDeserializer[T_XmlElement]:
     expected_log = (self.logger.name, log_level, log_message)
 
     assert caplog.record_tuples == [expected_log]
-  
+
   def test_keep_last_seg(self, caplog: pytest.LogCaptureFixture, log_level: int):
     self.policy.multiple_seg.log_level = log_level
     self.policy.multiple_seg.behavior = "keep_last"

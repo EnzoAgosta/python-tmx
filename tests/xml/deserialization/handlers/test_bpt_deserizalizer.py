@@ -25,8 +25,7 @@ class TestBptDeserializer[T_XmlElement]:
     self.handler = BptDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
     self.handler._set_emit(lambda x: None)
 
-  def make_bpt_elem(
-    self) -> T_XmlElement:
+  def make_bpt_elem(self) -> T_XmlElement:
     elem = self.backend.make_elem("bpt")
     self.backend.set_text(elem, "Valid Bpt Content")
     self.backend.set_attr(elem, "i", "1")

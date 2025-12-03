@@ -58,7 +58,17 @@ class TestHiSerializer[T_XmlElement]:
     elem = self.handler._serialize(hi)
 
     assert spy_deserialize_content.call_count == 1
-    spy_deserialize_content.assert_called_with(hi, elem, (Bpt, Ept, Ph, It, Hi,))
+    spy_deserialize_content.assert_called_with(
+      hi,
+      elem,
+      (
+        Bpt,
+        Ept,
+        Ph,
+        It,
+        Hi,
+      ),
+    )
 
   def test_returns_None_if_not_Hi_if_policy_is_ignore(
     self, caplog: pytest.LogCaptureFixture, log_level: int

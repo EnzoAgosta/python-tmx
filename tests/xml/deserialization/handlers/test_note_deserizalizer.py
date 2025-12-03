@@ -94,7 +94,9 @@ class TestNoteDeserializer[T_XmlElement]:
 
     assert caplog.record_tuples == [expected_log]
 
-  def test_fallbacks_to_empty_string_if_text_is_none(self, caplog: pytest.LogCaptureFixture, log_level: int):
+  def test_fallbacks_to_empty_string_if_text_is_none(
+    self, caplog: pytest.LogCaptureFixture, log_level: int
+  ):
     self.policy.empty_content.log_level = log_level
     self.policy.empty_content.behavior = "empty"
 

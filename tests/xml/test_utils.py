@@ -20,6 +20,7 @@ import lxml.etree as lx
 def test_normalize_tag(val, ret):
   assert normalize_tag(val) == ret
 
+
 def test_normalize_tag_raises_on_unknown_type():
   with pytest.raises(TypeError, match="Unexpected tag type"):
     normalize_tag(1)

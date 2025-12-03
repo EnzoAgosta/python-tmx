@@ -61,7 +61,7 @@ class TestPhDeserializer[T_XmlElement]:
     self.handler._deserialize(ph)
 
     spy_parse_attribute_as_enum.assert_called_once_with(ph, "assoc", Assoc, False)
-  
+
   def test_calls_parse_attribute(self):
     spy_parse_attribute = self.mocker.spy(self.handler, "_parse_attribute")
 

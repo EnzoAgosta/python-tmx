@@ -381,7 +381,7 @@ class TestBaseElementSerializer[T_XmlElement]:
     elem = self.backend.make_elem("elem")
 
     self.handler.serialize_content(
-      Bpt(i=1, content=["elem text", Sub(), "bpt Tail"]), 
+      Bpt(i=1, content=["elem text", Sub(), "bpt Tail"]),
       elem,
       (Sub,),
     )

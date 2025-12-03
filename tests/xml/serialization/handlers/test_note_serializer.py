@@ -27,8 +27,7 @@ class TestNoteSerializer[T_XmlElement]:
     self.handler = NoteSerializer(backend=self.backend, policy=self.policy, logger=self.logger)
     self.handler._set_emit(lambda x: None)
 
-  def make_note_object(
-    self) -> Note:
+  def make_note_object(self) -> Note:
     return Note(text="Valid Note Content", lang="en-US", o_encoding="UTF-8")
 
   def test_calls_backend_make_elem(self):

@@ -195,6 +195,11 @@ name = "python-tmx"
 version = "0.4"
 source = { editable = "." }
 
+[package.optional-dependencies]
+lxml = [
+    { name = "lxml" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "lxml" },
@@ -206,9 +211,13 @@ dev = [
 test = [
     { name = "lxml" },
     { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-mock" },
 ]
 
 [package.metadata]
+requires-dist = [{ name = "lxml", marker = "extra == 'lxml'", specifier = ">=6.0.2" }]
+provides-extras = ["lxml"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -221,6 +230,8 @@ dev = [
 test = [
     { name = "lxml", specifier = ">=6.0.2" },
     { name = "pytest", specifier = ">=9.0.1" },
+    { name = "pytest-cov", specifier = ">=7.0.0" },
+    { name = "pytest-mock", specifier = ">=3.15.1" },
 ]
 
 [[package]]
