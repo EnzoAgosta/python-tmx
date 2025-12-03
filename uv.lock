@@ -267,7 +267,7 @@ wheels = [
 
 [[package]]
 name = "python-tmx"
-version = "0.4"
+version = "0.4.1"
 source = { editable = "." }
 
 [package.optional-dependencies]
