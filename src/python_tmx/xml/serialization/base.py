@@ -204,10 +204,13 @@ class InlineContentSerializerMixin[T_XmlElement](SerializerHost[T_XmlElement]):
       else:
         self.logger.log(
           self.policy.invalid_content_type.log_level,
-          "Invalid content type %s in %s",
-          type(item),
-          type(source),
+          "Incorrect child element in %s: expected one of %s, got %s",
+          type(source).__name__,
+          ", ".join(x.__name__ for x in allowed),
+          type(item).__name__,
         )
         if self.policy.invalid_content_type.behavior == "raise":
-          raise XmlSerializationError(f"Invalid content type {type(item)} in {type(source)}")
+          raise XmlSerializationError(
+            f"Incorrect child element in {type(source).__name__}: expected one of {', '.join(x.__name__ for x in allowed)}, got {type(item).__name__}"
+          )
         continue

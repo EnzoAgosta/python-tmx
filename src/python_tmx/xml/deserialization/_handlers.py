@@ -430,10 +430,10 @@ class TmxDeserializer(BaseElementDeserializer[T_XmlElement]):
           )
     if not header_found:
       self.logger.log(
-        self.policy.missing_header.log_level, "Element <tmx> is missing a <header> child element."
+        self.policy.missing_header.log_level, "Element <tmx> is missing a <header> child element"
       )
       if self.policy.missing_header.behavior == "raise":
-        raise XmlDeserializationError("Element <tmx> is missing a <header> child element.")
+        raise XmlDeserializationError("Element <tmx> is missing a <header> child element")
     return Tmx(
       version=version,  # type: ignore[arg-type]
       header=header,  # type: ignore[arg-type]

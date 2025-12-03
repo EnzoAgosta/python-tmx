@@ -121,10 +121,10 @@ class Header:
 class Bpt:
   """Represents the `<bpt>` (begin paired tag) inline element (TMX 1.4b §3.7.3)."""
 
-  content: list[Sub | str]
-  """Element content. May include text or nested `<sub>` elements."""
   i: int
   """`i` attribute (required). Identifies a paired sequence shared with a corresponding `<ept>`."""
+  content: list[Sub | str] = field(default_factory=list)
+  """Element content. May include text or nested `<sub>` elements."""
   x: int | None = None
   """`x` attribute (optional). Specifies an external identifier for tag mapping."""
   type: str | None = None
@@ -135,10 +135,10 @@ class Bpt:
 class Ept:
   """Represents the `<ept>` (end paired tag) inline element (TMX 1.4b §3.7.4)."""
 
-  content: list[Sub | str]
-  """Element content. May include text or nested `<sub>` elements."""
   i: int
   """`i` attribute (required). Associates this `<ept>` with its corresponding `<bpt>`."""
+  content: list[Sub | str] = field(default_factory=list)
+  """Element content. May include text or nested `<sub>` elements."""
 
 
 @dataclass(slots=True)
@@ -171,10 +171,10 @@ class It:
 class Ph:
   """Represents the `<ph>` (placeholder) inline element (TMX 1.4b §3.7.6)."""
 
-  content: list[Sub | str]
-  """Element content. Contains placeholder text or nested `<sub>` elements."""
   x: int | None = None
   """`x` attribute (optional). User-defined external identifier."""
+  content: list[Sub | str] = field(default_factory=list)
+  """Element content. Contains placeholder text or nested `<sub>` elements."""
   type: str | None = None
   """`type` attribute (optional). Describes the nature of the placeholder."""
   assoc: Assoc | None = None
@@ -185,10 +185,10 @@ class Ph:
 class Sub:
   """Represents the `<sub>` (sub-segment) inline element (TMX 1.4b §3.7.8)."""
 
-  content: list[Bpt | Ept | It | Ph | Hi | str]
-  """Element content. May include text and inline elements representing sub-segments."""
   datatype: str | None = None
   """`datatype` attribute (optional). Specifies the data type of the sub-segment."""
+  content: list[Bpt | Ept | It | Ph | Hi | str] = field(default_factory=list)
+  """Element content. May include text and inline elements representing sub-segments."""
   type: str | None = None
   """`type` attribute (optional). Indicates the function or classification of the sub-segment."""
 

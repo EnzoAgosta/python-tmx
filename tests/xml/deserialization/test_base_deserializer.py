@@ -3,6 +3,7 @@ import logging
 from unittest.mock import Mock
 
 import pytest
+from pytest_mock import MockerFixture
 from python_tmx.base.errors import InvalidTagError, XmlDeserializationError
 from python_tmx.base.types import BaseElement, Segtype
 from python_tmx.xml import T_XmlElement
@@ -28,24 +29,26 @@ class TestBaseElementDeserializer[T_XmlElement]:
   policy: DeserializationPolicy
 
   @pytest.fixture(autouse=True)
-  def setup_method_fixture(self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger):
+  def setup_method_fixture(
+    self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+  ):
     self.backend = backend
     self.logger = test_logger
     self.policy = DeserializationPolicy()
+    self.mocker = mocker
 
     self.handler = FakeBaseElementDeserializer(
       backend=self.backend, policy=self.policy, logger=self.logger
     )
 
-    self.handler._set_emit(lambda x: None)
-
   def test_set_emit(self):
-    self.handler._set_emit(1)  # type: ignore[arg-type]
-    assert self.handler._emit == 1
+    fake_emit = lambda x: None  # noqa: E731
+    self.handler._set_emit(fake_emit)
+    assert self.handler._emit is fake_emit
 
-  def test_emit(self):
-    self.handler._set_emit(lambda x: x)
-    assert self.handler._emit(1) == 1  # type: ignore[arg-type]
+  def test_emit_raise_if_not_set(self):
+    with pytest.raises(AssertionError, match=r"emit\(\) called before set_emit\(\) was called"):
+      self.handler.emit(None)
 
   def test_check_tag_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
     elem = self.backend.make_elem("wrong")
@@ -370,7 +373,7 @@ class TestBaseElementDeserializer[T_XmlElement]:
     mock_emit.assert_called_once_with(child)
 
   def test_returns_content_in_order(self):
-    mock_emit = Mock(side_effect=lambda x: self.backend.get_text(x))
+    mock_emit = self.mocker.Mock(side_effect=lambda x: self.backend.get_text(x))
     self.handler._set_emit(mock_emit)
 
     elem = self.backend.make_elem("elem")
@@ -390,6 +393,8 @@ class TestBaseElementDeserializer[T_XmlElement]:
   def test_deserialize_content_raises_if_empty_content(
     self, caplog: pytest.LogCaptureFixture, log_level: int
   ):
+    mock_emit = self.mocker.Mock(side_effect=lambda x: self.backend.get_text(x))
+    self.handler._set_emit(mock_emit)
     elem = self.backend.make_elem("elem")
     self.backend.append(elem, self.backend.make_elem("child"))
 
@@ -405,6 +410,8 @@ class TestBaseElementDeserializer[T_XmlElement]:
   def test_deserialize_content_ignores_empty_content(
     self, caplog: pytest.LogCaptureFixture, log_level: int
   ):
+    mock_emit = self.mocker.Mock(side_effect=lambda x: self.backend.get_text(x))
+    self.handler._set_emit(mock_emit)
     elem = self.backend.make_elem("elem")
     self.backend.append(elem, self.backend.make_elem("child"))
 
@@ -420,6 +427,8 @@ class TestBaseElementDeserializer[T_XmlElement]:
   def test_deserialize_content_raises_add_empty_string_if_empty_content(
     self, caplog: pytest.LogCaptureFixture, log_level: int
   ):
+    mock_emit = self.mocker.Mock(side_effect=lambda x: self.backend.get_text(x))
+    self.handler._set_emit(mock_emit)
     elem = self.backend.make_elem("elem")
     self.backend.append(elem, self.backend.make_elem("child"))
 

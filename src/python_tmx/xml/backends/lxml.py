@@ -24,7 +24,7 @@ class LxmlBackend:
     parent.append(child)
 
   def get_attr(self, element: LET._Element, key: str, default: str | None = None) -> str | None:
-    return element.attrib.get(key, default)
+    return element.get(key, default)
 
   def get_text(self, element: LET._Element) -> str | None:
     return element.text

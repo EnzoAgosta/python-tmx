@@ -1,21 +1,11 @@
+from collections.abc import Mapping
 from logging import Logger, getLogger
 
 from python_tmx.base.errors import MissingHandlerError
 from python_tmx.base.types import (
   BaseElement,
-  Bpt,
-  Ept,
-  Header,
-  Hi,
-  It,
-  Note,
-  Ph,
-  Prop,
-  Sub,
-  Tmx,
-  Tu,
-  Tuv,
 )
+from python_tmx.xml import T_XmlElement
 from python_tmx.xml.backends.base import XMLBackend
 from python_tmx.xml.policy import SerializationPolicy
 from python_tmx.xml.serialization._handlers import (
@@ -43,50 +33,54 @@ __all__ = ["Serializer"]
 class Serializer[T_XmlElement]:
   def __init__(
     self,
-    backend: XMLBackend,
+    backend: XMLBackend[T_XmlElement],
     policy: SerializationPolicy | None = None,
     logger: Logger | None = None,
-    handlers: dict[type[BaseElement], BaseElementSerializer[T_XmlElement]] | None = None,
+    handlers: Mapping[str, BaseElementSerializer[T_XmlElement]] | None = None,
   ):
     self.backend = backend
     self.policy = policy or SerializationPolicy()
     self.logger = logger or _ModuleLogger
-    self.handlers = handlers or self._get_default_handlers()
+    if handlers is None:
+      self.logger.info("Using default handlers")
+      handlers = self._get_default_handlers()
+    else:
+      self.logger.debug("Using custom handlers")
+    self.handlers = handlers
 
     for handler in self.handlers.values():
       if handler._emit is None:
         handler._set_emit(self.serialize)
 
-  def _get_default_handlers(self) -> dict[type[BaseElement], BaseElementSerializer[T_XmlElement]]:
-    self.logger.info("using default handlers")
+  def _get_default_handlers(self) -> dict[str, BaseElementSerializer[T_XmlElement]]:
     return {
-      Note: NoteSerializer(self.backend, self.policy, self.logger),
-      Prop: PropSerializer(self.backend, self.policy, self.logger),
-      Header: HeaderSerializer(self.backend, self.policy, self.logger),
-      Tu: TuSerializer(self.backend, self.policy, self.logger),
-      Tuv: TuvSerializer(self.backend, self.policy, self.logger),
-      Bpt: BptSerializer(self.backend, self.policy, self.logger),
-      Ept: EptSerializer(self.backend, self.policy, self.logger),
-      It: ItSerializer(self.backend, self.policy, self.logger),
-      Ph: PhSerializer(self.backend, self.policy, self.logger),
-      Sub: SubSerializer(self.backend, self.policy, self.logger),
-      Hi: HiSerializer(self.backend, self.policy, self.logger),
-      Tmx: TmxSerializer(self.backend, self.policy, self.logger),
+      "Note": NoteSerializer(self.backend, self.policy, self.logger),
+      "Prop": PropSerializer(self.backend, self.policy, self.logger),
+      "Header": HeaderSerializer(self.backend, self.policy, self.logger),
+      "Tu": TuSerializer(self.backend, self.policy, self.logger),
+      "Tuv": TuvSerializer(self.backend, self.policy, self.logger),
+      "Bpt": BptSerializer(self.backend, self.policy, self.logger),
+      "Ept": EptSerializer(self.backend, self.policy, self.logger),
+      "It": ItSerializer(self.backend, self.policy, self.logger),
+      "Ph": PhSerializer(self.backend, self.policy, self.logger),
+      "Sub": SubSerializer(self.backend, self.policy, self.logger),
+      "Hi": HiSerializer(self.backend, self.policy, self.logger),
+      "Tmx": TmxSerializer(self.backend, self.policy, self.logger),
     }
 
-  def serialize(self, element: BaseElement) -> T_XmlElement | None:
-    self.logger.debug("Serializing object %s", type(element).__name__)
-    handler = self.handlers.get(type(element))
+  def serialize(self, obj: BaseElement) -> T_XmlElement | None:
+    obj_type = obj.__class__.__name__
+    self.logger.debug("Serializing %s", obj_type)
+    handler = self.handlers.get(obj_type)
     if handler is None:
-      self.logger.log(
-        self.policy.missing_handler.log_level, "Missing handler for %s", type(element).__name__
-      )
+      self.logger.log(self.policy.missing_handler.log_level, "Missing handler for %s", obj_type)
       if self.policy.missing_handler.behavior == "raise":
-        raise MissingHandlerError(f"No serializer found for type {type(element).__name__}")
+        raise MissingHandlerError(f"Missing handler for {obj_type}") from None
       elif self.policy.missing_handler.behavior == "ignore":
         return None
       else:
-        handler = self._get_default_handlers().get(type(element))
+        self.logger.log(self.policy.missing_handler.log_level, "Falling back to default handler for %s", obj_type)
+        handler = self._get_default_handlers().get(obj_type)
         if handler is None:
-          raise MissingHandlerError(f"No serializer found for type {type(element).__name__}")
-    return handler._serialize(element)
+          raise MissingHandlerError(f"Missing handler for {obj_type}") from None
+    return handler._serialize(obj)

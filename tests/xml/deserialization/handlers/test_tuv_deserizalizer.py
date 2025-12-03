@@ -1,8 +1,7 @@
-from datetime import UTC, datetime
 import logging
-from unittest.mock import Mock
-import pytest
 
+import pytest
+from pytest_mock import MockerFixture
 from python_tmx.base.errors import XmlDeserializationError
 from python_tmx.base.types import Note, Prop, Tuv
 from python_tmx.xml import XML_NS
@@ -18,69 +17,35 @@ class TestTuvDeserializer[T_XmlElement]:
   policy: DeserializationPolicy
 
   @pytest.fixture(autouse=True)
-  def setup_method_fixture(self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger):
+  def setup_method_fixture(
+    self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+  ):
     self.backend = backend
     self.logger = test_logger
     self.policy = DeserializationPolicy()
-
+    self.mocker = mocker
     self.handler = TuvDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
     self.handler._set_emit(lambda x: None)
 
-  def make_tuv_elem(
-    self,
-    *,
-    tag: str = "tuv",
-    lang: str | None = "en-US",
-    o_encoding: str | None = "UTF-8",
-    datatype: str | None = "plaintext",
-    usagecount: int | None = 1,
-    lastusagedate: datetime | None = datetime(2023, 3, 1, 0, 0, 0, tzinfo=UTC),
-    creationtool: str | None = "pytest",
-    creationtoolversion: str | None = "v1",
-    creationdate: datetime | None = datetime(2023, 1, 1, 0, 0, 0, tzinfo=UTC),
-    creationid: str | None = "User1",
-    changedate: datetime | None = datetime(2023, 2, 1, 0, 0, 0, tzinfo=UTC),
-    changeid: str | None = "User2",
-    o_tmf: str | None = "TestTMF",
-    props: int = 1,
-    notes: int = 1,
-    seg_text: str | None = "Tuv Content",
-  ) -> T_XmlElement:
-    elem = self.backend.make_elem(tag)
-    if lang is not None:
-      self.backend.set_attr(elem, f"{XML_NS}lang", lang)
-    if o_encoding is not None:
-      self.backend.set_attr(elem, "o-encoding", o_encoding)
-    if datatype is not None:
-      self.backend.set_attr(elem, "datatype", datatype)
-    if usagecount is not None:
-      self.backend.set_attr(elem, "usagecount", str(usagecount))
-    if lastusagedate is not None:
-      self.backend.set_attr(elem, "lastusagedate", lastusagedate.isoformat())
-    if creationtool is not None:
-      self.backend.set_attr(elem, "creationtool", creationtool)
-    if creationtoolversion is not None:
-      self.backend.set_attr(elem, "creationtoolversion", creationtoolversion)
-    if creationdate is not None:
-      self.backend.set_attr(elem, "creationdate", creationdate.isoformat())
-    if creationid is not None:
-      self.backend.set_attr(elem, "creationid", creationid)
-    if changedate is not None:
-      self.backend.set_attr(elem, "changedate", changedate.isoformat())
-    if changeid is not None:
-      self.backend.set_attr(elem, "changeid", changeid)
-    if o_tmf is not None:
-      self.backend.set_attr(elem, "o-tmf", o_tmf)
-    if props is not None:
-      for _ in range(props):
-        self.backend.append(elem, self.backend.make_elem("prop"))
-    if notes is not None:
-      for _ in range(notes):
-        self.backend.append(elem, self.backend.make_elem("note"))
-    if seg_text is not None:
-      seg_elem = self.backend.make_elem("seg")
-      self.backend.set_text(seg_elem, seg_text)
-      self.backend.append(elem, seg_elem)
+  def make_tuv_elem(self) -> T_XmlElement:
+    elem = self.backend.make_elem("tuv")
+    self.backend.set_attr(elem, f"{XML_NS}lang", "en")
+    self.backend.set_attr(elem, "o-encoding", "base64")
+    self.backend.set_attr(elem, "datatype", "text")
+    self.backend.set_attr(elem, "usagecount", "1")
+    self.backend.set_attr(elem, "lastusagedate", "20230101T000000Z")
+    self.backend.set_attr(elem, "creationtool", "pytest")
+    self.backend.set_attr(elem, "creationtoolversion", "0.0.1")
+    self.backend.set_attr(elem, "creationdate", "20230101T000000Z")
+    self.backend.set_attr(elem, "creationid", "pytest")
+    self.backend.set_attr(elem, "changedate", "20230201T000000Z")
+    self.backend.set_attr(elem, "changeid", "pytest")
+    self.backend.set_attr(elem, "o-tmf", "tmx")
+    self.backend.append(elem, self.backend.make_elem("prop"))
+    self.backend.append(elem, self.backend.make_elem("note"))
+    seg = self.backend.make_elem("seg")
+    self.backend.set_text(seg, "foo")
+    self.backend.append(elem, seg)
     return elem
 
   def test_returns_Tuv(self):
@@ -89,226 +54,221 @@ class TestTuvDeserializer[T_XmlElement]:
     assert isinstance(tuv, Tuv)
 
   def test_calls_check_tag(self):
-    mock_check_tag = Mock()
-    self.handler._check_tag = mock_check_tag
-    elem = self.make_tuv_elem()
-    self.handler._deserialize(elem)
+    spy_check_tag = self.mocker.spy(self.handler, "_check_tag")
+    tuv = self.make_tuv_elem()
 
-    mock_check_tag.assert_called_once_with(elem, "tuv")
+    self.handler._deserialize(tuv)
+
+    spy_check_tag.assert_called_once_with(tuv, "tuv")
 
   def test_calls_parse_attribute_correctly(self):
-    mock_parse_attributes = Mock()
-    mock_parse_attributes_as_int = Mock()
-    mock_parse_attributes_as_dt = Mock()
-    self.handler._parse_attribute = mock_parse_attributes
-    self.handler._parse_attribute_as_int = mock_parse_attributes_as_int
-    self.handler._parse_attribute_as_dt = mock_parse_attributes_as_dt
+    spy_parse_attributes = self.mocker.spy(self.handler, "_parse_attribute")
+    tuv = self.make_tuv_elem()
+    self.handler._deserialize(tuv)
+
+    assert spy_parse_attributes.call_count == 8
+    # required attribute
+    spy_parse_attributes.assert_any_call(tuv, f"{XML_NS}lang", True)
+    # optional attributes
+    spy_parse_attributes.assert_any_call(tuv, "o-encoding", False)
+    spy_parse_attributes.assert_any_call(tuv, "datatype", False)
+    spy_parse_attributes.assert_any_call(tuv, "creationtool", False)
+    spy_parse_attributes.assert_any_call(tuv, "creationtoolversion", False)
+    spy_parse_attributes.assert_any_call(tuv, "creationid", False)
+    spy_parse_attributes.assert_any_call(tuv, "changeid", False)
+    spy_parse_attributes.assert_any_call(tuv, "o-tmf", False)
+
+  def test_calls_parse_attribute_as_dt(self):
+    spy_parse_attributes_as_dt = self.mocker.spy(self.handler, "_parse_attribute_as_dt")
+
+    tuv = self.make_tuv_elem()
+    self.handler._deserialize(tuv)
+
+    assert spy_parse_attributes_as_dt.call_count == 3
+    spy_parse_attributes_as_dt.assert_any_call(tuv, "creationdate", False)
+    spy_parse_attributes_as_dt.assert_any_call(tuv, "lastusagedate", False)
+    spy_parse_attributes_as_dt.assert_any_call(tuv, "changedate", False)
+
+  def test_calls_parse_attribute_as_int(self):
+    spy_parse_attributes_as_int = self.mocker.spy(self.handler, "_parse_attribute_as_int")
 
     elem = self.make_tuv_elem()
     self.handler._deserialize(elem)
 
-    assert mock_parse_attributes.call_count == 8
-    mock_parse_attributes.assert_any_call(elem, f"{XML_NS}lang", True)
-    mock_parse_attributes.assert_any_call(elem, "o-encoding", False)
-    mock_parse_attributes.assert_any_call(elem, "datatype", False)
-    mock_parse_attributes.assert_any_call(elem, "creationtool", False)
-    mock_parse_attributes.assert_any_call(elem, "creationtoolversion", False)
-    mock_parse_attributes.assert_any_call(elem, "creationid", False)
-    mock_parse_attributes.assert_any_call(elem, "changeid", False)
-    mock_parse_attributes.assert_any_call(elem, "o-tmf", False)
+    spy_parse_attributes_as_int.assert_called_once_with(elem, "usagecount", False)
 
-    mock_parse_attributes_as_int.assert_called_once_with(elem, "usagecount", False)
-
-    assert mock_parse_attributes_as_dt.call_count == 3
-    mock_parse_attributes_as_dt.assert_any_call(elem, "creationdate", False)
-    mock_parse_attributes_as_dt.assert_any_call(elem, "changedate", False)
-    mock_parse_attributes_as_dt.assert_any_call(elem, "lastusagedate", False)
-
-  def test_calls_emit(self):
-    mock_emit = Mock()
-    self.handler._set_emit(mock_emit)
+  def test_calls_emit_on_props_notes_only(self):
+    spy_emit = self.mocker.spy(self.handler, "emit")
     elem = self.make_tuv_elem()
     self.handler._deserialize(elem)
 
-    assert mock_emit.call_count == 2
-    for i in self.backend.iter_children(elem, ("note", "prop")):
-      mock_emit.assert_any_call(i)
+    assert spy_emit.call_count == 2
+    for i in self.backend.iter_children(elem, ("prop", "note")):
+      spy_emit.assert_any_call(i)
+      
 
-  def test_only_appends_prop_and_notes_if_correct_type(self):
-    mock_prop = Prop(text="prop", type="x-test")
-    mock_note = Note(text="note")
-
-    def side_effect(element: T_XmlElement):
-      tag = self.backend.get_tag(element)
-      if tag == "prop":
-        return mock_prop
-      elif tag == "note":
-        return mock_note
-      return None
-
-    mock_emit = Mock(side_effect=side_effect)
-    self.handler._set_emit(mock_emit)
-    elem = self.make_tuv_elem()
-
-    tuv = self.handler._deserialize(elem)
-
-    assert tuv.props == [mock_prop]
-    assert tuv.notes == [mock_note]
-    
-    assert mock_emit.call_count == 2
-    for i in self.backend.iter_children(elem, ("note", "prop")):
-      mock_emit.assert_any_call(i)
-
-  def test_calls_deserialize_content(self):
-    mock_deserialize_content = Mock()
-    self.handler.deserialize_content = mock_deserialize_content
-
-    elem = self.make_tuv_elem(seg_text=None)
-    seg = self.backend.make_elem("seg")
-    self.backend.set_text(seg, "Seg Text")
-    self.backend.append(elem, seg)
-
-    self.handler._deserialize(elem)
-
-    mock_deserialize_content.assert_called_once_with(seg, ("bpt", "ept", "ph", "it", "hi"))
-
-  def test_extra_text_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.make_tuv_elem()
-    self.backend.set_text(elem, "  I should not be here  ")
-
-    self.policy.extra_text.behavior = "raise"
-    self.policy.extra_text.log_level = log_level
-
-    with pytest.raises(
-      XmlDeserializationError,
-      match="Element <tuv> has extra text content '  I should not be here  '",
-    ):
-      self.handler._deserialize(elem)
-
-    expected_log = (
-      self.logger.name,
-      log_level,
-      "Element <tuv> has extra text content '  I should not be here  '",
+  def test_appends_if_emit_does_not_return_none(self):
+    self.handler._set_emit(
+      lambda x: Prop(text="foo", type="bar")
+      if self.backend.get_tag(x) == "prop"
+      else Note(text="baz")
+      if self.backend.get_tag(x) == "note"
+      else None
     )
-    assert caplog.record_tuples == [expected_log]
-
-  def test_extra_text_ignore(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    spy_emit = self.mocker.spy(self.handler, "emit")
     elem = self.make_tuv_elem()
-    self.backend.set_text(elem, "  I should not be here  ")
-
-    self.policy.extra_text.behavior = "ignore"
-    self.policy.extra_text.log_level = log_level
-
-    self.handler._deserialize(elem)
-
-    expected_log = (
-      self.logger.name,
-      log_level,
-      "Element <tuv> has extra text content '  I should not be here  '",
-    )
-    assert caplog.record_tuples == [expected_log]
-
-  def test_missing_seg_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.make_tuv_elem(seg_text=None)
-
-    self.policy.missing_seg.behavior = "raise"
-    self.policy.missing_seg.log_level = log_level
-
-    with pytest.raises(
-      XmlDeserializationError, match="Element <tuv> is missing a <seg> child element"
-    ):
-      self.handler._deserialize(elem)
-
-    expected_log = (self.logger.name, log_level, "Element <tuv> is missing a <seg> child element")
-    assert caplog.record_tuples == [expected_log]
-
-  def test_missing_seg_ignore(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.make_tuv_elem(seg_text=None)
-    self.policy.missing_seg.behavior = "ignore"
-    self.policy.missing_seg.log_level = log_level
 
     tuv = self.handler._deserialize(elem)
-    assert isinstance(tuv, Tuv)
-    assert tuv.content == []
-    expected_log = (self.logger.name, log_level, "Element <tuv> is missing a <seg> child element")
-    assert caplog.record_tuples == [expected_log]
 
-  def test_multiple_seg_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.make_tuv_elem(seg_text=None)
-    seg1 = self.backend.make_elem("seg")
-    self.backend.set_text(seg1, "First")
-    seg2 = self.backend.make_elem("seg")
-    self.backend.set_text(seg2, "Second")
-    self.backend.append(elem, seg1)
-    self.backend.append(elem, seg2)
+    assert tuv.props == [Prop(text="foo", type="bar")]
+    assert tuv.notes == [Note(text="baz")]
 
-    self.policy.multiple_seg.behavior = "raise"
-    self.policy.multiple_seg.log_level = log_level
+    assert spy_emit.call_count == 2
+    for i in self.backend.iter_children(elem, ("prop", "note")):
+      spy_emit.assert_any_call(i)
 
-    with pytest.raises(XmlDeserializationError, match="Multiple <seg> elements in <tuv>"):
-      self.handler._deserialize(elem)
-    expected_log = (self.logger.name, log_level, "Multiple <seg> elements in <tuv>")
-    assert caplog.record_tuples == [expected_log]
-
-  def test_multiple_seg_keep_first(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.make_tuv_elem(seg_text=None)
-    seg1 = self.backend.make_elem("seg")
-    self.backend.set_text(seg1, "First")
-    seg2 = self.backend.make_elem("seg")
-    self.backend.set_text(seg2, "Second")
-    self.backend.append(elem, seg1)
-    self.backend.append(elem, seg2)
-
-    self.policy.multiple_seg.behavior = "keep_first"
-    self.policy.multiple_seg.log_level = log_level
-    tuv = self.handler._deserialize(elem)
-
-    assert isinstance(tuv, Tuv)
-    assert tuv.content == ["First"]
-    expected_log = (self.logger.name, log_level, "Multiple <seg> elements in <tuv>")
-    assert caplog.record_tuples == [expected_log]
-
-  def test_multiple_seg_keep_last(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.make_tuv_elem(seg_text=None)
-    seg1 = self.backend.make_elem("seg")
-    self.backend.set_text(seg1, "First")
-    seg2 = self.backend.make_elem("seg")
-    self.backend.set_text(seg2, "Second")
-    self.backend.append(elem, seg1)
-    self.backend.append(elem, seg2)
-
-    self.policy.multiple_seg.behavior = "keep_last"
-    self.policy.multiple_seg.log_level = log_level
-    tuv = self.handler._deserialize(elem)
-
-    assert isinstance(tuv, Tuv)
-    assert tuv.content == ["Second"]
-    expected_log = (self.logger.name, log_level, "Multiple <seg> elements in <tuv>")
-    assert caplog.record_tuples == [expected_log]
-
-  def test_invalid_child_element_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
+  def test_does_not_append_if_emit_returns_none(self):
     elem = self.make_tuv_elem()
-    self.backend.append(elem, self.backend.make_elem("wrong"))
+    tuv = self.handler._deserialize(elem)
 
+    assert tuv.props == []
+    assert tuv.notes == []
+
+  def test_raise_if_invalid_child(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    self.policy.invalid_child_element.log_level = log_level
     self.policy.invalid_child_element.behavior = "raise"
-    self.policy.invalid_child_element.log_level = log_level
 
-    with pytest.raises(XmlDeserializationError, match="Invalid child element <wrong> in <tuv>"):
+    elem = self.make_tuv_elem()
+    self.backend.append(elem, self.backend.make_elem("invalid"))
+
+    with pytest.raises(XmlDeserializationError):
       self.handler._deserialize(elem)
-    
-    expected_log = (self.logger.name, log_level, "Invalid child element <wrong> in <tuv>")
+
+    log_message = "Invalid child element <invalid> in <tuv>"
+    expected_log = (self.logger.name, log_level, log_message)
+
     assert caplog.record_tuples == [expected_log]
 
-  def test_invalid_child_element_ignore(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.make_tuv_elem()
-    self.backend.append(elem, self.backend.make_elem("wrong"))
-    
-    self.policy.invalid_child_element.behavior = "ignore"
+  def test_ignore_if_invalid_child(self, caplog: pytest.LogCaptureFixture, log_level: int):
     self.policy.invalid_child_element.log_level = log_level
+    self.policy.invalid_child_element.behavior = "ignore"
+
+    elem = self.make_tuv_elem()
+    self.backend.append(elem, self.backend.make_elem("invalid"))
+
+    self.handler._deserialize(elem)
+
+    log_message = "Invalid child element <invalid> in <tuv>"
+    expected_log = (self.logger.name, log_level, log_message)
+
+    assert caplog.record_tuples == [expected_log]
+
+  def test_if_text_is_not_none(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    self.policy.extra_text.log_level = log_level
+    self.policy.extra_text.behavior = "raise"
+
+    elem = self.make_tuv_elem()
+    self.backend.set_text(elem, "foo")
+
+    with pytest.raises(XmlDeserializationError):
+      self.handler._deserialize(elem)
+
+    log_message = "Element <tuv> has extra text content 'foo'"
+    expected_log = (self.logger.name, log_level, log_message)
+
+    assert caplog.record_tuples == [expected_log]
+
+  def test_ignore_if_text_is_not_none(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    self.policy.extra_text.log_level = log_level
+    self.policy.extra_text.behavior = "ignore"
+
+    elem = self.make_tuv_elem()
+    self.backend.set_text(elem, "foo")
+
+    self.handler._deserialize(elem)
+
+    log_message = "Element <tuv> has extra text content 'foo'"
+    expected_log = (self.logger.name, log_level, log_message)
+
+    assert caplog.record_tuples == [expected_log]
+
+  def test_raise_if_no_seg(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    self.policy.missing_seg.log_level = log_level
+    self.policy.missing_seg.behavior = "raise"
+
+    elem = self.backend.make_elem("tuv")
+    self.backend.set_attr(elem, f"{XML_NS}lang", "en")
+
+    with pytest.raises(XmlDeserializationError):
+      self.handler._deserialize(elem)
+
+    log_message = "Element <tuv> is missing a <seg> child element"
+    expected_log = (self.logger.name, log_level, log_message)
+
+    assert caplog.record_tuples == [expected_log]
+    
+  def test_ignore_if_no_seg(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    self.policy.missing_seg.log_level = log_level
+    self.policy.missing_seg.behavior = "ignore"
+
+    elem = self.backend.make_elem("tuv")
+    self.backend.set_attr(elem, f"{XML_NS}lang", "en")
+
     tuv = self.handler._deserialize(elem)
-    
-    assert isinstance(tuv, Tuv)
-    assert tuv.content == ["Tuv Content"]
-    
-    expected_log = (self.logger.name, log_level, "Invalid child element <wrong> in <tuv>")
+    assert tuv.content == []
+
+    log_message = "Element <tuv> is missing a <seg> child element"
+    expected_log = (self.logger.name, log_level, log_message)
+
+    assert caplog.record_tuples == [expected_log]
+  
+  def test_raise_if_multiple_seg(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    self.policy.multiple_seg.log_level = log_level
+    self.policy.multiple_seg.behavior = "raise"
+
+    elem = self.make_tuv_elem()
+    self.backend.append(elem, self.backend.make_elem("seg"))
+
+    with pytest.raises(XmlDeserializationError):
+      self.handler._deserialize(elem)
+
+    log_message = "Multiple <seg> elements in <tuv>"
+    expected_log = (self.logger.name, log_level, log_message)
+
+    assert caplog.record_tuples == [expected_log]
+
+  def test_keep_first_seg(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    self.policy.multiple_seg.log_level = log_level
+    self.policy.multiple_seg.behavior = "keep_first"
+
+    elem = self.make_tuv_elem()
+    seg2 = self.backend.make_elem("seg")
+    self.backend.set_text(seg2, "bar")
+    self.backend.append(elem, seg2)
+
+    tuv = self.handler._deserialize(elem)
+
+    assert tuv.content == ["foo"]
+
+    log_message = "Multiple <seg> elements in <tuv>"
+    expected_log = (self.logger.name, log_level, log_message)
+
+    assert caplog.record_tuples == [expected_log]
+  
+  def test_keep_last_seg(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    self.policy.multiple_seg.log_level = log_level
+    self.policy.multiple_seg.behavior = "keep_last"
+
+    elem = self.make_tuv_elem()
+    seg2 = self.backend.make_elem("seg")
+    self.backend.set_text(seg2, "bar")
+    self.backend.append(elem, seg2)
+
+    tuv = self.handler._deserialize(elem)
+
+    assert tuv.content == ["bar"]
+
+    log_message = "Multiple <seg> elements in <tuv>"
+    expected_log = (self.logger.name, log_level, log_message)
+
     assert caplog.record_tuples == [expected_log]

@@ -1,7 +1,7 @@
 import logging
-from unittest.mock import Mock
 
 import pytest
+from pytest_mock import MockerFixture
 from python_tmx.base.errors import XmlDeserializationError
 from python_tmx.base.types import Header, Segtype, Tmx, Tu
 from python_tmx.xml.backends.base import XMLBackend
@@ -16,32 +16,32 @@ class TestTmxDeserializer[T_XmlElement]:
   policy: DeserializationPolicy
 
   @pytest.fixture(autouse=True)
-  def setup_method_fixture(self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger):
+  def setup_method_fixture(
+    self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+  ):
     self.backend = backend
     self.logger = test_logger
     self.policy = DeserializationPolicy()
-
+    self.mocker = mocker
     self.handler = TmxDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
     self.handler._set_emit(lambda x: None)
 
-  def make_tmx_elem(
-    self,
-    tag: str = "tmx",
-    version: str | None = "1.4",
-    header: int | None = 1,
-    tus: int | None = 1,
-  ) -> T_XmlElement:
-    elem = self.backend.make_elem(tag)
-    if version:
-      self.backend.set_attr(elem, "version", version)
-    if header is not None:
-      for _ in range(header):
-        self.backend.append(elem, self.backend.make_elem("header"))
-    if tus is not None:
-      body = self.backend.make_elem("body")
-      for _ in range(tus):
-        self.backend.append(body, self.backend.make_elem("tu"))
-      self.backend.append(elem, body)
+  def make_tmx_elem(self) -> T_XmlElement:
+    elem = self.backend.make_elem("tmx")
+    self.backend.set_attr(elem, "version", "1.4b")
+    header = self.backend.make_elem("header")
+    self.backend.set_attr(header, "creationtool", "pytest")
+    self.backend.set_attr(header, "creationtoolversion", "0.0.1")
+    self.backend.set_attr(header, "segtype", "block")
+    self.backend.set_attr(header, "o-tmf", "tmx")
+    self.backend.set_attr(header, "adminlang", "en")
+    self.backend.set_attr(header, "srclang", "en")
+    self.backend.set_attr(header, "datatype", "text")
+    self.backend.append(elem, header)
+    body = self.backend.make_elem("body")
+    tu = self.backend.make_elem("tu")
+    self.backend.append(body, tu)
+    self.backend.append(elem, body)
     return elem
 
   def test_returns_Tmx(self):
@@ -50,222 +50,269 @@ class TestTmxDeserializer[T_XmlElement]:
     assert isinstance(tmx, Tmx)
 
   def test_calls_check_tag(self):
-    mock_check_tag = Mock()
-    self.handler._check_tag = mock_check_tag
-    elem = self.make_tmx_elem()
-    self.handler._deserialize(elem)
+    spy_check_tag = self.mocker.spy(self.handler, "_check_tag")
+    tmx = self.make_tmx_elem()
 
-    mock_check_tag.assert_called_once_with(elem, "tmx")
+    self.handler._deserialize(tmx)
+
+    spy_check_tag.assert_called_once_with(tmx, "tmx")
 
   def test_calls_parse_attribute_correctly(self):
-    mock_parse_attributes = Mock()
-    self.handler._parse_attribute = mock_parse_attributes
+    spy_parse_attributes = self.mocker.spy(self.handler, "_parse_attribute")
+    tmx = self.make_tmx_elem()
+    self.handler._deserialize(tmx)
 
+    spy_parse_attributes.assert_called_once_with(tmx, "version", True)
+
+  def test_calls_emit_on_header_tu_only(self):
+    spy_emit = self.mocker.spy(self.handler, "emit")
     elem = self.make_tmx_elem()
     self.handler._deserialize(elem)
-    mock_parse_attributes.assert_called_once_with(elem, "version", True)
 
-  def test_calls_emit(self):
-    mock_emit = Mock()
-    self.handler._set_emit(mock_emit)
-
-    elem = self.make_tmx_elem(header=None, tus=None)
-
-    body = self.backend.make_elem("body")
-    self.backend.append(elem, body)
-    tu = self.backend.make_elem("tu")
-    self.backend.append(body, tu)
-
-    header = self.backend.make_elem("header")
-    self.backend.append(elem, header)
-
-    self.handler._deserialize(elem)
-
-    assert mock_emit.call_count == 2
-    mock_emit.assert_any_call(tu)
-    mock_emit.assert_any_call(header)
-  
-  def test_only_tu_and_header_if_correct_type(self):
-    mock_tu = Tu()
-    mock_header = Header(creationtool="pytest", creationtoolversion="v1", segtype=Segtype.SENTENCE, o_tmf="TestTMF", adminlang="en-US", srclang="en-US", datatype="plaintext")
-    
-    def side_effect(element: T_XmlElement):
-      tag = self.backend.get_tag(element)
-      if tag == "tu":
-        return mock_tu
-      elif tag == "header":
-        return mock_header
-      return None
-    
-    mock_emit = Mock(side_effect=side_effect)
-    self.handler._set_emit(mock_emit)
-    elem = self.make_tmx_elem()
-    
-    tmx = self.handler._deserialize(elem)
-    
-    assert tmx.body == [mock_tu]
-    assert tmx.header == mock_header
-    
-    assert mock_emit.call_count == 2
+    assert spy_emit.call_count == 2
     for i in self.backend.iter_children(elem):
       if self.backend.get_tag(i) == "header":
-        mock_emit.assert_any_call(i)
+        spy_emit.assert_any_call(i)
       else:
-        # Need to recurse since tus are children of body
         for j in self.backend.iter_children(i):
-          mock_emit.assert_any_call(j)
+          spy_emit.assert_any_call(j)
 
-  def test_mutliple_headers_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.make_tmx_elem(header=2)
-    self.policy.multiple_headers.behavior = "raise"
-    self.policy.multiple_headers.log_level = log_level
-
-    with pytest.raises(XmlDeserializationError, match="Multiple <header> elements in <tmx>"):
-      self.handler._deserialize(elem)
-
-    expected_log = (self.logger.name, log_level, "Multiple <header> elements in <tmx>")
-    assert caplog.record_tuples == [expected_log]
-
-  def test_multiple_headers_keep_first(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    mock_header = Mock(spec=Header)
-    mock_emit = Mock(return_value=mock_header)
-    self.handler._set_emit(mock_emit)
-
-    elem = self.make_tmx_elem(header=None, tus=None)
-    head1 = self.backend.make_elem("header")
-    self.backend.append(elem, head1)
-    head2 = self.backend.make_elem("header")
-    self.backend.append(elem, head2)
-
-    self.policy.multiple_headers.behavior = "keep_first"
-    self.policy.multiple_headers.log_level = log_level
-
-    tmx = self.handler._deserialize(elem)
-
-    assert isinstance(tmx, Tmx)
-    assert tmx.header == mock_header
-
-    mock_emit.assert_called_once_with(head1)
-
-    expected_log = (self.logger.name, log_level, "Multiple <header> elements in <tmx>")
-    assert caplog.record_tuples == [expected_log]
-
-  def test_multiple_headers_keep_last(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    mock_header = Mock(spec=Header)
-    mock_emit = Mock(return_value=mock_header)
-    self.handler._set_emit(mock_emit)
-
-    elem = self.make_tmx_elem(header=None, tus=None)
-    head1 = self.backend.make_elem("header")
-    self.backend.append(elem, head1)
-    head2 = self.backend.make_elem("header")
-    self.backend.append(elem, head2)
-    self.policy.multiple_headers.behavior = "keep_last"
-    self.policy.multiple_headers.log_level = log_level
-
-    tmx = self.handler._deserialize(elem)
-
-    assert isinstance(tmx, Tmx)
-    assert tmx.header == mock_header
-
-    assert mock_emit.call_count == 2
-    mock_emit.assert_any_call(head1)
-    mock_emit.assert_any_call(head2)
-
-    expected_log = (self.logger.name, log_level, "Multiple <header> elements in <tmx>")
-    assert caplog.record_tuples == [expected_log]
-
-  def test_missing_header_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.make_tmx_elem(header=None)
-    self.policy.missing_header.behavior = "raise"
-    self.policy.missing_header.log_level = log_level
-
-    with pytest.raises(
-      XmlDeserializationError, match="Element <tmx> is missing a <header> child element."
-    ):
-      self.handler._deserialize(elem)
-
-    expected_log = (
-      self.logger.name,
-      log_level,
-      "Element <tmx> is missing a <header> child element.",
+  def test_appends_if_emit_does_not_return_none(self):
+    self.handler._set_emit(
+      lambda x: Header(
+        creationtool="pytest",
+        creationtoolversion="0.0.1",
+        segtype=Segtype.BLOCK,
+        o_tmf="tmx",
+        adminlang="en",
+        srclang="en",
+        datatype="text",
+      )
+      if self.backend.get_tag(x) == "header"
+      else Tu()
+      if self.backend.get_tag(x) == "tu"
+      else None
     )
-    assert caplog.record_tuples == [expected_log]
-
-  def test_missing_header_ignore(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.make_tmx_elem(header=None)
-    self.policy.missing_header.behavior = "ignore"
-    self.policy.missing_header.log_level = log_level
+    spy_emit = self.mocker.spy(self.handler, "emit")
+    elem = self.make_tmx_elem()
 
     tmx = self.handler._deserialize(elem)
 
-    assert isinstance(tmx, Tmx)
+    assert tmx.header == Header(
+      creationtool="pytest",
+      creationtoolversion="0.0.1",
+      segtype=Segtype.BLOCK,
+      o_tmf="tmx",
+      adminlang="en",
+      srclang="en",
+      datatype="text",
+    )
+    assert tmx.body == [Tu()]
+
+    assert spy_emit.call_count == 2
+    for i in self.backend.iter_children(elem, ("prop", "note")):
+      spy_emit.assert_any_call(i)
+
+  def test_does_not_append_if_emit_returns_none(self):
+    elem = self.make_tmx_elem()
+    tmx = self.handler._deserialize(elem)
+
+    assert tmx.header is None
+    assert tmx.body == []
+
+  def test_raise_if_invalid_child(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    self.policy.invalid_child_element.log_level = log_level
+    self.policy.invalid_child_element.behavior = "raise"
+
+    elem = self.make_tmx_elem()
+    self.backend.append(elem, self.backend.make_elem("invalid"))
+
+    with pytest.raises(XmlDeserializationError):
+      self.handler._deserialize(elem)
+
+    log_message = "Invalid child element <invalid> in <tmx>"
+    expected_log = (self.logger.name, log_level, log_message)
+
+    assert caplog.record_tuples == [expected_log]
+
+  def test_ignore_if_invalid_child(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    self.policy.invalid_child_element.log_level = log_level
+    self.policy.invalid_child_element.behavior = "ignore"
+
+    elem = self.make_tmx_elem()
+    self.backend.append(elem, self.backend.make_elem("invalid"))
+
+    self.handler._deserialize(elem)
+
+    log_message = "Invalid child element <invalid> in <tmx>"
+    expected_log = (self.logger.name, log_level, log_message)
+
+    assert caplog.record_tuples == [expected_log]
+
+  def test_if_text_is_not_none(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    self.policy.extra_text.log_level = log_level
+    self.policy.extra_text.behavior = "raise"
+
+    elem = self.make_tmx_elem()
+    self.backend.set_text(elem, "foo")
+
+    with pytest.raises(XmlDeserializationError):
+      self.handler._deserialize(elem)
+
+    log_message = "Element <tmx> has extra text content 'foo'"
+    expected_log = (self.logger.name, log_level, log_message)
+
+    assert caplog.record_tuples == [expected_log]
+
+  def test_ignore_if_text_is_not_none(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    self.policy.extra_text.log_level = log_level
+    self.policy.extra_text.behavior = "ignore"
+
+    elem = self.make_tmx_elem()
+    self.backend.set_text(elem, "foo")
+
+    self.handler._deserialize(elem)
+
+    log_message = "Element <tmx> has extra text content 'foo'"
+    expected_log = (self.logger.name, log_level, log_message)
+
+    assert caplog.record_tuples == [expected_log]
+
+  def test_raise_if_multiple_header(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    self.policy.multiple_headers.log_level = log_level
+    self.policy.multiple_headers.behavior = "raise"
+
+    elem = self.make_tmx_elem()
+    self.backend.append(elem, self.backend.make_elem("header"))
+
+    with pytest.raises(XmlDeserializationError):
+      self.handler._deserialize(elem)
+
+    log_message = "Multiple <header> elements in <tmx>"
+    expected_log = (self.logger.name, log_level, log_message)
+
+    assert caplog.record_tuples == [expected_log]
+
+  def test_keep_first_header(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    def test_emit(x: T_XmlElement) -> Header | None:
+      if self.backend.get_tag(x) == "header":
+        if self.backend.get_attr(x, "creationtool") == "pytest":
+          return Header(
+            creationtool="pytest",
+            creationtoolversion="0.0.1",
+            segtype=Segtype.BLOCK,
+            o_tmf="tmx",
+            adminlang="en",
+            srclang="en",
+            datatype="text",
+          )
+        else:
+          return None
+      else:
+        return None
+
+    self.handler._set_emit(test_emit)
+    self.policy.multiple_headers.log_level = log_level
+    self.policy.multiple_headers.behavior = "keep_first"
+
+    elem = self.make_tmx_elem()
+    header2 = self.backend.make_elem("header")
+    self.backend.append(elem, header2)
+
+    tmx = self.handler._deserialize(elem)
+
+    assert tmx.header == Header(
+      creationtool="pytest",
+      creationtoolversion="0.0.1",
+      segtype=Segtype.BLOCK,
+      o_tmf="tmx",
+      adminlang="en",
+      srclang="en",
+      datatype="text",
+    )
+
+    log_message = "Multiple <header> elements in <tmx>"
+    expected_log = (self.logger.name, log_level, log_message)
+
+    assert caplog.record_tuples == [expected_log]
+
+  def test_keep_last_header(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    def test_emit(x: T_XmlElement) -> Header | None:
+      if self.backend.get_tag(x) == "header":
+        if self.backend.get_attr(x, "creationtool") == "pytest2":
+          return Header(
+            creationtool="pytest",
+            creationtoolversion="0.0.1",
+            segtype=Segtype.BLOCK,
+            o_tmf="tmx",
+            adminlang="en",
+            srclang="en",
+            datatype="text",
+          )
+        else:
+          return None
+      else:
+        return None
+
+    self.handler._set_emit(test_emit)
+    self.policy.multiple_headers.log_level = log_level
+    self.policy.multiple_headers.behavior = "keep_last"
+
+    elem = self.make_tmx_elem()
+    header2 = self.backend.make_elem("header")
+    self.backend.set_attr(header2, "creationtool", "pytest2")
+    self.backend.append(elem, header2)
+
+    tmx = self.handler._deserialize(elem)
+    assert tmx.header == Header(
+      creationtool="pytest",
+      creationtoolversion="0.0.1",
+      segtype=Segtype.BLOCK,
+      o_tmf="tmx",
+      adminlang="en",
+      srclang="en",
+      datatype="text",
+    )
+
+    log_message = "Multiple <header> elements in <tmx>"
+    expected_log = (self.logger.name, log_level, log_message)
+
+    assert caplog.record_tuples == [expected_log]
+
+  def test_raise_if_no_header(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    self.policy.missing_header.log_level = log_level
+    self.policy.missing_header.behavior = "raise"
+
+    elem = self.backend.make_elem("tmx")
+    self.backend.set_attr(elem, "version", "1.4b")
+    body = self.backend.make_elem("body")
+    tu = self.backend.make_elem("tu")
+    self.backend.append(body, tu)
+    self.backend.append(elem, body)
+
+    with pytest.raises(XmlDeserializationError):
+      self.handler._deserialize(elem)
+
+    log_message = "Element <tmx> is missing a <header> child element"
+    expected_log = (self.logger.name, log_level, log_message)
+
+    assert caplog.record_tuples == [expected_log]
+
+  def test_ignore_if_no_header(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    self.policy.missing_header.log_level = log_level
+    self.policy.missing_header.behavior = "ignore"
+
+    elem = self.backend.make_elem("tmx")
+    self.backend.set_attr(elem, "version", "1.4b")
+    body = self.backend.make_elem("body")
+    tu = self.backend.make_elem("tu")
+    self.backend.append(body, tu)
+    self.backend.append(elem, body)
+
+    tmx = self.handler._deserialize(elem)
     assert tmx.header is None
 
-    expected_log = (
-      self.logger.name,
-      log_level,
-      "Element <tmx> is missing a <header> child element.",
-    )
-    assert caplog.record_tuples == [expected_log]
+    log_message = "Element <tmx> is missing a <header> child element"
+    expected_log = (self.logger.name, log_level, log_message)
 
-  def test_invalid_child_element_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.make_tmx_elem()
-    self.backend.append(elem, self.backend.make_elem("wrong"))
-
-    self.policy.invalid_child_element.behavior = "raise"
-    self.policy.invalid_child_element.log_level = log_level
-
-    with pytest.raises(XmlDeserializationError, match="Invalid child element <wrong> in <tmx>"):
-      self.handler._deserialize(elem)
-
-    expected_log = (self.logger.name, log_level, "Invalid child element <wrong> in <tmx>")
-    assert caplog.record_tuples == [expected_log]
-
-  def test_invalid_child_element_ignore(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.make_tmx_elem()
-    self.backend.append(elem, self.backend.make_elem("wrong"))
-
-    self.policy.invalid_child_element.behavior = "ignore"
-    self.policy.invalid_child_element.log_level = log_level
-
-    self.handler._deserialize(elem)
-
-    expected_log = (self.logger.name, log_level, "Invalid child element <wrong> in <tmx>")
-    assert caplog.record_tuples == [expected_log]
-
-  def test_extra_text_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.make_tmx_elem()
-    self.backend.set_text(elem, "  I should not be here  ")
-
-    self.policy.extra_text.behavior = "raise"
-    self.policy.extra_text.log_level = log_level
-
-    with pytest.raises(
-      XmlDeserializationError,
-      match="Element <tmx> has extra text content '  I should not be here  '",
-    ):
-      self.handler._deserialize(elem)
-
-    expected_log = (
-      self.logger.name,
-      log_level,
-      "Element <tmx> has extra text content '  I should not be here  '",
-    )
-    assert caplog.record_tuples == [expected_log]
-
-  def test_extra_text_ignore(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.make_tmx_elem()
-    self.backend.set_text(elem, "  I should not be here  ")
-
-    self.policy.extra_text.behavior = "ignore"
-    self.policy.extra_text.log_level = log_level
-
-    self.handler._deserialize(elem)
-
-    expected_log = (
-      self.logger.name,
-      log_level,
-      "Element <tmx> has extra text content '  I should not be here  '",
-    )
     assert caplog.record_tuples == [expected_log]

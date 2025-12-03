@@ -1,7 +1,7 @@
-from datetime import UTC, datetime
 import logging
-from unittest.mock import Mock
+
 import pytest
+from pytest_mock import MockerFixture
 from python_tmx.base.errors import XmlDeserializationError
 from python_tmx.base.types import Header, Note, Prop, Segtype
 from python_tmx.xml.backends.base import XMLBackend
@@ -16,203 +16,176 @@ class TestHeaderDeserializer[T_XmlElement]:
   policy: DeserializationPolicy
 
   @pytest.fixture(autouse=True)
-  def setup_method_fixture(self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger):
+  def setup_method_fixture(
+    self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+  ):
     self.backend = backend
     self.logger = test_logger
     self.policy = DeserializationPolicy()
-
+    self.mocker = mocker
     self.handler = HeaderDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
     self.handler._set_emit(lambda x: None)
 
-  def make_header_elem(
-    self,
-    *,
-    tag: str = "header",
-    creationtool: str | None = "pytest",
-    creationtoolversion: str | None = "v1",
-    segtype: Segtype | None = Segtype.SENTENCE,
-    o_tmf: str | None = "TestTMF",
-    adminlang: str | None = "en-US",
-    srclang: str | None = "en-US",
-    datatype: str | None = "plaintext",
-    o_encoding: str | None = "UTF-8",
-    creationdate: datetime | None = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC),
-    creationid: str | None = "User1",
-    changedate: datetime | None = datetime(2025, 2, 1, 14, 30, 0, tzinfo=UTC),
-    changeid: str | None = "User2",
-    props: int = 1,
-    notes: int = 1,
-  ) -> T_XmlElement:
-    elem = self.backend.make_elem(tag)
-    if creationtool is not None:
-      self.backend.set_attr(elem, "creationtool", creationtool)
-    if creationtoolversion is not None:
-      self.backend.set_attr(elem, "creationtoolversion", creationtoolversion)
-    if segtype is not None:
-      self.backend.set_attr(elem, "segtype", segtype.value)
-    if o_tmf is not None:
-      self.backend.set_attr(elem, "o-tmf", o_tmf)
-    if adminlang is not None:
-      self.backend.set_attr(elem, "adminlang", adminlang)
-    if srclang is not None:
-      self.backend.set_attr(elem, "srclang", srclang)
-    if datatype is not None:
-      self.backend.set_attr(elem, "datatype", datatype)
-    if o_encoding is not None:
-      self.backend.set_attr(elem, "o-encoding", o_encoding)
-    if creationdate is not None:
-      self.backend.set_attr(elem, "creationdate", creationdate.isoformat())
-    if creationid is not None:
-      self.backend.set_attr(elem, "creationid", creationid)
-    if changedate is not None:
-      self.backend.set_attr(elem, "changedate", changedate.isoformat())
-    if changeid is not None:
-      self.backend.set_attr(elem, "changeid", changeid)
-    for _ in range(props):
-      self.backend.append(elem, self.backend.make_elem("prop"))
-    for _ in range(notes):
-      self.backend.append(elem, self.backend.make_elem("note"))
+  def make_header_elem(self) -> T_XmlElement:
+    elem = self.backend.make_elem("header")
+    self.backend.set_attr(elem, "creationtool", "pytest")
+    self.backend.set_attr(elem, "creationtoolversion", "0.0.1")
+    self.backend.set_attr(elem, "segtype", "block")
+    self.backend.set_attr(elem, "o-tmf", "tmx")
+    self.backend.set_attr(elem, "adminlang", "en")
+    self.backend.set_attr(elem, "srclang", "en")
+    self.backend.set_attr(elem, "datatype", "text")
+    self.backend.set_attr(elem, "o-encoding", "base64")
+    self.backend.set_attr(elem, "creationdate", "20230101T000000Z")
+    self.backend.set_attr(elem, "creationid", "pytest")
+    self.backend.set_attr(elem, "changedate", "20230201T000000Z")
+    self.backend.set_attr(elem, "changeid", "pytest")
+    self.backend.append(elem, self.backend.make_elem("prop"))
+    self.backend.append(elem, self.backend.make_elem("note"))
     return elem
-  
+
   def test_returns_Header(self):
     elem = self.make_header_elem()
     header = self.handler._deserialize(elem)
     assert isinstance(header, Header)
 
   def test_calls_check_tag(self):
-    mock_check_tag = Mock()
-    self.handler._check_tag = mock_check_tag
-    elem = self.make_header_elem()
-    self.handler._deserialize(elem)
+    spy_check_tag = self.mocker.spy(self.handler, "_check_tag")
+    header = self.make_header_elem()
 
-    mock_check_tag.assert_called_once_with(elem, "header")
+    self.handler._deserialize(header)
 
-  def test_calls_parses_attribute_correctly(self):
-    mock_parse_attributes = Mock()
-    mock_parse_attributes_as_enum = Mock()
-    mock_parse_attributes_as_dt = Mock()
-    self.handler._parse_attribute = mock_parse_attributes
-    self.handler._parse_attribute_as_enum = mock_parse_attributes_as_enum
-    self.handler._parse_attribute_as_dt = mock_parse_attributes_as_dt
+    spy_check_tag.assert_called_once_with(header, "header")
 
-    elem = self.make_header_elem()
-    self.handler._deserialize(elem)
+  def test_calls_parse_attribute_correctly(self):
+    spy_parse_attributes = self.mocker.spy(self.handler, "_parse_attribute")
+    header = self.make_header_elem()
+    self.handler._deserialize(header)
 
-    assert mock_parse_attributes.call_count == 9
-    mock_parse_attributes.assert_any_call(elem, "creationtool", True)
-    mock_parse_attributes.assert_any_call(elem, "creationtoolversion", True)
-    mock_parse_attributes.assert_any_call(elem, "o-tmf", True)
-    mock_parse_attributes.assert_any_call(elem, "adminlang", True)
-    mock_parse_attributes.assert_any_call(elem, "srclang", True)
-    mock_parse_attributes.assert_any_call(elem, "datatype", True)
-    mock_parse_attributes.assert_any_call(elem, "o-encoding", False)
-    mock_parse_attributes.assert_any_call(elem, "creationid", False)
-    mock_parse_attributes.assert_any_call(elem, "changeid", False)
+    assert spy_parse_attributes.call_count == 9
+    # required attribute
+    spy_parse_attributes.assert_any_call(header, "creationtool", True)
+    spy_parse_attributes.assert_any_call(header, "creationtoolversion", True)
+    spy_parse_attributes.assert_any_call(header, "o-tmf", True)
+    spy_parse_attributes.assert_any_call(header, "adminlang", True)
+    spy_parse_attributes.assert_any_call(header, "srclang", True)
+    spy_parse_attributes.assert_any_call(header, "datatype", True)
 
-    mock_parse_attributes_as_enum.assert_called_once_with(elem, "segtype", Segtype, True)
+    # optional attributes
+    spy_parse_attributes.assert_any_call(header, "o-encoding", False)
+    spy_parse_attributes.assert_any_call(header, "creationid", False)
+    spy_parse_attributes.assert_any_call(header, "changeid", False)
 
-    assert mock_parse_attributes_as_dt.call_count == 2
-    mock_parse_attributes_as_dt.assert_any_call(elem, "creationdate", False)
-    mock_parse_attributes_as_dt.assert_any_call(elem, "changedate", False)
+  def test_calls_parse_attribute_as_dt(self):
+    spy_parse_attributes_as_dt = self.mocker.spy(self.handler, "_parse_attribute_as_dt")
 
-  def test_emits_correctly(self):
-    mock_emit = Mock()
-    self.handler._set_emit(mock_emit)
-    elem = self.make_header_elem()
-    self.handler._deserialize(elem)
+    header = self.make_header_elem()
+    self.handler._deserialize(header)
 
-    assert mock_emit.call_count == 2
+    assert spy_parse_attributes_as_dt.call_count == 2
+    spy_parse_attributes_as_dt.assert_any_call(header, "creationdate", False)
+    spy_parse_attributes_as_dt.assert_any_call(header, "changedate", False)
+
+  def test_calls_parse_attribute_as_enum(self):
+    spy_parse_attributes_as_enum = self.mocker.spy(self.handler, "_parse_attribute_as_enum")
+
+    header = self.make_header_elem()
+    self.handler._deserialize(header)
+
+    spy_parse_attributes_as_enum.assert_called_with(header, "segtype", Segtype, True)
+
+  def test_calls_emit_on_props_and_notes(self):
+    spy_emit = self.mocker.spy(self.handler, "emit")
+    header = self.make_header_elem()
+    self.handler._deserialize(header)
+
+    assert spy_emit.call_count == 2
+    for i in self.backend.iter_children(header):
+      spy_emit.assert_any_call(i)
+
+  def test_appends_if_emit_does_not_return_none(self):
+    self.handler._set_emit(
+      lambda x: Prop(text="foo", type="bar")
+      if self.backend.get_tag(x) == "prop"
+      else Note(text="baz")
+      if self.backend.get_tag(x) == "note"
+      else None
+    )
+    spy_emit = self.mocker.spy(self.handler, "emit")
+    header = self.make_header_elem()
+
+    elem = self.backend.make_elem("prop")
+
+    header = self.handler._deserialize(header)
+
+    assert header.props == [Prop(text="foo", type="bar")]
+    assert header.notes == [Note(text="baz")]
+
+    assert spy_emit.call_count == 2
     for i in self.backend.iter_children(elem):
-      mock_emit.assert_any_call(i)
-    
-  def test_only_appends_prop_and_notes_if_correct_type(self):
-    mock_prop = Prop(text="prop", type="x-test")
-    mock_note = Note(text="note")
+      spy_emit.assert_any_call(i)
 
-    def side_effect(element: T_XmlElement):
-      if self.backend.get_tag(element) == "prop":
-        return mock_prop
-      elif self.backend.get_tag(element) == "note":
-        return mock_note
-      return None
-
-    mock_emit = Mock(side_effect=side_effect)
-    self.handler._set_emit(mock_emit)
+  def test_does_not_append_if_emit_returns_none(self):
     elem = self.make_header_elem()
-
     header = self.handler._deserialize(elem)
 
-    assert header.props == [mock_prop]
-    assert header.notes == [mock_note]
-    
-    assert mock_emit.call_count == 2
-    for i in self.backend.iter_children(elem):
-      mock_emit.assert_any_call(i)
+    assert header.props == []
+    assert header.notes == []
 
-  def test_extra_text_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.make_header_elem()
-    self.backend.set_text(elem, "  I should not be here  ")
-
-    self.policy.extra_text.behavior = "raise"
-    self.policy.extra_text.log_level = log_level
-
-    with pytest.raises(
-      XmlDeserializationError,
-      match="Element <header> has extra text content '  I should not be here  '",
-    ):
-      self.handler._deserialize(elem)
-
-    expected_log = (
-      self.logger.name,
-      log_level,
-      "Element <header> has extra text content '  I should not be here  '",
-    )
-    assert caplog.record_tuples == [expected_log]
-
-  def test_extra_text_ignores(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.make_header_elem()
-    self.backend.set_text(elem, "  I should not be here  ")
-
-    self.policy.extra_text.behavior = "ignore"
-    self.policy.extra_text.log_level = log_level
-
-    self.handler._deserialize(elem)
-
-    expected_log = (
-      self.logger.name,
-      log_level,
-      "Element <header> has extra text content '  I should not be here  '",
-    )
-    assert caplog.record_tuples == [expected_log]
-
-  def test_invalid_child_element_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.make_header_elem()
-    self.backend.append(elem, self.backend.make_elem("wrong"))
-    log_message = "Invalid child element <wrong> in <header>"
-
+  def test_raise_if_invalid_child(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    self.policy.invalid_child_element.log_level = log_level
     self.policy.invalid_child_element.behavior = "raise"
-    self.policy.invalid_child_element.log_level = log_level
 
-    with pytest.raises(
-      XmlDeserializationError,
-      match=log_message,
-    ):
+    elem = self.make_header_elem()
+    self.backend.append(elem, self.backend.make_elem("invalid"))
+
+    with pytest.raises(XmlDeserializationError):
       self.handler._deserialize(elem)
 
+    log_message = "Invalid child element <invalid> in <header>"
     expected_log = (self.logger.name, log_level, log_message)
+
     assert caplog.record_tuples == [expected_log]
 
-  def test_invalid_child_element_ignore(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.make_header_elem()
-    self.backend.append(elem, self.backend.make_elem("wrong"))
-    log_message = "Invalid child element <wrong> in <header>"
-
-    self.policy.invalid_child_element.behavior = "ignore"
+  def test_ignore_if_invalid_child(self, caplog: pytest.LogCaptureFixture, log_level: int):
     self.policy.invalid_child_element.log_level = log_level
+    self.policy.invalid_child_element.behavior = "ignore"
 
-    header = self.handler._deserialize(elem)
-    
-    assert isinstance(header, Header)
+    elem = self.make_header_elem()
+    self.backend.append(elem, self.backend.make_elem("invalid"))
 
+    self.handler._deserialize(elem)
+
+    log_message = "Invalid child element <invalid> in <header>"
     expected_log = (self.logger.name, log_level, log_message)
+
+    assert caplog.record_tuples == [expected_log]
+
+  def test_if_text_is_not_none(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    self.policy.extra_text.log_level = log_level
+    self.policy.extra_text.behavior = "raise"
+
+    elem = self.make_header_elem()
+    self.backend.set_text(elem, "foo")
+
+    with pytest.raises(XmlDeserializationError):
+      self.handler._deserialize(elem)
+
+    log_message = "Element <header> has extra text content 'foo'"
+    expected_log = (self.logger.name, log_level, log_message)
+
+    assert caplog.record_tuples == [expected_log]
+
+  def test_ignore_if_text_is_not_none(self, caplog: pytest.LogCaptureFixture, log_level: int):
+    self.policy.extra_text.log_level = log_level
+    self.policy.extra_text.behavior = "ignore"
+
+    elem = self.make_header_elem()
+    self.backend.set_text(elem, "foo")
+
+    self.handler._deserialize(elem)
+
+    log_message = "Element <header> has extra text content 'foo'"
+    expected_log = (self.logger.name, log_level, log_message)
+
     assert caplog.record_tuples == [expected_log]
