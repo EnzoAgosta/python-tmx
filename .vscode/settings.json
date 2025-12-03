@@ -1,9 +1,9 @@
 {
-  "[python]": {
-    "editor.codeActionsOnSave": {
-      "source.fixAll.ruff": "explicit",
-      "source.organizeImports.ruff": "explicit"
-    }
-  },
-  "python.analysis.autoImportCompletions": true
+ "python.analysis.typeCheckingMode": "standard",
+ "python.REPL.enableREPLSmartSend": false,
+ "python.testing.pytestArgs": [
+  "tests"
+ ],
+ "python.testing.unittestEnabled": false,
+ "python.testing.pytestEnabled": true
 }
