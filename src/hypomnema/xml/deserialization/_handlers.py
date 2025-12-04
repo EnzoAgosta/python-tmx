@@ -1,28 +1,10 @@
-from python_tmx.base.errors import XmlDeserializationError
-from python_tmx.base.types import (
-  Assoc,
-  BaseInlineElement,
-  Bpt,
-  Ept,
-  Header,
-  Hi,
-  It,
-  Note,
-  Ph,
-  Pos,
-  Prop,
-  Segtype,
-  Sub,
-  Tmx,
-  Tu,
-  Tuv,
-)
-from python_tmx.xml import XML_NS, T_XmlElement
-from python_tmx.xml.deserialization.base import (
-  BaseElementDeserializer,
-  InlineContentDeserializerMixin,
-)
-
+from hypomnema.base.errors import XmlDeserializationError
+from hypomnema.base.types import (Assoc, BaseInlineElement, Bpt, Ept, Header,
+                                  Hi, It, Note, Ph, Pos, Prop, Segtype, Sub,
+                                  Tmx, Tu, Tuv)
+from hypomnema.xml.constants import XML_NS, T_XmlElement
+from hypomnema.xml.deserialization.base import (BaseElementDeserializer,
+                                                InlineContentDeserializerMixin)
 
 __all__ = [
   "NoteDeserializer",

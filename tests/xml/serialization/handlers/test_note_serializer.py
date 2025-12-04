@@ -3,32 +3,29 @@ from unittest.mock import Mock
 
 import pytest
 from pytest_mock import MockerFixture
-from python_tmx.base.types import Note
-from python_tmx.xml import XML_NS
-from python_tmx.xml.backends.base import XMLBackend
-from python_tmx.xml.policy import SerializationPolicy
-from python_tmx.xml.serialization._handlers import NoteSerializer
+
+import hypomnema as hm
 
 
 class TestNoteSerializer[T_XmlElement]:
-  handler: NoteSerializer
-  backend: XMLBackend[T_XmlElement]
+  handler: hm.NoteSerializer
+  backend: hm.XMLBackend[T_XmlElement]
   logger: logging.Logger
-  policy: SerializationPolicy
+  policy: hm.SerializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger
-    self.policy = SerializationPolicy()
+    self.policy = hm.SerializationPolicy()
     self.mocker = mocker
-    self.handler = NoteSerializer(backend=self.backend, policy=self.policy, logger=self.logger)
+    self.handler = hm.NoteSerializer(backend=self.backend, policy=self.policy, logger=self.logger)
     self.handler._set_emit(lambda x: None)
 
-  def make_note_object(self) -> Note:
-    return Note(text="Valid Note Content", lang="en-US", o_encoding="UTF-8")
+  def make_note_object(self) -> hm.Note:
+    return hm.Note(text="Valid Note Content", lang="en-US", o_encoding="UTF-8")
 
   def test_calls_backend_make_elem(self):
     original = self.backend.make_elem
@@ -50,7 +47,7 @@ class TestNoteSerializer[T_XmlElement]:
     assert spy_set_attribute.call_count == 2
     # optional attributes
     spy_set_attribute.assert_any_call(elem, note.o_encoding, "o-encoding", False)
-    spy_set_attribute.assert_any_call(elem, note.lang, f"{XML_NS}lang", False)
+    spy_set_attribute.assert_any_call(elem, note.lang, f"{hm.XML_NS}lang", False)
 
   def test_calls_backend_set_text(self):
     spy_set_text = self.mocker.spy(self.backend, "set_text")

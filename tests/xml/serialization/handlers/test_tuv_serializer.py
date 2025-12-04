@@ -1,45 +1,41 @@
-from datetime import UTC, datetime
 import logging
+from datetime import UTC, datetime
 
 import pytest
 from pytest_mock import MockerFixture
-from python_tmx.base.errors import XmlSerializationError
-from python_tmx.base.types import BaseElement, Bpt, Note, Prop, Tuv
-from python_tmx.xml import XML_NS
-from python_tmx.xml.backends.base import XMLBackend
-from python_tmx.xml.policy import SerializationPolicy
-from python_tmx.xml.serialization._handlers import TuvSerializer
+
+import hypomnema as hm
 
 
 class TestTuvSerializer[T_XmlElement]:
-  handler: TuvSerializer
-  backend: XMLBackend[T_XmlElement]
+  handler: hm.TuvSerializer
+  backend: hm.XMLBackend[T_XmlElement]
   logger: logging.Logger
-  policy: SerializationPolicy
+  policy: hm.SerializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger
-    self.policy = SerializationPolicy()
+    self.policy = hm.SerializationPolicy()
     self.mocker = mocker
-    self.handler = TuvSerializer(backend=self.backend, policy=self.policy, logger=self.logger)
+    self.handler = hm.TuvSerializer(backend=self.backend, policy=self.policy, logger=self.logger)
 
-    def test_emit(obj: BaseElement) -> T_XmlElement | None:
-      if isinstance(obj, Prop):
+    def test_emit(obj: hm.BaseElement) -> T_XmlElement | None:
+      if isinstance(obj, hm.Prop):
         return self.backend.make_elem("prop")
-      elif isinstance(obj, Note):
+      elif isinstance(obj, hm.Note):
         return self.backend.make_elem("note")
-      elif isinstance(obj, Bpt):
+      elif isinstance(obj, hm.Bpt):
         return self.backend.make_elem("bpt")
       raise TypeError(f"Invalid object type {type(obj)}")
 
     self.handler._set_emit(test_emit)
 
-  def make_tuv_object(self) -> Tuv:
-    return Tuv(
+  def make_tuv_object(self) -> hm.Tuv:
+    return hm.Tuv(
       lang="en-US",
       o_encoding="UTF-8",
       datatype="plaintext",
@@ -52,9 +48,9 @@ class TestTuvSerializer[T_XmlElement]:
       changedate=datetime(2025, 2, 1, 14, 30, 0, tzinfo=UTC),
       changeid="User2",
       o_tmf="TestTMF",
-      props=[Prop(text="Prop", type="x-test", lang="en-US", o_encoding="UTF-8")],
-      notes=[Note(text="Note", lang="en-US", o_encoding="UTF-8")],
-      content=["First", Bpt(content=["Bpt content"], i=1, x=1, type="bpt"), "Second"],
+      props=[hm.Prop(text="Prop", type="x-test", lang="en-US", o_encoding="UTF-8")],
+      notes=[hm.Note(text="Note", lang="en-US", o_encoding="UTF-8")],
+      content=["First", hm.Bpt(content=["Bpt content"], i=1, x=1, type="bpt"), "Second"],
     )
 
   def test_calls_backend_make_elem(self):
@@ -77,7 +73,7 @@ class TestTuvSerializer[T_XmlElement]:
 
     assert spy_set_attribute.call_count == 8
     # required attribute
-    spy_set_attribute.assert_any_call(elem, tuv.lang, f"{XML_NS}lang", True)
+    spy_set_attribute.assert_any_call(elem, tuv.lang, f"{hm.XML_NS}lang", True)
 
     # optional attributes
     spy_set_attribute.assert_any_call(elem, tuv.o_encoding, "o-encoding", False)
@@ -161,7 +157,7 @@ class TestTuvSerializer[T_XmlElement]:
     log_message = "Invalid child element 'int' in Tuv.props"
     tuv = self.make_tuv_object()
     tuv.props.append(1)  # type: ignore[list-item]
-    with pytest.raises(XmlSerializationError, match=log_message):
+    with pytest.raises(hm.XmlSerializationError, match=log_message):
       self.handler._serialize(tuv)
 
     expected_log = (self.logger.name, log_level, log_message)
@@ -174,7 +170,7 @@ class TestTuvSerializer[T_XmlElement]:
     log_message = "Invalid child element 'int' in Tuv.notes"
     tuv = self.make_tuv_object()
     tuv.notes.append(1)  # type: ignore[list-item]
-    with pytest.raises(XmlSerializationError, match=log_message):
+    with pytest.raises(hm.XmlSerializationError, match=log_message):
       self.handler._serialize(tuv)
 
     expected_log = (self.logger.name, log_level, log_message)

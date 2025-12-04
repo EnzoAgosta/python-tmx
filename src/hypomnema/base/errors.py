@@ -1,3 +1,14 @@
+__all__ = [
+  "XmlSerializationError",
+  "XmlDeserializationError",
+  "AttributeSerializationError",
+  "AttributeDeserializationError",
+  "InvalidTagError",
+  "InvalidContentError",
+  "MissingHandlerError",
+]
+
+
 class XmlSerializationError(Exception):
   pass
 
@@ -19,22 +30,6 @@ class InvalidTagError(XmlDeserializationError):
 
 
 class InvalidContentError(Exception):
-  pass
-
-
-class ArrowConversionError(XmlSerializationError):
-  pass
-
-
-class MissingArrowStructError(ArrowConversionError):
-  pass
-
-
-class IncorrectArrowTypeError(ArrowConversionError):
-  pass
-
-
-class IncorrectArrowContentError(ArrowConversionError):
   pass
 
 

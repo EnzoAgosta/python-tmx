@@ -2,8 +2,8 @@
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 [project]
-name = "python-tmx"
-version = "0.4.01"
+name = "hypomnema"
+version = "0.4.2"
 authors = [{ name = "Enzo Agosta", email = "agosta.enzowork@gmail.com" }]
 description = "Python library for manipulating, creating and editing tmx files"
 readme = { file = "README.MD", content-type = "text/markdown" }
@@ -20,8 +20,8 @@ dependencies = []
 
 
 [project.urls]
-Homepage = "https://github.com/EnzoAgosta/python-tmx"
-Issues = "https://github.com/EnzoAgosta/python-tmx/issues"
+Homepage = "https://github.com/EnzoAgosta/hypomnema"
+Issues = "https://github.com/EnzoAgosta/hypomnema/issues"
 
 [project.optional-dependencies]
 lxml = ["lxml>=6.0.2"]

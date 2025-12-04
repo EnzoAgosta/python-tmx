@@ -1,6 +1,6 @@
+import xml.etree.ElementTree as ET
 from collections.abc import Collection
 from typing import Iterator
-import xml.etree.ElementTree as ET
 
 __all__ = ["StrictBackend"]
 

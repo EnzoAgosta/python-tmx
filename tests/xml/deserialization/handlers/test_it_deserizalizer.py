@@ -2,27 +2,25 @@ import logging
 
 import pytest
 from pytest_mock import MockerFixture
-from python_tmx.base.types import It, Pos
-from python_tmx.xml.backends.base import XMLBackend
-from python_tmx.xml.deserialization._handlers import ItDeserializer
-from python_tmx.xml.policy import DeserializationPolicy
+
+import hypomnema as hm
 
 
 class TestItDeserializer[T_XmlElement]:
-  handler: ItDeserializer
-  backend: XMLBackend[T_XmlElement]
+  handler: hm.ItDeserializer
+  backend: hm.XMLBackend[T_XmlElement]
   logger: logging.Logger
-  policy: DeserializationPolicy
+  policy: hm.DeserializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger
-    self.policy = DeserializationPolicy()
+    self.policy = hm.DeserializationPolicy()
     self.mocker = mocker
-    self.handler = ItDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
+    self.handler = hm.ItDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
     self.handler._set_emit(lambda x: None)
 
   def make_it_elem(self) -> T_XmlElement:
@@ -36,7 +34,7 @@ class TestItDeserializer[T_XmlElement]:
   def test_returns_It(self):
     elem = self.make_it_elem()
     it = self.handler._deserialize(elem)
-    assert isinstance(it, It)
+    assert isinstance(it, hm.It)
 
   def test_calls_check_tag(self):
     spy_check_tag = self.mocker.spy(self.handler, "_check_tag")
@@ -65,7 +63,7 @@ class TestItDeserializer[T_XmlElement]:
     it = self.make_it_elem()
     self.handler._deserialize(it)
 
-    spy_parse_attributes_as_enum.assert_called_once_with(it, "pos", Pos, True)
+    spy_parse_attributes_as_enum.assert_called_once_with(it, "pos", hm.Pos, True)
 
   def test_calls_emit(self):
     spy_emit = self.mocker.spy(self.handler, "emit")

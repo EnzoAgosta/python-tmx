@@ -1,27 +1,10 @@
-from python_tmx.base.errors import XmlSerializationError
-from python_tmx.base.types import (
-  Assoc,
-  BaseElement,
-  Bpt,
-  Ept,
-  Header,
-  Hi,
-  It,
-  Note,
-  Ph,
-  Pos,
-  Prop,
-  Segtype,
-  Sub,
-  Tmx,
-  Tu,
-  Tuv,
-)
-from python_tmx.xml import XML_NS, T_XmlElement
-from python_tmx.xml.serialization.base import (
-  BaseElementSerializer,
-  InlineContentSerializerMixin,
-)
+from hypomnema.base.errors import XmlSerializationError
+from hypomnema.base.types import (Assoc, BaseElement, Bpt, Ept, Header, Hi, It,
+                                  Note, Ph, Pos, Prop, Segtype, Sub, Tmx, Tu,
+                                  Tuv)
+from hypomnema.xml.constants import XML_NS, T_XmlElement
+from hypomnema.xml.serialization.base import (BaseElementSerializer,
+                                              InlineContentSerializerMixin)
 
 __all__ = [
   "PropSerializer",

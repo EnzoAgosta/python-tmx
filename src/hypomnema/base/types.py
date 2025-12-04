@@ -5,6 +5,26 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Self
 
+__all__ = [
+  "BaseElement",
+  "BaseInlineElement",
+  "BaseStructuralElement",
+  "Bpt",
+  "Ept",
+  "Hi",
+  "It",
+  "Ph",
+  "Sub",
+  "Pos",
+  "Segtype",
+  "Assoc",
+  "Header",
+  "Note",
+  "Prop",
+  "Tu",
+  "Tuv",
+  "Tmx",
+]
 
 type BaseStructuralElement = Prop | Note | Header | Tu | Tuv | Tmx
 """Union of all structural TMX elements as defined in TMX 1.4b."""

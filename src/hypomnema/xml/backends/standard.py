@@ -1,9 +1,8 @@
+import xml.etree.ElementTree as ET
 from collections.abc import Collection, Iterator
 from functools import cache
-import xml.etree.ElementTree as ET
 
-from python_tmx.xml.utils import normalize_tag
-
+from hypomnema.xml.utils import normalize_tag
 
 __all__ = ["StandardBackend"]
 

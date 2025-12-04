@@ -4,14 +4,16 @@ from datetime import datetime
 from logging import Logger
 from typing import Protocol, TypeGuard, TypeVar
 
-from python_tmx.base.errors import AttributeSerializationError, XmlSerializationError
-from python_tmx.base.types import BaseElement, BaseInlineElement, Tuv
-from python_tmx.xml import T_XmlElement
-from python_tmx.xml.backends.base import XMLBackend
-from python_tmx.xml.deserialization.base import T_Enum
-from python_tmx.xml.policy import SerializationPolicy
+from hypomnema.base.errors import (AttributeSerializationError,
+                                   XmlSerializationError)
+from hypomnema.base.types import BaseElement, BaseInlineElement, Tuv
+from hypomnema.xml.backends.base import XMLBackend
+from hypomnema.xml.constants import T_Enum, T_XmlElement
+from hypomnema.xml.policy import SerializationPolicy
 
 T_Expected = TypeVar("T_Expected", bound=BaseElement)
+
+__all__ = ["BaseElementSerializer", "InlineContentSerializerMixin"]
 
 
 class SerializerHost(Protocol[T_XmlElement]):

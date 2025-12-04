@@ -2,30 +2,28 @@ import logging
 
 import pytest
 from pytest_mock import MockerFixture
-from python_tmx.base.types import Bpt, Ept, Hi, It, Ph
-from python_tmx.xml.backends.base import XMLBackend
-from python_tmx.xml.policy import SerializationPolicy
-from python_tmx.xml.serialization._handlers import HiSerializer
+
+import hypomnema as hm
 
 
 class TestHiSerializer[T_XmlElement]:
-  handler: HiSerializer
-  backend: XMLBackend[T_XmlElement]
+  handler: hm.HiSerializer
+  backend: hm.XMLBackend[T_XmlElement]
   logger: logging.Logger
-  policy: SerializationPolicy
+  policy: hm.SerializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger
-    self.policy = SerializationPolicy()
-    self.handler = HiSerializer(backend=self.backend, policy=self.policy, logger=self.logger)
+    self.policy = hm.SerializationPolicy()
+    self.handler = hm.HiSerializer(backend=self.backend, policy=self.policy, logger=self.logger)
     self.mocker = mocker
 
-  def make_it_object(self) -> Hi:
-    return Hi(x=1, type="hi", content=["Hi Content"])
+  def make_it_object(self) -> hm.Hi:
+    return hm.Hi(x=1, type="hi", content=["Hi Content"])
 
   def test_calls_backend_make_elem(self):
     spy_make_elem = self.mocker.spy(self.backend, "make_elem")
@@ -62,11 +60,11 @@ class TestHiSerializer[T_XmlElement]:
       hi,
       elem,
       (
-        Bpt,
-        Ept,
-        Ph,
-        It,
-        Hi,
+        hm.Bpt,
+        hm.Ept,
+        hm.Ph,
+        hm.It,
+        hm.Hi,
       ),
     )
 

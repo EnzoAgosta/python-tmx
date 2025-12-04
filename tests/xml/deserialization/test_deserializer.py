@@ -1,79 +1,61 @@
 import logging
+
 import pytest
 from pytest_mock import MockerFixture
 
-from python_tmx.base.errors import MissingHandlerError
-from python_tmx.base.types import Note
-from python_tmx.xml.backends.base import XMLBackend
-from python_tmx.xml.deserialization import Deserializer
-from python_tmx.xml.deserialization.base import BaseElementDeserializer
-from python_tmx.xml.policy import DeserializationPolicy
-from python_tmx.xml.deserialization._handlers import (
-  NoteDeserializer,
-  PropDeserializer,
-  HeaderDeserializer,
-  BptDeserializer,
-  EptDeserializer,
-  ItDeserializer,
-  PhDeserializer,
-  SubDeserializer,
-  HiDeserializer,
-  TuvDeserializer,
-  TuDeserializer,
-  TmxDeserializer,
-)
+import hypomnema as hm
 
 
 class TestDeserializer[T_XmlElement]:
-  backend: XMLBackend[T_XmlElement]
+  backend: hm.XMLBackend[T_XmlElement]
   logger: logging.Logger
-  policy: DeserializationPolicy
+  policy: hm.DeserializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup(
-    self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger
-    self.policy = DeserializationPolicy()
+    self.policy = hm.DeserializationPolicy()
     self.mocker = mocker
 
   def test_init_setup_emit(self):
-    mock_handler = self.mocker.Mock(spec=BaseElementDeserializer)
+    mock_handler = self.mocker.Mock(spec=hm.BaseElementDeserializer)
     mock_handler._emit = None
 
     handlers = {"test_tag": mock_handler}
 
-    deserializer = Deserializer(self.backend, self.policy, handlers=handlers, logger=self.logger)
+    deserializer = hm.Deserializer(self.backend, self.policy, handlers=handlers, logger=self.logger)
 
     mock_handler._set_emit.assert_called_once_with(deserializer.deserialize)
 
   def test_load_default_handlers(self, caplog: pytest.LogCaptureFixture):
-    deserializer = Deserializer(self.backend, self.policy, logger=self.logger)
+    deserializer = hm.Deserializer(self.backend, self.policy, logger=self.logger)
 
     handlers = deserializer.handlers
-    assert isinstance(handlers["note"], NoteDeserializer)
-    assert isinstance(handlers["prop"], PropDeserializer)
-    assert isinstance(handlers["header"], HeaderDeserializer)
-    assert isinstance(handlers["tu"], TuDeserializer)
-    assert isinstance(handlers["tuv"], TuvDeserializer)
-    assert isinstance(handlers["bpt"], BptDeserializer)
-    assert isinstance(handlers["ept"], EptDeserializer)
-    assert isinstance(handlers["it"], ItDeserializer)
-    assert isinstance(handlers["ph"], PhDeserializer)
-    assert isinstance(handlers["sub"], SubDeserializer)
-    assert isinstance(handlers["hi"], HiDeserializer)
-    assert isinstance(handlers["tmx"], TmxDeserializer)
+    assert isinstance(handlers["note"], hm.NoteDeserializer)
+    assert isinstance(handlers["prop"], hm.PropDeserializer)
+    assert isinstance(handlers["header"], hm.HeaderDeserializer)
+    assert isinstance(handlers["tu"], hm.TuDeserializer)
+    assert isinstance(handlers["tuv"], hm.TuvDeserializer)
+    assert isinstance(handlers["bpt"], hm.BptDeserializer)
+    assert isinstance(handlers["ept"], hm.EptDeserializer)
+    assert isinstance(handlers["it"], hm.ItDeserializer)
+    assert isinstance(handlers["ph"], hm.PhDeserializer)
+    assert isinstance(handlers["sub"], hm.SubDeserializer)
+    assert isinstance(handlers["hi"], hm.HiDeserializer)
+    assert isinstance(handlers["tmx"], hm.TmxDeserializer)
 
     assert caplog.record_tuples == [(self.logger.name, logging.INFO, "Using default handlers")]
 
   def test_calls_handlers_deserialize(self):
-    note = Note(text="Success")
-    mock_handler = self.mocker.Mock(spec=BaseElementDeserializer, _emit=None)
+    note = hm.Note(text="Success")
+    mock_handler = self.mocker.Mock(spec=hm.BaseElementDeserializer, _emit=None)
     mock_handler._deserialize.return_value = note
 
     handlers = {"note": mock_handler}
-    deserializer = Deserializer(self.backend, self.policy, handlers=handlers, logger=self.logger)
+    deserializer = hm.Deserializer(self.backend, self.policy, handlers=handlers, logger=self.logger)
 
     elem = self.backend.make_elem("note")
     result = deserializer.deserialize(elem)
@@ -84,12 +66,12 @@ class TestDeserializer[T_XmlElement]:
   def test_missing_handler_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
     elem = self.backend.make_elem("unknown_tag")
 
-    deserializer = Deserializer(self.backend, self.policy, logger=self.logger)
+    deserializer = hm.Deserializer(self.backend, self.policy, logger=self.logger)
 
     self.policy.missing_handler.behavior = "raise"
     self.policy.missing_handler.log_level = log_level
 
-    with pytest.raises(MissingHandlerError, match="Missing handler for <unknown_tag>"):
+    with pytest.raises(hm.MissingHandlerError, match="Missing handler for <unknown_tag>"):
       deserializer.deserialize(elem)
 
     assert caplog.record_tuples == [
@@ -101,7 +83,7 @@ class TestDeserializer[T_XmlElement]:
   def test_missing_handler_ignore(self, caplog: pytest.LogCaptureFixture, log_level: int):
     elem = self.backend.make_elem("unknown_tag")
 
-    deserializer = Deserializer(self.backend, self.policy, logger=self.logger)
+    deserializer = hm.Deserializer(self.backend, self.policy, logger=self.logger)
 
     self.policy.missing_handler.behavior = "ignore"
     self.policy.missing_handler.log_level = log_level
@@ -122,10 +104,10 @@ class TestDeserializer[T_XmlElement]:
     self.backend.set_attr(elem, "{http://www.w3.org/XML/1998/namespace}lang", "en")
     self.backend.set_text(elem, "test")
 
-    mock_header_handler = self.mocker.Mock(spec=BaseElementDeserializer, _emit=None)
+    mock_header_handler = self.mocker.Mock(spec=hm.BaseElementDeserializer, _emit=None)
     custom_handlers = {"header": mock_header_handler}
 
-    deserializer = Deserializer(
+    deserializer = hm.Deserializer(
       self.backend, self.policy, logger=self.logger, handlers=custom_handlers
     )
 
@@ -134,7 +116,7 @@ class TestDeserializer[T_XmlElement]:
 
     result = deserializer.deserialize(elem)
 
-    assert isinstance(result, Note)
+    assert isinstance(result, hm.Note)
     assert caplog.record_tuples == [
       (self.logger.name, logging.DEBUG, "Using custom handlers"),
       (self.logger.name, logging.DEBUG, "Deserializing <note>"),
@@ -147,17 +129,17 @@ class TestDeserializer[T_XmlElement]:
   ):
     elem = self.backend.make_elem("wrong")
 
-    mock_header_handler = self.mocker.Mock(spec=BaseElementDeserializer, _emit=None)
+    mock_header_handler = self.mocker.Mock(spec=hm.BaseElementDeserializer, _emit=None)
     custom_handlers = {"header": mock_header_handler}
 
-    deserializer = Deserializer(
+    deserializer = hm.Deserializer(
       self.backend, self.policy, logger=self.logger, handlers=custom_handlers
     )
 
     self.policy.missing_handler.behavior = "default"
     self.policy.missing_handler.log_level = log_level
 
-    with pytest.raises(MissingHandlerError, match="Missing handler for <wrong>"):
+    with pytest.raises(hm.MissingHandlerError, match="Missing handler for <wrong>"):
       deserializer.deserialize(elem)
 
     assert caplog.record_tuples == [

@@ -2,27 +2,25 @@ import logging
 
 import pytest
 from pytest_mock import MockerFixture
-from python_tmx.base.types import Assoc, Ph
-from python_tmx.xml.backends.base import XMLBackend
-from python_tmx.xml.deserialization._handlers import PhDeserializer
-from python_tmx.xml.policy import DeserializationPolicy
+
+import hypomnema as hm
 
 
 class TestPhDeserializer[T_XmlElement]:
-  handler: PhDeserializer
-  backend: XMLBackend[T_XmlElement]
+  handler: hm.PhDeserializer
+  backend: hm.XMLBackend[T_XmlElement]
   logger: logging.Logger
-  policy: DeserializationPolicy
+  policy: hm.DeserializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger
-    self.policy = DeserializationPolicy()
+    self.policy = hm.DeserializationPolicy()
     self.mocker = mocker
-    self.handler = PhDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
+    self.handler = hm.PhDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
     self.handler._set_emit(lambda x: None)
 
   def make_ph_elem(self) -> T_XmlElement:
@@ -36,7 +34,7 @@ class TestPhDeserializer[T_XmlElement]:
   def test_returns_Ph(self):
     elem = self.make_ph_elem()
     ph = self.handler._deserialize(elem)
-    assert isinstance(ph, Ph)
+    assert isinstance(ph, hm.Ph)
 
   def test_calls_check_tag(self):
     spy_check_tag = self.mocker.spy(self.handler, "_check_tag")
@@ -60,7 +58,7 @@ class TestPhDeserializer[T_XmlElement]:
     ph = self.make_ph_elem()
     self.handler._deserialize(ph)
 
-    spy_parse_attribute_as_enum.assert_called_once_with(ph, "assoc", Assoc, False)
+    spy_parse_attribute_as_enum.assert_called_once_with(ph, "assoc", hm.Assoc, False)
 
   def test_calls_parse_attribute(self):
     spy_parse_attribute = self.mocker.spy(self.handler, "_parse_attribute")

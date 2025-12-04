@@ -1,29 +1,22 @@
 from collections.abc import Mapping
 from logging import Logger, getLogger
 
-from python_tmx.base.errors import MissingHandlerError
-from python_tmx.base.types import (
-  BaseElement,
-)
-from python_tmx.xml import T_XmlElement
-from python_tmx.xml.backends.base import XMLBackend
-from python_tmx.xml.policy import SerializationPolicy
-from python_tmx.xml.serialization._handlers import (
-  BptSerializer,
-  EptSerializer,
-  HeaderSerializer,
-  HiSerializer,
-  ItSerializer,
-  NoteSerializer,
-  PhSerializer,
-  PropSerializer,
-  SubSerializer,
-  TmxSerializer,
-  TuSerializer,
-  TuvSerializer,
-)
-from python_tmx.xml.serialization.base import BaseElementSerializer
-
+from hypomnema.base.errors import MissingHandlerError
+from hypomnema.base.types import BaseElement
+from hypomnema.xml.backends.base import XMLBackend
+from hypomnema.xml.constants import T_XmlElement
+from hypomnema.xml.policy import SerializationPolicy
+from hypomnema.xml.serialization._handlers import (BptSerializer,
+                                                   EptSerializer,
+                                                   HeaderSerializer,
+                                                   HiSerializer, ItSerializer,
+                                                   NoteSerializer,
+                                                   PhSerializer,
+                                                   PropSerializer,
+                                                   SubSerializer,
+                                                   TmxSerializer, TuSerializer,
+                                                   TuvSerializer)
+from hypomnema.xml.serialization.base import BaseElementSerializer
 
 _ModuleLogger = getLogger(__name__)
 

@@ -2,27 +2,25 @@ import logging
 
 import pytest
 from pytest_mock import MockerFixture
-from python_tmx.base.types import Sub
-from python_tmx.xml.backends.base import XMLBackend
-from python_tmx.xml.deserialization._handlers import SubDeserializer
-from python_tmx.xml.policy import DeserializationPolicy
+
+import hypomnema as hm
 
 
 class TestSubDeserializer[T_XmlElement]:
-  handler: SubDeserializer
-  backend: XMLBackend[T_XmlElement]
+  handler: hm.SubDeserializer
+  backend: hm.XMLBackend[T_XmlElement]
   logger: logging.Logger
-  policy: DeserializationPolicy
+  policy: hm.DeserializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger
-    self.policy = DeserializationPolicy()
+    self.policy = hm.DeserializationPolicy()
     self.mocker = mocker
-    self.handler = SubDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
+    self.handler = hm.SubDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
     self.handler._set_emit(lambda x: None)
 
   def make_sub_elem(self) -> T_XmlElement:
@@ -35,7 +33,7 @@ class TestSubDeserializer[T_XmlElement]:
   def test_returns_Sub(self):
     elem = self.make_sub_elem()
     sub = self.handler._deserialize(elem)
-    assert isinstance(sub, Sub)
+    assert isinstance(sub, hm.Sub)
 
   def test_calls_check_tag(self):
     spy_check_tag = self.mocker.spy(self.handler, "_check_tag")

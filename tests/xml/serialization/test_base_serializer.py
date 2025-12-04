@@ -1,39 +1,32 @@
-from datetime import UTC, datetime
 import logging
+from datetime import UTC, datetime
 
 import pytest
 from pytest_mock import MockerFixture
-from python_tmx.base.errors import XmlSerializationError
-from python_tmx.base.types import BaseElement, Bpt, Segtype, Sub
-from python_tmx.xml import T_XmlElement
-from python_tmx.xml.backends.base import XMLBackend
-from python_tmx.xml.serialization.base import (
-  BaseElementSerializer,
-  InlineContentSerializerMixin,
-)
-from python_tmx.xml.policy import SerializationPolicy
+
+import hypomnema as hm
 
 
 class FakeBaseElementSerializer(
-  BaseElementSerializer[T_XmlElement], InlineContentSerializerMixin[T_XmlElement]
+  hm.BaseElementSerializer[hm.T_XmlElement], hm.InlineContentSerializerMixin[hm.T_XmlElement]
 ):
-  def _serialize(self, obj: BaseElement) -> T_XmlElement | None:
+  def _serialize(self, obj: hm.BaseElement) -> hm.T_XmlElement | None:
     raise NotImplementedError
 
 
 class TestBaseElementSerializer[T_XmlElement]:
   handler: FakeBaseElementSerializer
-  backend: XMLBackend[T_XmlElement]
+  backend: hm.XMLBackend[T_XmlElement]
   logger: logging.Logger
-  policy: SerializationPolicy
+  policy: hm.SerializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger
-    self.policy = SerializationPolicy()
+    self.policy = hm.SerializationPolicy()
     self.mocker = mocker
 
     self.handler = FakeBaseElementSerializer(
@@ -50,7 +43,7 @@ class TestBaseElementSerializer[T_XmlElement]:
       self.handler.emit(None)  # type: ignore
 
   def test_check_obj_type_returns_true(self):
-    assert self.handler._check_obj_type(Bpt(i=1), Bpt) is True
+    assert self.handler._check_obj_type(hm.Bpt(i=1), hm.Bpt) is True
 
   def test_check_obj_type_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
     self.policy.invalid_object_type.behavior = "raise"
@@ -59,8 +52,8 @@ class TestBaseElementSerializer[T_XmlElement]:
     log_message = (
       "Cannot serialize object of type 'int' to xml element using 'FakeBaseElementSerializer'"
     )
-    with pytest.raises(XmlSerializationError, match=log_message):
-      self.handler._check_obj_type(1, Bpt)  # type: ignore
+    with pytest.raises(hm.XmlSerializationError, match=log_message):
+      self.handler._check_obj_type(1, hm.Bpt)  # type: ignore
 
     expected_log = (self.logger.name, log_level, log_message)
     assert caplog.record_tuples == [expected_log]
@@ -73,7 +66,7 @@ class TestBaseElementSerializer[T_XmlElement]:
     self.policy.invalid_object_type.behavior = "ignore"
     self.policy.invalid_object_type.log_level = log_level
 
-    assert self.handler._check_obj_type(1, Bpt) is False  # type: ignore
+    assert self.handler._check_obj_type(1, hm.Bpt) is False  # type: ignore
 
     expected_log = (self.logger.name, log_level, log_message)
     assert caplog.record_tuples == [expected_log]
@@ -94,7 +87,7 @@ class TestBaseElementSerializer[T_XmlElement]:
     self.policy.invalid_attribute_type.log_level = log_level
 
     log_msg = "Attribute 'date' is not a datetime object"
-    with pytest.raises(XmlSerializationError, match=log_msg):
+    with pytest.raises(hm.XmlSerializationError, match=log_msg):
       self.handler._set_dt_attribute(elem, dt, "date", False)  # type: ignore
 
     expected_log = (self.logger.name, log_level, log_msg)
@@ -125,7 +118,7 @@ class TestBaseElementSerializer[T_XmlElement]:
 
     log_msg = "Required attribute 'date' is None"
 
-    with pytest.raises(XmlSerializationError, match=log_msg):
+    with pytest.raises(hm.XmlSerializationError, match=log_msg):
       self.handler._set_dt_attribute(elem, None, "date", True)
 
     assert caplog.record_tuples == [(self.logger.name, log_level, log_msg)]
@@ -160,7 +153,7 @@ class TestBaseElementSerializer[T_XmlElement]:
     self.policy.invalid_attribute_type.log_level = log_level
 
     log_msg = "Attribute 'attr' is not an int"
-    with pytest.raises(XmlSerializationError, match=log_msg):
+    with pytest.raises(hm.XmlSerializationError, match=log_msg):
       self.handler._set_int_attribute(elem, "invalid", "attr", False)  # type: ignore
 
     expected_log = (self.logger.name, log_level, log_msg)
@@ -190,7 +183,7 @@ class TestBaseElementSerializer[T_XmlElement]:
 
     log_msg = "Required attribute 'attr' is None"
 
-    with pytest.raises(XmlSerializationError, match=log_msg):
+    with pytest.raises(hm.XmlSerializationError, match=log_msg):
       self.handler._set_int_attribute(elem, None, "attr", True)
 
     assert caplog.record_tuples == [(self.logger.name, log_level, log_msg)]
@@ -213,7 +206,7 @@ class TestBaseElementSerializer[T_XmlElement]:
 
   def test_set_enum_attribute_works(self):
     elem = self.backend.make_elem("elem")
-    self.handler._set_enum_attribute(elem, Segtype.BLOCK, "attr", Segtype, False)
+    self.handler._set_enum_attribute(elem, hm.Segtype.BLOCK, "attr", hm.Segtype, False)
     assert self.backend.get_attr(elem, "attr") == "block"
 
   def test_set_enum_attribute_raises_if_invalid_type(
@@ -226,8 +219,8 @@ class TestBaseElementSerializer[T_XmlElement]:
 
     log_msg = "Attribute 'attr' is not a <enum 'Segtype'>"
 
-    with pytest.raises(XmlSerializationError, match=log_msg):
-      self.handler._set_enum_attribute(elem, "invalid", "attr", Segtype, False)  # type: ignore
+    with pytest.raises(hm.XmlSerializationError, match=log_msg):
+      self.handler._set_enum_attribute(elem, "invalid", "attr", hm.Segtype, False)  # type: ignore
 
     expected_log = (self.logger.name, log_level, log_msg)
     assert caplog.record_tuples == [expected_log]
@@ -240,7 +233,7 @@ class TestBaseElementSerializer[T_XmlElement]:
     self.policy.invalid_attribute_type.behavior = "ignore"
     self.policy.invalid_attribute_type.log_level = log_level
 
-    self.handler._set_enum_attribute(elem, "invalid", "attr", Segtype, False)  # type: ignore
+    self.handler._set_enum_attribute(elem, "invalid", "attr", hm.Segtype, False)  # type: ignore
     assert self.backend.get_attr(elem, "attr") is None
 
     log_message = "Attribute 'attr' is not a <enum 'Segtype'>"
@@ -258,8 +251,8 @@ class TestBaseElementSerializer[T_XmlElement]:
 
     log_messsage = "Required attribute 'attr' is None"
 
-    with pytest.raises(XmlSerializationError, match=log_messsage):
-      self.handler._set_enum_attribute(elem, None, "attr", Segtype, True)  # type: ignore
+    with pytest.raises(hm.XmlSerializationError, match=log_messsage):
+      self.handler._set_enum_attribute(elem, None, "attr", hm.Segtype, True)  # type: ignore
 
     assert caplog.record_tuples == [(self.logger.name, log_level, log_messsage)]
 
@@ -271,7 +264,7 @@ class TestBaseElementSerializer[T_XmlElement]:
     self.policy.required_attribute_missing.behavior = "ignore"
     self.policy.required_attribute_missing.log_level = log_level
 
-    self.handler._set_enum_attribute(elem, None, "attr", Segtype, True)  # type: ignore
+    self.handler._set_enum_attribute(elem, None, "attr", hm.Segtype, True)  # type: ignore
     assert self.backend.get_attr(elem, "attr") is None
 
     assert caplog.record_tuples == [
@@ -293,7 +286,7 @@ class TestBaseElementSerializer[T_XmlElement]:
 
     log_messsage = "Attribute 'attr' is not a string"
 
-    with pytest.raises(XmlSerializationError, match=log_messsage):
+    with pytest.raises(hm.XmlSerializationError, match=log_messsage):
       self.handler._set_attribute(elem, 1, "attr", False)  # type: ignore
 
     expected_log = (self.logger.name, log_level, log_messsage)
@@ -323,7 +316,7 @@ class TestBaseElementSerializer[T_XmlElement]:
 
     log_message = "Required attribute 'attr' is None"
 
-    with pytest.raises(XmlSerializationError, match=log_message):
+    with pytest.raises(hm.XmlSerializationError, match=log_message):
       self.handler._set_attribute(elem, None, "attr", True)  # type: ignore
 
     assert caplog.record_tuples == [(self.logger.name, log_level, log_message)]
@@ -352,8 +345,8 @@ class TestBaseElementSerializer[T_XmlElement]:
 
     log_message = "Incorrect child element in Bpt: expected one of Sub, got int"
 
-    with pytest.raises(XmlSerializationError, match=log_message):
-      self.handler.serialize_content(Bpt(i=1, content=[1]), elem, (Sub,))  # type: ignore
+    with pytest.raises(hm.XmlSerializationError, match=log_message):
+      self.handler.serialize_content(hm.Bpt(i=1, content=[1]), elem, (hm.Sub,))  # type: ignore
 
     expected_log = (self.logger.name, log_level, log_message)
     assert caplog.record_tuples == [expected_log]
@@ -368,7 +361,7 @@ class TestBaseElementSerializer[T_XmlElement]:
 
     log_message = "Incorrect child element in Bpt: expected one of Sub, got int"
 
-    self.handler.serialize_content(Bpt(i=1, content=["Hello", 1]), elem, (Sub,))  # type: ignore
+    self.handler.serialize_content(hm.Bpt(i=1, content=["Hello", 1]), elem, (hm.Sub,))  # type: ignore
     assert self.backend.get_text(elem) == "Hello"
 
     expected_log = (self.logger.name, log_level, log_message)
@@ -381,9 +374,9 @@ class TestBaseElementSerializer[T_XmlElement]:
     elem = self.backend.make_elem("elem")
 
     self.handler.serialize_content(
-      Bpt(i=1, content=["elem text", Sub(), "bpt Tail"]),
+      hm.Bpt(i=1, content=["elem text", hm.Sub(), "bpt Tail"]),
       elem,
-      (Sub,),
+      (hm.Sub,),
     )
     assert self.backend.get_text(elem) == "elem text"
     for child in self.backend.iter_children(elem):

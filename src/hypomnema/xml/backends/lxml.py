@@ -1,9 +1,9 @@
 from collections.abc import Collection, Iterator
 from functools import cache
+
 import lxml.etree as LET
 
-from python_tmx.xml.utils import normalize_tag
-
+from hypomnema.xml.utils import normalize_tag
 
 __all__ = ["LxmlBackend"]
 
