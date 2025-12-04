@@ -1,48 +1,34 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
+
 [project]
 name = "python-tmx"
-version = "0.4.01"
-authors = [{ name = "Enzo Agosta", email = "agosta.enzowork@gmail.com" }]
-description = "Python library for manipulating, creating and editing tmx files"
-readme = { file = "README.MD", content-type = "text/markdown" }
+version = "0.4.2"
+description = "DEPRECATED: renamed to 'hypomnema'. Install 'hypomnema'."
+readme = { file = "README.md", content-type = "text/markdown" }
 license = { text = "MIT" }
 requires-python = ">=3.12"
+authors = [{ name = "Enzo Agosta", email = "agosta.enzowork@gmail.com" }]
 classifiers = [
-  "Programming Language :: Python :: 3.14",
-  "Programming Language :: Python :: 3.13",
-  "Programming Language :: Python :: 3.12",
+  "Development Status :: 7 - Inactive",
+  "Intended Audience :: Developers",
   "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Text Processing :: Linguistic",
 ]
-dependencies = []
-
+dependencies = ["hypomnema>=0.4.2,<1"]
 
 [project.urls]
-Homepage = "https://github.com/EnzoAgosta/python-tmx"
-Issues = "https://github.com/EnzoAgosta/python-tmx/issues"
-
-[project.optional-dependencies]
-lxml = ["lxml>=6.0.2"]
+Homepage = "https://pypi.org/project/hypomnema/"
+Source = "https://github.com/EnzoAgosta/hypomnema"
+Issues = "https://github.com/EnzoAgosta/hypomnema/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
-[dependency-groups]
-dev = [
-  "lxml>=6.0.2",
-  "pytest>=9.0.1",
-  "pytest-cov>=7.0.0",
-  "pytest-mock>=3.15.1",
-  "types-lxml>=2025.11.25",
-]
-test = [
-  "lxml>=6.0.2",
-  "pytest>=9.0.1",
-  "pytest-cov>=7.0.0",
-  "pytest-mock>=3.15.1",
-]
 
 [tool.setuptools]
 license-files = []
