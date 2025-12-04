@@ -2,34 +2,30 @@ import logging
 
 import pytest
 from pytest_mock import MockerFixture
-from python_tmx.base.errors import XmlDeserializationError
-from python_tmx.base.types import Note, Prop, Tuv
-from python_tmx.xml import XML_NS
-from python_tmx.xml.backends.base import XMLBackend
-from python_tmx.xml.deserialization._handlers import TuvDeserializer
-from python_tmx.xml.policy import DeserializationPolicy
+
+import hypomnema as hm
 
 
 class TestTuvDeserializer[T_XmlElement]:
-  handler: TuvDeserializer
-  backend: XMLBackend[T_XmlElement]
+  handler: hm.TuvDeserializer
+  backend: hm.XMLBackend[T_XmlElement]
   logger: logging.Logger
-  policy: DeserializationPolicy
+  policy: hm.DeserializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger
-    self.policy = DeserializationPolicy()
+    self.policy = hm.DeserializationPolicy()
     self.mocker = mocker
-    self.handler = TuvDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
+    self.handler = hm.TuvDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
     self.handler._set_emit(lambda x: None)
 
   def make_tuv_elem(self) -> T_XmlElement:
     elem = self.backend.make_elem("tuv")
-    self.backend.set_attr(elem, f"{XML_NS}lang", "en")
+    self.backend.set_attr(elem, f"{hm.XML_NS}lang", "en")
     self.backend.set_attr(elem, "o-encoding", "base64")
     self.backend.set_attr(elem, "datatype", "text")
     self.backend.set_attr(elem, "usagecount", "1")
@@ -51,7 +47,7 @@ class TestTuvDeserializer[T_XmlElement]:
   def test_returns_Tuv(self):
     elem = self.make_tuv_elem()
     tuv = self.handler._deserialize(elem)
-    assert isinstance(tuv, Tuv)
+    assert isinstance(tuv, hm.Tuv)
 
   def test_calls_check_tag(self):
     spy_check_tag = self.mocker.spy(self.handler, "_check_tag")
@@ -68,7 +64,7 @@ class TestTuvDeserializer[T_XmlElement]:
 
     assert spy_parse_attributes.call_count == 8
     # required attribute
-    spy_parse_attributes.assert_any_call(tuv, f"{XML_NS}lang", True)
+    spy_parse_attributes.assert_any_call(tuv, f"{hm.XML_NS}lang", True)
     # optional attributes
     spy_parse_attributes.assert_any_call(tuv, "o-encoding", False)
     spy_parse_attributes.assert_any_call(tuv, "datatype", False)
@@ -108,9 +104,9 @@ class TestTuvDeserializer[T_XmlElement]:
 
   def test_appends_if_emit_does_not_return_none(self):
     self.handler._set_emit(
-      lambda x: Prop(text="foo", type="bar")
+      lambda x: hm.Prop(text="foo", type="bar")
       if self.backend.get_tag(x) == "prop"
-      else Note(text="baz")
+      else hm.Note(text="baz")
       if self.backend.get_tag(x) == "note"
       else None
     )
@@ -119,8 +115,8 @@ class TestTuvDeserializer[T_XmlElement]:
 
     tuv = self.handler._deserialize(elem)
 
-    assert tuv.props == [Prop(text="foo", type="bar")]
-    assert tuv.notes == [Note(text="baz")]
+    assert tuv.props == [hm.Prop(text="foo", type="bar")]
+    assert tuv.notes == [hm.Note(text="baz")]
 
     assert spy_emit.call_count == 2
     for i in self.backend.iter_children(elem, ("prop", "note")):
@@ -140,7 +136,7 @@ class TestTuvDeserializer[T_XmlElement]:
     elem = self.make_tuv_elem()
     self.backend.append(elem, self.backend.make_elem("invalid"))
 
-    with pytest.raises(XmlDeserializationError):
+    with pytest.raises(hm.XmlDeserializationError):
       self.handler._deserialize(elem)
 
     log_message = "Invalid child element <invalid> in <tuv>"
@@ -169,7 +165,7 @@ class TestTuvDeserializer[T_XmlElement]:
     elem = self.make_tuv_elem()
     self.backend.set_text(elem, "foo")
 
-    with pytest.raises(XmlDeserializationError):
+    with pytest.raises(hm.XmlDeserializationError):
       self.handler._deserialize(elem)
 
     log_message = "Element <tuv> has extra text content 'foo'"
@@ -196,9 +192,9 @@ class TestTuvDeserializer[T_XmlElement]:
     self.policy.missing_seg.behavior = "raise"
 
     elem = self.backend.make_elem("tuv")
-    self.backend.set_attr(elem, f"{XML_NS}lang", "en")
+    self.backend.set_attr(elem, f"{hm.XML_NS}lang", "en")
 
-    with pytest.raises(XmlDeserializationError):
+    with pytest.raises(hm.XmlDeserializationError):
       self.handler._deserialize(elem)
 
     log_message = "Element <tuv> is missing a <seg> child element"
@@ -211,7 +207,7 @@ class TestTuvDeserializer[T_XmlElement]:
     self.policy.missing_seg.behavior = "ignore"
 
     elem = self.backend.make_elem("tuv")
-    self.backend.set_attr(elem, f"{XML_NS}lang", "en")
+    self.backend.set_attr(elem, f"{hm.XML_NS}lang", "en")
 
     tuv = self.handler._deserialize(elem)
     assert tuv.content == []
@@ -228,7 +224,7 @@ class TestTuvDeserializer[T_XmlElement]:
     elem = self.make_tuv_elem()
     self.backend.append(elem, self.backend.make_elem("seg"))
 
-    with pytest.raises(XmlDeserializationError):
+    with pytest.raises(hm.XmlDeserializationError):
       self.handler._deserialize(elem)
 
     log_message = "Multiple <seg> elements in <tuv>"

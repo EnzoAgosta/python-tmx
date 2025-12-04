@@ -2,30 +2,28 @@ import logging
 
 import pytest
 from pytest_mock import MockerFixture
-from python_tmx.base.types import Ept, Sub
-from python_tmx.xml.backends.base import XMLBackend
-from python_tmx.xml.policy import SerializationPolicy
-from python_tmx.xml.serialization._handlers import EptSerializer
+
+import hypomnema as hm
 
 
 class TestEptSerializer[T_XmlElement]:
-  handler: EptSerializer
-  backend: XMLBackend[T_XmlElement]
+  handler: hm.EptSerializer
+  backend: hm.XMLBackend[T_XmlElement]
   logger: logging.Logger
-  policy: SerializationPolicy
+  policy: hm.SerializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger
-    self.policy = SerializationPolicy()
-    self.handler = EptSerializer(backend=self.backend, policy=self.policy, logger=self.logger)
+    self.policy = hm.SerializationPolicy()
+    self.handler = hm.EptSerializer(backend=self.backend, policy=self.policy, logger=self.logger)
     self.mocker = mocker
 
-  def make_ept_object(self) -> Ept:
-    return Ept(i=1, content=["Ept Content"])
+  def make_ept_object(self) -> hm.Ept:
+    return hm.Ept(i=1, content=["Ept Content"])
 
   def test_calls_backend_make_elem(self):
     spy_make_elem = self.mocker.spy(self.backend, "make_elem")
@@ -50,7 +48,7 @@ class TestEptSerializer[T_XmlElement]:
     elem = self.handler._serialize(ept)
 
     assert spy_deserialize_content.call_count == 1
-    spy_deserialize_content.assert_called_with(ept, elem, (Sub,))
+    spy_deserialize_content.assert_called_with(ept, elem, (hm.Sub,))
 
   def test_returns_None_if_not_Ept_if_policy_is_ignore(
     self, caplog: pytest.LogCaptureFixture, log_level: int

@@ -2,28 +2,25 @@ import logging
 
 import pytest
 from pytest_mock import MockerFixture
-from python_tmx.base.errors import XmlDeserializationError
-from python_tmx.base.types import Header, Segtype, Tmx, Tu
-from python_tmx.xml.backends.base import XMLBackend
-from python_tmx.xml.deserialization._handlers import TmxDeserializer
-from python_tmx.xml.policy import DeserializationPolicy
+
+import hypomnema as hm
 
 
 class TestTmxDeserializer[T_XmlElement]:
-  handler: TmxDeserializer
-  backend: XMLBackend[T_XmlElement]
+  handler: hm.TmxDeserializer
+  backend: hm.XMLBackend[T_XmlElement]
   logger: logging.Logger
-  policy: DeserializationPolicy
+  policy: hm.DeserializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger
-    self.policy = DeserializationPolicy()
+    self.policy = hm.DeserializationPolicy()
     self.mocker = mocker
-    self.handler = TmxDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
+    self.handler = hm.TmxDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
     self.handler._set_emit(lambda x: None)
 
   def make_tmx_elem(self) -> T_XmlElement:
@@ -47,7 +44,7 @@ class TestTmxDeserializer[T_XmlElement]:
   def test_returns_Tmx(self):
     elem = self.make_tmx_elem()
     tmx = self.handler._deserialize(elem)
-    assert isinstance(tmx, Tmx)
+    assert isinstance(tmx, hm.Tmx)
 
   def test_calls_check_tag(self):
     spy_check_tag = self.mocker.spy(self.handler, "_check_tag")
@@ -79,17 +76,17 @@ class TestTmxDeserializer[T_XmlElement]:
 
   def test_appends_if_emit_does_not_return_none(self):
     self.handler._set_emit(
-      lambda x: Header(
+      lambda x: hm.Header(
         creationtool="pytest",
         creationtoolversion="0.0.1",
-        segtype=Segtype.BLOCK,
+        segtype=hm.Segtype.BLOCK,
         o_tmf="tmx",
         adminlang="en",
         srclang="en",
         datatype="text",
       )
       if self.backend.get_tag(x) == "header"
-      else Tu()
+      else hm.Tu()
       if self.backend.get_tag(x) == "tu"
       else None
     )
@@ -98,16 +95,16 @@ class TestTmxDeserializer[T_XmlElement]:
 
     tmx = self.handler._deserialize(elem)
 
-    assert tmx.header == Header(
+    assert tmx.header == hm.Header(
       creationtool="pytest",
       creationtoolversion="0.0.1",
-      segtype=Segtype.BLOCK,
+      segtype=hm.Segtype.BLOCK,
       o_tmf="tmx",
       adminlang="en",
       srclang="en",
       datatype="text",
     )
-    assert tmx.body == [Tu()]
+    assert tmx.body == [hm.Tu()]
 
     assert spy_emit.call_count == 2
     for i in self.backend.iter_children(elem, ("prop", "note")):
@@ -127,7 +124,7 @@ class TestTmxDeserializer[T_XmlElement]:
     elem = self.make_tmx_elem()
     self.backend.append(elem, self.backend.make_elem("invalid"))
 
-    with pytest.raises(XmlDeserializationError):
+    with pytest.raises(hm.XmlDeserializationError):
       self.handler._deserialize(elem)
 
     log_message = "Invalid child element <invalid> in <tmx>"
@@ -156,7 +153,7 @@ class TestTmxDeserializer[T_XmlElement]:
     elem = self.make_tmx_elem()
     self.backend.set_text(elem, "foo")
 
-    with pytest.raises(XmlDeserializationError):
+    with pytest.raises(hm.XmlDeserializationError):
       self.handler._deserialize(elem)
 
     log_message = "Element <tmx> has extra text content 'foo'"
@@ -185,7 +182,7 @@ class TestTmxDeserializer[T_XmlElement]:
     elem = self.make_tmx_elem()
     self.backend.append(elem, self.backend.make_elem("header"))
 
-    with pytest.raises(XmlDeserializationError):
+    with pytest.raises(hm.XmlDeserializationError):
       self.handler._deserialize(elem)
 
     log_message = "Multiple <header> elements in <tmx>"
@@ -194,13 +191,13 @@ class TestTmxDeserializer[T_XmlElement]:
     assert caplog.record_tuples == [expected_log]
 
   def test_keep_first_header(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    def test_emit(x: T_XmlElement) -> Header | None:
+    def test_emit(x: T_XmlElement) -> hm.Header | None:
       if self.backend.get_tag(x) == "header":
         if self.backend.get_attr(x, "creationtool") == "pytest":
-          return Header(
+          return hm.Header(
             creationtool="pytest",
             creationtoolversion="0.0.1",
-            segtype=Segtype.BLOCK,
+            segtype=hm.Segtype.BLOCK,
             o_tmf="tmx",
             adminlang="en",
             srclang="en",
@@ -221,10 +218,10 @@ class TestTmxDeserializer[T_XmlElement]:
 
     tmx = self.handler._deserialize(elem)
 
-    assert tmx.header == Header(
+    assert tmx.header == hm.Header(
       creationtool="pytest",
       creationtoolversion="0.0.1",
-      segtype=Segtype.BLOCK,
+      segtype=hm.Segtype.BLOCK,
       o_tmf="tmx",
       adminlang="en",
       srclang="en",
@@ -237,13 +234,13 @@ class TestTmxDeserializer[T_XmlElement]:
     assert caplog.record_tuples == [expected_log]
 
   def test_keep_last_header(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    def test_emit(x: T_XmlElement) -> Header | None:
+    def test_emit(x: T_XmlElement) -> hm.Header | None:
       if self.backend.get_tag(x) == "header":
         if self.backend.get_attr(x, "creationtool") == "pytest2":
-          return Header(
+          return hm.Header(
             creationtool="pytest",
             creationtoolversion="0.0.1",
-            segtype=Segtype.BLOCK,
+            segtype=hm.Segtype.BLOCK,
             o_tmf="tmx",
             adminlang="en",
             srclang="en",
@@ -264,10 +261,10 @@ class TestTmxDeserializer[T_XmlElement]:
     self.backend.append(elem, header2)
 
     tmx = self.handler._deserialize(elem)
-    assert tmx.header == Header(
+    assert tmx.header == hm.Header(
       creationtool="pytest",
       creationtoolversion="0.0.1",
-      segtype=Segtype.BLOCK,
+      segtype=hm.Segtype.BLOCK,
       o_tmf="tmx",
       adminlang="en",
       srclang="en",
@@ -290,7 +287,7 @@ class TestTmxDeserializer[T_XmlElement]:
     self.backend.append(body, tu)
     self.backend.append(elem, body)
 
-    with pytest.raises(XmlDeserializationError):
+    with pytest.raises(hm.XmlDeserializationError):
       self.handler._deserialize(elem)
 
     log_message = "Element <tmx> is missing a <header> child element"

@@ -3,32 +3,29 @@ from unittest.mock import Mock
 
 import pytest
 from pytest_mock import MockerFixture
-from python_tmx.base.types import Prop
-from python_tmx.xml import XML_NS
-from python_tmx.xml.backends.base import XMLBackend
-from python_tmx.xml.policy import SerializationPolicy
-from python_tmx.xml.serialization._handlers import PropSerializer
+
+import hypomnema as hm
 
 
 class TestPropSerializer[T_XmlElement]:
-  handler: PropSerializer
-  backend: XMLBackend[T_XmlElement]
+  handler: hm.PropSerializer
+  backend: hm.XMLBackend[T_XmlElement]
   logger: logging.Logger
-  policy: SerializationPolicy
+  policy: hm.SerializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger
-    self.policy = SerializationPolicy()
+    self.policy = hm.SerializationPolicy()
     self.mocker = mocker
-    self.handler = PropSerializer(backend=self.backend, policy=self.policy, logger=self.logger)
+    self.handler = hm.PropSerializer(backend=self.backend, policy=self.policy, logger=self.logger)
     self.handler._set_emit(lambda x: None)
 
-  def make_prop_object(self) -> Prop:
-    return Prop(text="Valid Prop Content", type="x-test", lang="en-US", o_encoding="UTF-8")
+  def make_prop_object(self) -> hm.Prop:
+    return hm.Prop(text="Valid Prop Content", type="x-test", lang="en-US", o_encoding="UTF-8")
 
   def test_calls_backend_make_elem(self):
     original = self.backend.make_elem
@@ -52,7 +49,7 @@ class TestPropSerializer[T_XmlElement]:
     spy_set_attribute.assert_any_call(elem, prop.type, "type", True)
     # optional attributes
     spy_set_attribute.assert_any_call(elem, prop.o_encoding, "o-encoding", False)
-    spy_set_attribute.assert_any_call(elem, prop.lang, f"{XML_NS}lang", False)
+    spy_set_attribute.assert_any_call(elem, prop.lang, f"{hm.XML_NS}lang", False)
 
   def test_calls_backend_set_text(self):
     spy_set_text = self.mocker.spy(self.backend, "set_text")

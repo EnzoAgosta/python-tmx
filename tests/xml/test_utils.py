@@ -1,7 +1,9 @@
-import pytest
-from python_tmx.xml.utils import normalize_tag
 import xml.etree.ElementTree as et
+
 import lxml.etree as lx
+import pytest
+
+import hypomnema as hm
 
 
 @pytest.mark.parametrize(
@@ -18,9 +20,9 @@ import lxml.etree as lx
   ],
 )
 def test_normalize_tag(val, ret):
-  assert normalize_tag(val) == ret
+  assert hm.normalize_tag(val) == ret
 
 
 def test_normalize_tag_raises_on_unknown_type():
   with pytest.raises(TypeError, match="Unexpected tag type"):
-    normalize_tag(1)
+    hm.normalize_tag(1)

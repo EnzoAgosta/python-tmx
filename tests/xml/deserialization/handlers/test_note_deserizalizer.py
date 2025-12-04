@@ -2,42 +2,38 @@ import logging
 
 import pytest
 from pytest_mock import MockerFixture
-from python_tmx.base.errors import XmlDeserializationError
-from python_tmx.base.types import Note
-from python_tmx.xml import XML_NS
-from python_tmx.xml.backends.base import XMLBackend
-from python_tmx.xml.deserialization._handlers import NoteDeserializer
-from python_tmx.xml.policy import DeserializationPolicy
+
+import hypomnema as hm
 
 
 class TestNoteDeserializer[T_XmlElement]:
-  handler: NoteDeserializer
-  backend: XMLBackend[T_XmlElement]
+  handler: hm.NoteDeserializer
+  backend: hm.XMLBackend[T_XmlElement]
   logger: logging.Logger
-  policy: DeserializationPolicy
+  policy: hm.DeserializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger
-    self.policy = DeserializationPolicy()
+    self.policy = hm.DeserializationPolicy()
     self.mocker = mocker
-    self.handler = NoteDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
+    self.handler = hm.NoteDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
     self.handler._set_emit(lambda x: None)
 
   def make_note_elem(self) -> T_XmlElement:
     elem = self.backend.make_elem("note")
     self.backend.set_text(elem, "Valid Note Content")
-    self.backend.set_attr(elem, f"{XML_NS}lang", "en")
+    self.backend.set_attr(elem, f"{hm.XML_NS}lang", "en")
     self.backend.set_attr(elem, "o-encoding", "base64")
     return elem
 
   def test_returns_Note(self):
     elem = self.make_note_elem()
     note = self.handler._deserialize(elem)
-    assert isinstance(note, Note)
+    assert isinstance(note, hm.Note)
 
   def test_calls_check_tag(self):
     spy_check_tag = self.mocker.spy(self.handler, "_check_tag")
@@ -54,7 +50,7 @@ class TestNoteDeserializer[T_XmlElement]:
 
     assert spy_parse_attributes.call_count == 2
     spy_parse_attributes.assert_any_call(note, "o-encoding", False)
-    spy_parse_attributes.assert_any_call(note, f"{XML_NS}lang", False)
+    spy_parse_attributes.assert_any_call(note, f"{hm.XML_NS}lang", False)
 
   def test_calls_parse_backend_get_text(self):
     spy_get_text = self.mocker.spy(self.backend, "get_text")
@@ -72,7 +68,7 @@ class TestNoteDeserializer[T_XmlElement]:
     elem = self.make_note_elem()
     self.backend.set_text(elem, None)
 
-    with pytest.raises(XmlDeserializationError):
+    with pytest.raises(hm.XmlDeserializationError):
       self.handler._deserialize(elem)
 
     log_message = "Element <note> does not have any text content"
@@ -120,7 +116,7 @@ class TestNoteDeserializer[T_XmlElement]:
     elem = self.make_note_elem()
     self.backend.append(elem, self.backend.make_elem("sub"))
 
-    with pytest.raises(XmlDeserializationError):
+    with pytest.raises(hm.XmlDeserializationError):
       self.handler._deserialize(elem)
 
     log_message = "Invalid child element <sub> in <note>"

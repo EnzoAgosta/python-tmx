@@ -1,5 +1,8 @@
 from __future__ import annotations
+
 from typing import Any
+
+__all__ = ["normalize_tag"]
 
 
 def normalize_tag(tag: Any) -> str:

@@ -3,15 +3,12 @@ from datetime import datetime
 from logging import Logger
 from typing import Callable, LiteralString, Protocol
 
-from python_tmx.base.errors import (
-  AttributeDeserializationError,
-  InvalidTagError,
-  XmlDeserializationError,
-)
-from python_tmx.base.types import BaseElement, BaseInlineElement
-from python_tmx.xml import T_Enum, T_XmlElement
-from python_tmx.xml.backends.base import XMLBackend
-from python_tmx.xml.policy import DeserializationPolicy
+from hypomnema.base.errors import (AttributeDeserializationError,
+                                   InvalidTagError, XmlDeserializationError)
+from hypomnema.base.types import BaseElement, BaseInlineElement
+from hypomnema.xml.backends.base import XMLBackend
+from hypomnema.xml.constants import T_Enum, T_XmlElement
+from hypomnema.xml.policy import DeserializationPolicy
 
 __all__ = ["BaseElementDeserializer", "DeserializerHost", "InlineContentDeserializerMixin"]
 

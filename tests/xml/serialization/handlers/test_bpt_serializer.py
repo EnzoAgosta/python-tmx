@@ -2,30 +2,28 @@ import logging
 
 import pytest
 from pytest_mock import MockerFixture
-from python_tmx.base.types import Bpt, Sub
-from python_tmx.xml.backends.base import XMLBackend
-from python_tmx.xml.policy import SerializationPolicy
-from python_tmx.xml.serialization._handlers import BptSerializer
+
+import hypomnema as hm
 
 
 class TestBptSerializer[T_XmlElement]:
-  handler: BptSerializer
-  backend: XMLBackend[T_XmlElement]
+  handler: hm.BptSerializer
+  backend: hm.XMLBackend[T_XmlElement]
   logger: logging.Logger
-  policy: SerializationPolicy
+  policy: hm.SerializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger
-    self.policy = SerializationPolicy()
-    self.handler = BptSerializer(backend=self.backend, policy=self.policy, logger=self.logger)
+    self.policy = hm.SerializationPolicy()
+    self.handler = hm.BptSerializer(backend=self.backend, policy=self.policy, logger=self.logger)
     self.mocker = mocker
 
-  def make_bpt_object(self) -> Bpt:
-    return Bpt(i=1, x=1, type="bpt", content=["Bpt Content"])
+  def make_bpt_object(self) -> hm.Bpt:
+    return hm.Bpt(i=1, x=1, type="bpt", content=["Bpt Content"])
 
   def test_calls_backend_make_elem(self):
     spy_make_elem = self.mocker.spy(self.backend, "make_elem")
@@ -60,7 +58,7 @@ class TestBptSerializer[T_XmlElement]:
     elem = self.handler._serialize(bpt)
 
     assert spy_deserialize_content.call_count == 1
-    spy_deserialize_content.assert_called_with(bpt, elem, (Sub,))
+    spy_deserialize_content.assert_called_with(bpt, elem, (hm.Sub,))
 
   def test_returns_None_if_not_Bpt_if_policy_is_ignore(
     self, caplog: pytest.LogCaptureFixture, log_level: int

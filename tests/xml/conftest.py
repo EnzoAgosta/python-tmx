@@ -1,24 +1,21 @@
-from collections.abc import Generator
 import logging
+from collections.abc import Generator
 
 import pytest
-
-from python_tmx.xml.backends.base import XMLBackend
-
-from python_tmx.xml.backends.lxml import LxmlBackend
-from python_tmx.xml.backends.standard import StandardBackend
 from strict_backend import StrictBackend
+
+import hypomnema as hm
 
 
 @pytest.fixture(
   params=["standard", "lxml", "test"],
   ids=["Backend=Standard library, ", "Backend=Lxml, ", "Backend=Strict, "],
 )
-def backend(request: pytest.FixtureRequest) -> Generator[XMLBackend, None, None]:
+def backend(request: pytest.FixtureRequest) -> Generator[hm.XMLBackend, None, None]:
   if request.param == "lxml":
-    yield LxmlBackend()
+    yield hm.LxmlBackend()
   elif request.param == "standard":
-    yield StandardBackend()
+    yield hm.StandardBackend()
   elif request.param == "test":
     yield StrictBackend()
   else:

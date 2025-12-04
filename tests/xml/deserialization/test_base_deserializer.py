@@ -1,40 +1,32 @@
-from datetime import UTC, datetime
 import logging
-from unittest.mock import Mock
+from datetime import UTC, datetime
 
 import pytest
 from pytest_mock import MockerFixture
-from python_tmx.base.errors import InvalidTagError, XmlDeserializationError
-from python_tmx.base.types import BaseElement, Segtype
-from python_tmx.xml import T_XmlElement
-from python_tmx.xml.backends.base import XMLBackend
-from python_tmx.xml.deserialization.base import (
-  BaseElementDeserializer,
-  InlineContentDeserializerMixin,
-)
-from python_tmx.xml.policy import DeserializationPolicy
+
+import hypomnema as hm
 
 
 class FakeBaseElementDeserializer(
-  BaseElementDeserializer[T_XmlElement], InlineContentDeserializerMixin[T_XmlElement]
+  hm.BaseElementDeserializer[hm.T_XmlElement], hm.InlineContentDeserializerMixin[hm.T_XmlElement]
 ):
-  def _deserialize(self, element: T_XmlElement) -> BaseElement | None:
+  def _deserialize(self, element: hm.T_XmlElement) -> hm.BaseElement | None:
     raise NotImplementedError
 
 
 class TestBaseElementDeserializer[T_XmlElement]:
   handler: FakeBaseElementDeserializer
-  backend: XMLBackend[T_XmlElement]
+  backend: hm.XMLBackend[T_XmlElement]
   logger: logging.Logger
-  policy: DeserializationPolicy
+  policy: hm.DeserializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger
-    self.policy = DeserializationPolicy()
+    self.policy = hm.DeserializationPolicy()
     self.mocker = mocker
 
     self.handler = FakeBaseElementDeserializer(
@@ -56,7 +48,7 @@ class TestBaseElementDeserializer[T_XmlElement]:
     self.policy.invalid_tag.behavior = "raise"
     self.policy.invalid_tag.log_level = log_level
 
-    with pytest.raises(InvalidTagError, match="Incorrect tag: expected right, got wrong"):
+    with pytest.raises(hm.InvalidTagError, match="Incorrect tag: expected right, got wrong"):
       self.handler._check_tag(elem, "right")
 
     expected_log = (self.logger.name, log_level, "Incorrect tag: expected right, got wrong")
@@ -83,7 +75,7 @@ class TestBaseElementDeserializer[T_XmlElement]:
 
     log_message = "Missing required attribute 'missing' on element <elem>"
 
-    with pytest.raises(XmlDeserializationError, match=log_message):
+    with pytest.raises(hm.XmlDeserializationError, match=log_message):
       self.handler._parse_attribute_as_int(elem, "missing", True)
 
     assert caplog.record_tuples == [(self.logger.name, log_level, log_message)]
@@ -119,7 +111,7 @@ class TestBaseElementDeserializer[T_XmlElement]:
     self.policy.invalid_attribute_value.log_level = log_level
 
     log_msg = "Cannot convert 'invalid' to an int for attribute attr"
-    with pytest.raises(XmlDeserializationError, match=log_msg):
+    with pytest.raises(hm.XmlDeserializationError, match=log_msg):
       self.handler._parse_attribute_as_int(elem, "attr", True)
 
     expected_log = (self.logger.name, log_level, log_msg)
@@ -154,8 +146,8 @@ class TestBaseElementDeserializer[T_XmlElement]:
 
     log_message = "Missing required attribute 'missing' on element <elem>"
 
-    with pytest.raises(XmlDeserializationError, match=log_message):
-      self.handler._parse_attribute_as_enum(elem, "missing", Segtype, True)
+    with pytest.raises(hm.XmlDeserializationError, match=log_message):
+      self.handler._parse_attribute_as_enum(elem, "missing", hm.Segtype, True)
 
     assert caplog.record_tuples == [(self.logger.name, log_level, log_message)]
 
@@ -167,7 +159,7 @@ class TestBaseElementDeserializer[T_XmlElement]:
     self.policy.required_attribute_missing.behavior = "ignore"
     self.policy.required_attribute_missing.log_level = log_level
 
-    val = self.handler._parse_attribute_as_enum(elem, "missing", Segtype, True)
+    val = self.handler._parse_attribute_as_enum(elem, "missing", hm.Segtype, True)
     assert val is None
 
     log_message = "Missing required attribute 'missing' on element <elem>"
@@ -177,8 +169,8 @@ class TestBaseElementDeserializer[T_XmlElement]:
     elem = self.backend.make_elem("elem")
     self.backend.set_attr(elem, "attr", "block")
 
-    val = self.handler._parse_attribute_as_enum(elem, "attr", Segtype, True)
-    assert val == Segtype.BLOCK
+    val = self.handler._parse_attribute_as_enum(elem, "attr", hm.Segtype, True)
+    assert val == hm.Segtype.BLOCK
 
   def test_parse_attribute_as_enum_raise_if_invalid(
     self, caplog: pytest.LogCaptureFixture, log_level: int
@@ -190,8 +182,8 @@ class TestBaseElementDeserializer[T_XmlElement]:
     self.policy.invalid_attribute_value.log_level = log_level
 
     log_msg = "Value 'invalid' is not a valid enum value for attribute attr"
-    with pytest.raises(XmlDeserializationError, match=log_msg):
-      self.handler._parse_attribute_as_enum(elem, "attr", Segtype, True)
+    with pytest.raises(hm.XmlDeserializationError, match=log_msg):
+      self.handler._parse_attribute_as_enum(elem, "attr", hm.Segtype, True)
 
     expected_log = (self.logger.name, log_level, log_msg)
     assert caplog.record_tuples == [expected_log]
@@ -205,7 +197,7 @@ class TestBaseElementDeserializer[T_XmlElement]:
     self.policy.invalid_attribute_value.behavior = "ignore"
     self.policy.invalid_attribute_value.log_level = log_level
 
-    val = self.handler._parse_attribute_as_enum(elem, "attr", Segtype, True)
+    val = self.handler._parse_attribute_as_enum(elem, "attr", hm.Segtype, True)
     assert val is None
 
     expected_log = (
@@ -225,7 +217,7 @@ class TestBaseElementDeserializer[T_XmlElement]:
 
     log_message = "Missing required attribute 'missing' on element <elem>"
 
-    with pytest.raises(XmlDeserializationError, match=log_message):
+    with pytest.raises(hm.XmlDeserializationError, match=log_message):
       self.handler._parse_attribute_as_dt(elem, "missing", True)
 
     assert caplog.record_tuples == [(self.logger.name, log_level, log_message)]
@@ -262,7 +254,7 @@ class TestBaseElementDeserializer[T_XmlElement]:
     self.policy.invalid_attribute_value.log_level = log_level
 
     log_msg = "Cannot convert 'invalid' to a datetime object for attribute attr"
-    with pytest.raises(XmlDeserializationError, match=log_msg):
+    with pytest.raises(hm.XmlDeserializationError, match=log_msg):
       self.handler._parse_attribute_as_dt(elem, "attr", True)
 
     expected_log = (self.logger.name, log_level, log_msg)
@@ -297,7 +289,7 @@ class TestBaseElementDeserializer[T_XmlElement]:
 
     log_message = "Missing required attribute 'missing' on element <elem>"
 
-    with pytest.raises(XmlDeserializationError, match=log_message):
+    with pytest.raises(hm.XmlDeserializationError, match=log_message):
       self.handler._parse_attribute(elem, "missing", True)
 
     assert caplog.record_tuples == [(self.logger.name, log_level, log_message)]
@@ -335,7 +327,7 @@ class TestBaseElementDeserializer[T_XmlElement]:
     self.policy.invalid_child_element.behavior = "raise"
     self.policy.invalid_child_element.log_level = log_level
 
-    with pytest.raises(XmlDeserializationError, match=log_message):
+    with pytest.raises(hm.XmlDeserializationError, match=log_message):
       self.handler.deserialize_content(elem, ("child",))
 
     expected_log = (self.logger.name, log_level, log_message)
@@ -361,7 +353,7 @@ class TestBaseElementDeserializer[T_XmlElement]:
     assert caplog.record_tuples == [expected_log]
 
   def test_calls_emeit(self):
-    mock_emit = Mock()
+    mock_emit = self.mocker.Mock()
     self.handler._set_emit(mock_emit)
     elem = self.backend.make_elem("elem")
     child = self.backend.make_elem("child")
@@ -401,7 +393,7 @@ class TestBaseElementDeserializer[T_XmlElement]:
     self.policy.empty_content.behavior = "raise"
     self.policy.empty_content.log_level = log_level
 
-    with pytest.raises(XmlDeserializationError, match="Element <elem> is empty"):
+    with pytest.raises(hm.XmlDeserializationError, match="Element <elem> is empty"):
       self.handler.deserialize_content(elem, ("child",))
 
     expected_log = (self.logger.name, log_level, "Element <elem> is empty")

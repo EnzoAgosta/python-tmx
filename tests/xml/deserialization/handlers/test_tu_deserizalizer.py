@@ -2,28 +2,25 @@ import logging
 
 import pytest
 from pytest_mock import MockerFixture
-from python_tmx.base.errors import XmlDeserializationError
-from python_tmx.base.types import Tu, Note, Prop, Tuv
-from python_tmx.xml.backends.base import XMLBackend
-from python_tmx.xml.deserialization._handlers import TuDeserializer
-from python_tmx.xml.policy import DeserializationPolicy
+
+import hypomnema as hm
 
 
 class TestTuDeserializer[T_XmlElement]:
-  handler: TuDeserializer
-  backend: XMLBackend[T_XmlElement]
+  handler: hm.TuDeserializer
+  backend: hm.XMLBackend[T_XmlElement]
   logger: logging.Logger
-  policy: DeserializationPolicy
+  policy: hm.DeserializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger
-    self.policy = DeserializationPolicy()
+    self.policy = hm.DeserializationPolicy()
     self.mocker = mocker
-    self.handler = TuDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
+    self.handler = hm.TuDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
     self.handler._set_emit(lambda x: None)
 
   def make_tu_elem(self) -> T_XmlElement:
@@ -49,7 +46,7 @@ class TestTuDeserializer[T_XmlElement]:
   def test_returns_Tu(self):
     elem = self.make_tu_elem()
     tu = self.handler._deserialize(elem)
-    assert isinstance(tu, Tu)
+    assert isinstance(tu, hm.Tu)
 
   def test_calls_check_tag(self):
     spy_check_tag = self.mocker.spy(self.handler, "_check_tag")
@@ -106,11 +103,11 @@ class TestTuDeserializer[T_XmlElement]:
 
   def test_appends_if_emit_does_not_return_none(self):
     self.handler._set_emit(
-      lambda x: Prop(text="foo", type="bar")
+      lambda x: hm.Prop(text="foo", type="bar")
       if self.backend.get_tag(x) == "prop"
-      else Note(text="baz")
+      else hm.Note(text="baz")
       if self.backend.get_tag(x) == "note"
-      else Tuv(lang="en")
+      else hm.Tuv(lang="en")
       if self.backend.get_tag(x) == "tuv"
       else None
     )
@@ -119,9 +116,9 @@ class TestTuDeserializer[T_XmlElement]:
 
     tu = self.handler._deserialize(elem)
 
-    assert tu.props == [Prop(text="foo", type="bar")]
-    assert tu.notes == [Note(text="baz")]
-    assert tu.variants == [Tuv(lang="en")]
+    assert tu.props == [hm.Prop(text="foo", type="bar")]
+    assert tu.notes == [hm.Note(text="baz")]
+    assert tu.variants == [hm.Tuv(lang="en")]
 
     assert spy_emit.call_count == 3
     for i in self.backend.iter_children(elem):
@@ -142,7 +139,7 @@ class TestTuDeserializer[T_XmlElement]:
     elem = self.make_tu_elem()
     self.backend.append(elem, self.backend.make_elem("invalid"))
 
-    with pytest.raises(XmlDeserializationError):
+    with pytest.raises(hm.XmlDeserializationError):
       self.handler._deserialize(elem)
 
     log_message = "Invalid child element <invalid> in <tu>"
@@ -171,7 +168,7 @@ class TestTuDeserializer[T_XmlElement]:
     elem = self.make_tu_elem()
     self.backend.set_text(elem, "foo")
 
-    with pytest.raises(XmlDeserializationError):
+    with pytest.raises(hm.XmlDeserializationError):
       self.handler._deserialize(elem)
 
     log_message = "Element <tu> has extra text content 'foo'"

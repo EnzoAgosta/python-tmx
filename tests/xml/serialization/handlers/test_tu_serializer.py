@@ -1,39 +1,36 @@
-from datetime import UTC, datetime
 import logging
+from datetime import UTC, datetime
 
 import pytest
 from pytest_mock import MockerFixture
-from python_tmx.base.errors import XmlSerializationError
-from python_tmx.base.types import BaseElement, Note, Prop, Segtype, Tu, Tuv
-from python_tmx.xml.backends.base import XMLBackend
-from python_tmx.xml.policy import SerializationPolicy
-from python_tmx.xml.serialization._handlers import TuSerializer
+
+import hypomnema as hm
 
 singleton = object()
 
 
 class TestTuSerializer[T_XmlElement]:
-  handler: TuSerializer
-  backend: XMLBackend[T_XmlElement]
+  handler: hm.TuSerializer
+  backend: hm.XMLBackend[T_XmlElement]
   logger: logging.Logger
-  policy: SerializationPolicy
+  policy: hm.SerializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger
-    self.policy = SerializationPolicy()
+    self.policy = hm.SerializationPolicy()
     self.mocker = mocker
-    self.handler = TuSerializer(backend=self.backend, policy=self.policy, logger=self.logger)
+    self.handler = hm.TuSerializer(backend=self.backend, policy=self.policy, logger=self.logger)
 
-    def test_emit(obj: BaseElement) -> T_XmlElement | None:
-      if isinstance(obj, Prop):
+    def test_emit(obj: hm.BaseElement) -> T_XmlElement | None:
+      if isinstance(obj, hm.Prop):
         return self.backend.make_elem("prop")
-      elif isinstance(obj, Note):
+      elif isinstance(obj, hm.Note):
         return self.backend.make_elem("note")
-      elif isinstance(obj, Tuv):
+      elif isinstance(obj, hm.Tuv):
         return self.backend.make_elem("tuv")
       elif obj is singleton:
         return None
@@ -41,8 +38,8 @@ class TestTuSerializer[T_XmlElement]:
 
     self.handler._set_emit(test_emit)
 
-  def make_tu_object(self) -> Tu:
-    return Tu(
+  def make_tu_object(self) -> hm.Tu:
+    return hm.Tu(
       tuid="tu001",
       o_encoding="UTF-8",
       datatype="plaintext",
@@ -54,14 +51,14 @@ class TestTuSerializer[T_XmlElement]:
       creationid="User1",
       changedate=datetime(2025, 2, 1, 14, 30, 0, tzinfo=UTC),
       changeid="User2",
-      segtype=Segtype.SENTENCE,
+      segtype=hm.Segtype.SENTENCE,
       o_tmf="TestTMF",
       srclang="en-US",
-      props=[Prop(text="Prop", type="x-test", lang="en-US", o_encoding="UTF-8")],
-      notes=[Note(text="Note", lang="en-US", o_encoding="UTF-8")],
+      props=[hm.Prop(text="Prop", type="x-test", lang="en-US", o_encoding="UTF-8")],
+      notes=[hm.Note(text="Note", lang="en-US", o_encoding="UTF-8")],
       variants=[
-        Tuv(lang="en-US", content=["Hello World"]),
-        Tuv(lang="fr-FR", content=["Bonjour le monde"]),
+        hm.Tuv(lang="en-US", content=["Hello World"]),
+        hm.Tuv(lang="fr-FR", content=["Bonjour le monde"]),
       ],
     )
 
@@ -121,7 +118,7 @@ class TestTuSerializer[T_XmlElement]:
     elem = self.handler._serialize(tu)
 
     assert elem is not None
-    spy_set_enum_attribute.assert_called_once_with(elem, tu.segtype, "segtype", Segtype, False)
+    spy_set_enum_attribute.assert_called_once_with(elem, tu.segtype, "segtype", hm.Segtype, False)
 
   def test_returns_None_if_not_Tu_if_policy_is_ignore(
     self, caplog: pytest.LogCaptureFixture, log_level: int
@@ -175,7 +172,7 @@ class TestTuSerializer[T_XmlElement]:
     log_message = "Invalid child element 'int' in Tu.props"
     tu = self.make_tu_object()
     tu.props.append(1)  # type: ignore[list-item]
-    with pytest.raises(XmlSerializationError, match=log_message):
+    with pytest.raises(hm.XmlSerializationError, match=log_message):
       self.handler._serialize(tu)
 
     expected_log = (self.logger.name, log_level, log_message)
@@ -206,7 +203,7 @@ class TestTuSerializer[T_XmlElement]:
     log_message = "Invalid child element 'int' in Tu.notes"
     tu = self.make_tu_object()
     tu.notes.append(1)  # type: ignore[list-item]
-    with pytest.raises(XmlSerializationError, match=log_message):
+    with pytest.raises(hm.XmlSerializationError, match=log_message):
       self.handler._serialize(tu)
 
     expected_log = (self.logger.name, log_level, log_message)
@@ -239,7 +236,7 @@ class TestTuSerializer[T_XmlElement]:
     log_message = "Invalid child element 'int' in Tu.variants"
     tu = self.make_tu_object()
     tu.variants.append(1)  # type: ignore[list-item]
-    with pytest.raises(XmlSerializationError, match=log_message):
+    with pytest.raises(hm.XmlSerializationError, match=log_message):
       self.handler._serialize(tu)
 
     expected_log = (self.logger.name, log_level, log_message)

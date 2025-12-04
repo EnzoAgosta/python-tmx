@@ -3,6 +3,8 @@ from typing import Protocol, TypeVar
 
 T_XmlBackend = TypeVar("T_XmlBackend")
 
+__all__ = ["XMLBackend"]
+
 
 class XMLBackend[T_XmlBackend](Protocol):
   def get_tag(self, element: T_XmlBackend) -> str: ...

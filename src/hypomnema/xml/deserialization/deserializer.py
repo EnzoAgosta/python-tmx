@@ -1,23 +1,23 @@
 from logging import Logger, getLogger
-from python_tmx.base.errors import MissingHandlerError
-from python_tmx.base.types import BaseElement
-from python_tmx.xml.backends.base import XMLBackend
-from python_tmx.xml.deserialization._handlers import (
-  BptDeserializer,
-  EptDeserializer,
-  HeaderDeserializer,
-  HiDeserializer,
-  ItDeserializer,
-  NoteDeserializer,
-  PhDeserializer,
-  PropDeserializer,
-  SubDeserializer,
-  TmxDeserializer,
-  TuDeserializer,
-  TuvDeserializer,
-)
-from python_tmx.xml.deserialization.base import BaseElementDeserializer
-from python_tmx.xml.policy import DeserializationPolicy
+
+from hypomnema.base.errors import MissingHandlerError
+from hypomnema.base.types import BaseElement
+from hypomnema.xml.backends.base import XMLBackend
+from hypomnema.xml.constants import T_XmlElement
+from hypomnema.xml.deserialization._handlers import (BptDeserializer,
+                                                     EptDeserializer,
+                                                     HeaderDeserializer,
+                                                     HiDeserializer,
+                                                     ItDeserializer,
+                                                     NoteDeserializer,
+                                                     PhDeserializer,
+                                                     PropDeserializer,
+                                                     SubDeserializer,
+                                                     TmxDeserializer,
+                                                     TuDeserializer,
+                                                     TuvDeserializer)
+from hypomnema.xml.deserialization.base import BaseElementDeserializer
+from hypomnema.xml.policy import DeserializationPolicy
 
 _ModuleLogger = getLogger(__name__)
 

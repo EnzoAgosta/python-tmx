@@ -2,43 +2,39 @@ import logging
 
 import pytest
 from pytest_mock import MockerFixture
-from python_tmx.base.errors import XmlDeserializationError
-from python_tmx.base.types import Prop
-from python_tmx.xml import XML_NS
-from python_tmx.xml.backends.base import XMLBackend
-from python_tmx.xml.deserialization._handlers import PropDeserializer
-from python_tmx.xml.policy import DeserializationPolicy
+
+import hypomnema as hm
 
 
 class TestPropDeserializer[T_XmlElement]:
-  handler: PropDeserializer
-  backend: XMLBackend[T_XmlElement]
+  handler: hm.PropDeserializer
+  backend: hm.XMLBackend[T_XmlElement]
   logger: logging.Logger
-  policy: DeserializationPolicy
+  policy: hm.DeserializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger
-    self.policy = DeserializationPolicy()
+    self.policy = hm.DeserializationPolicy()
     self.mocker = mocker
-    self.handler = PropDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
+    self.handler = hm.PropDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
     self.handler._set_emit(lambda x: None)
 
   def make_prop_elem(self) -> T_XmlElement:
     elem = self.backend.make_elem("prop")
     self.backend.set_text(elem, "Valid Prop Content")
     self.backend.set_attr(elem, "type", "prop_type")
-    self.backend.set_attr(elem, f"{XML_NS}lang", "en")
+    self.backend.set_attr(elem, f"{hm.XML_NS}lang", "en")
     self.backend.set_attr(elem, "o-encoding", "base64")
     return elem
 
   def test_returns_Prop(self):
     elem = self.make_prop_elem()
     prop = self.handler._deserialize(elem)
-    assert isinstance(prop, Prop)
+    assert isinstance(prop, hm.Prop)
 
   def test_calls_check_tag(self):
     spy_check_tag = self.mocker.spy(self.handler, "_check_tag")
@@ -58,7 +54,7 @@ class TestPropDeserializer[T_XmlElement]:
     spy_parse_attributes.assert_any_call(prop, "type", True)
     # optional attributes
     spy_parse_attributes.assert_any_call(prop, "o-encoding", False)
-    spy_parse_attributes.assert_any_call(prop, f"{XML_NS}lang", False)
+    spy_parse_attributes.assert_any_call(prop, f"{hm.XML_NS}lang", False)
 
   def test_calls_parse_backend_get_text(self):
     spy_get_text = self.mocker.spy(self.backend, "get_text")
@@ -76,7 +72,7 @@ class TestPropDeserializer[T_XmlElement]:
     elem = self.make_prop_elem()
     self.backend.set_text(elem, None)
 
-    with pytest.raises(XmlDeserializationError):
+    with pytest.raises(hm.XmlDeserializationError):
       self.handler._deserialize(elem)
 
     log_message = "Element <prop> does not have any text content"
@@ -124,7 +120,7 @@ class TestPropDeserializer[T_XmlElement]:
     elem = self.make_prop_elem()
     self.backend.append(elem, self.backend.make_elem("sub"))
 
-    with pytest.raises(XmlDeserializationError):
+    with pytest.raises(hm.XmlDeserializationError):
       self.handler._deserialize(elem)
 
     log_message = "Invalid child element <sub> in <prop>"

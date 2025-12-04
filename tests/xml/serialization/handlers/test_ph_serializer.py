@@ -2,30 +2,28 @@ import logging
 
 import pytest
 from pytest_mock import MockerFixture
-from python_tmx.base.types import Assoc, Ph, Sub
-from python_tmx.xml.backends.base import XMLBackend
-from python_tmx.xml.policy import SerializationPolicy
-from python_tmx.xml.serialization._handlers import PhSerializer
+
+import hypomnema as hm
 
 
 class TestPhSerializer[T_XmlElement]:
-  handler: PhSerializer
-  backend: XMLBackend[T_XmlElement]
+  handler: hm.PhSerializer
+  backend: hm.XMLBackend[T_XmlElement]
   logger: logging.Logger
-  policy: SerializationPolicy
+  policy: hm.SerializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger
-    self.policy = SerializationPolicy()
-    self.handler = PhSerializer(backend=self.backend, policy=self.policy, logger=self.logger)
+    self.policy = hm.SerializationPolicy()
+    self.handler = hm.PhSerializer(backend=self.backend, policy=self.policy, logger=self.logger)
     self.mocker = mocker
 
-  def make_it_object(self) -> Ph:
-    return Ph(assoc=Assoc.P, x=1, type="ph", content=["Ph Content"])
+  def make_it_object(self) -> hm.Ph:
+    return hm.Ph(assoc=hm.Assoc.P, x=1, type="ph", content=["Ph Content"])
 
   def test_calls_backend_make_elem(self):
     spy_make_elem = self.mocker.spy(self.backend, "make_elem")
@@ -48,7 +46,7 @@ class TestPhSerializer[T_XmlElement]:
 
     elem = self.handler._serialize(ph)
 
-    spy_set_enum_attribute.assert_called_once_with(elem, ph.assoc, "assoc", Assoc, False)
+    spy_set_enum_attribute.assert_called_once_with(elem, ph.assoc, "assoc", hm.Assoc, False)
 
   def test_calls_set_attribute(self):
     spy_set_attribute = self.mocker.spy(self.handler, "_set_attribute")
@@ -66,7 +64,7 @@ class TestPhSerializer[T_XmlElement]:
     elem = self.handler._serialize(ph)
 
     assert spy_deserialize_content.call_count == 1
-    spy_deserialize_content.assert_called_with(ph, elem, (Sub,))
+    spy_deserialize_content.assert_called_with(ph, elem, (hm.Sub,))
 
   def test_returns_None_if_not_Ph_if_policy_is_ignore(
     self, caplog: pytest.LogCaptureFixture, log_level: int

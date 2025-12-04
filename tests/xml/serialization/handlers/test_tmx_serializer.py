@@ -2,35 +2,32 @@ import logging
 
 import pytest
 from pytest_mock import MockerFixture
-from python_tmx.base.errors import XmlSerializationError
-from python_tmx.base.types import BaseElement, Header, Segtype, Tmx, Tu
-from python_tmx.xml.backends.base import XMLBackend
-from python_tmx.xml.policy import SerializationPolicy
-from python_tmx.xml.serialization._handlers import TmxSerializer
+
+import hypomnema as hm
 
 singleton = object()
 
 
 class TestTmxSerializer[T_XmlElement]:
-  handler: TmxSerializer
-  backend: XMLBackend[T_XmlElement]
+  handler: hm.TmxSerializer
+  backend: hm.XMLBackend[T_XmlElement]
   logger: logging.Logger
-  policy: SerializationPolicy
+  policy: hm.SerializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger
-    self.policy = SerializationPolicy()
+    self.policy = hm.SerializationPolicy()
     self.mocker = mocker
-    self.handler = TmxSerializer(backend=self.backend, policy=self.policy, logger=self.logger)
+    self.handler = hm.TmxSerializer(backend=self.backend, policy=self.policy, logger=self.logger)
 
-    def test_emit(obj: BaseElement) -> T_XmlElement | None:
-      if isinstance(obj, Header):
+    def test_emit(obj: hm.BaseElement) -> T_XmlElement | None:
+      if isinstance(obj, hm.Header):
         return self.backend.make_elem("header")
-      elif isinstance(obj, Tu):
+      elif isinstance(obj, hm.Tu):
         return self.backend.make_elem("tu")
       elif obj is singleton:
         return None
@@ -38,19 +35,19 @@ class TestTmxSerializer[T_XmlElement]:
 
     self.handler._set_emit(test_emit)
 
-  def make_tu_object(self) -> Tmx:
-    return Tmx(
+  def make_tu_object(self) -> hm.Tmx:
+    return hm.Tmx(
       version="1.4",
-      header=Header(
+      header=hm.Header(
         creationtool="pytest",
         creationtoolversion="v1",
-        segtype=Segtype.SENTENCE,
+        segtype=hm.Segtype.SENTENCE,
         o_tmf="TestTMF",
         adminlang="en-US",
         srclang="en-US",
         datatype="plaintext",
       ),
-      body=[Tu(tuid="tu001")],
+      body=[hm.Tu(tuid="tu001")],
     )
 
   def test_calls_backend_make_elem(self):
@@ -126,7 +123,7 @@ class TestTmxSerializer[T_XmlElement]:
 
     log_message = "Tmx.header is not a Header object. Expected Header, got 'int'"
 
-    with pytest.raises(XmlSerializationError, match=log_message):
+    with pytest.raises(hm.XmlSerializationError, match=log_message):
       self.handler._serialize(tmx)
 
     expected_log = (self.logger.name, log_level, log_message)
@@ -154,7 +151,7 @@ class TestTmxSerializer[T_XmlElement]:
     tmx = self.make_tu_object()
     tmx.body = [1]  # type: ignore[list-item]
 
-    with pytest.raises(XmlSerializationError, match=log_message):
+    with pytest.raises(hm.XmlSerializationError, match=log_message):
       self.handler._serialize(tmx)
 
     expected_log = (self.logger.name, log_level, log_message)
