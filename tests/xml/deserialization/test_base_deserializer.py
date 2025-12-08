@@ -7,22 +7,22 @@ from pytest_mock import MockerFixture
 import hypomnema as hm
 
 
-class FakeBaseElementDeserializer(
-  hm.BaseElementDeserializer[hm.T_XmlElement], hm.InlineContentDeserializerMixin[hm.T_XmlElement]
+class FakeBaseElementDeserializer[T](
+  hm.BaseElementDeserializer[T], hm.InlineContentDeserializerMixin[T]
 ):
-  def _deserialize(self, element: hm.T_XmlElement) -> hm.BaseElement | None:
+  def _deserialize(self, element: T) -> hm.BaseElement | None:
     raise NotImplementedError
 
 
-class TestBaseElementDeserializer[T_XmlElement]:
+class TestBaseElementDeserializer[T]:
   handler: FakeBaseElementDeserializer
-  backend: hm.XMLBackend[T_XmlElement]
+  backend: hm.XMLBackend[T]
   logger: logging.Logger
   policy: hm.DeserializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger

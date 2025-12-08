@@ -3,7 +3,7 @@ from typing import Protocol, TypeVar
 
 T_XmlBackend = TypeVar("T_XmlBackend")
 
-__all__ = ["XMLBackend"]
+__all__ = ["XMLBackend", "T_XmlBackend"]
 
 
 class XMLBackend[T_XmlBackend](Protocol):
