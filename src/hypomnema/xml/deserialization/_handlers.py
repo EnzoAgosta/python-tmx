@@ -2,7 +2,7 @@ from hypomnema.base.errors import XmlDeserializationError
 from hypomnema.base.types import (Assoc, BaseInlineElement, Bpt, Ept, Header,
                                   Hi, It, Note, Ph, Pos, Prop, Segtype, Sub,
                                   Tmx, Tu, Tuv)
-from hypomnema.xml.constants import XML_NS, T_XmlElement
+from hypomnema.xml.constants import XML_NS
 from hypomnema.xml.deserialization.base import (BaseElementDeserializer,
                                                 InlineContentDeserializerMixin)
 
@@ -22,7 +22,7 @@ __all__ = [
 ]
 
 
-class NoteDeserializer(BaseElementDeserializer[T_XmlElement]):
+class NoteDeserializer[T](BaseElementDeserializer[T]):
   """
   Deserializer for the `<note>` element.
 
@@ -34,12 +34,12 @@ class NoteDeserializer(BaseElementDeserializer[T_XmlElement]):
       - `invalid_child_element`: Checks if the note contains nested tags (it should be text-only).
   """
 
-  def _deserialize(self, element: T_XmlElement) -> Note:
+  def _deserialize(self, element: T) -> Note:
     """
     Parses a <note> element.
 
     Args:
-        element (T_XmlElement): The element to parse.
+        element (T): The element to parse.
     """
     self._check_tag(element, "note")
     lang = self._parse_attribute(element, f"{XML_NS}lang", False)
@@ -69,7 +69,7 @@ class NoteDeserializer(BaseElementDeserializer[T_XmlElement]):
     return Note(text=text, lang=lang, o_encoding=o_encoding)  # type: ignore[arg-type]
 
 
-class PropDeserializer(BaseElementDeserializer[T_XmlElement]):
+class PropDeserializer[T](BaseElementDeserializer[T]):
   """
   Deserializer for the `<prop>` element.
 
@@ -82,7 +82,7 @@ class PropDeserializer(BaseElementDeserializer[T_XmlElement]):
       - `invalid_child_element`: Ensures no nested tags.
   """
 
-  def _deserialize(self, element: T_XmlElement) -> Prop:
+  def _deserialize(self, element: T) -> Prop:
     self._check_tag(element, "prop")
     _type = self._parse_attribute(element, "type", True)
     lang = self._parse_attribute(element, f"{XML_NS}lang", False)
@@ -112,7 +112,7 @@ class PropDeserializer(BaseElementDeserializer[T_XmlElement]):
     return Prop(text=text, type=_type, lang=lang, o_encoding=o_encoding)  # type: ignore[arg-type]
 
 
-class HeaderDeserializer(BaseElementDeserializer[T_XmlElement]):
+class HeaderDeserializer[T](BaseElementDeserializer[T]):
   """
   Deserializer for the `<header>` element.
 
@@ -127,7 +127,7 @@ class HeaderDeserializer(BaseElementDeserializer[T_XmlElement]):
       - `invalid_child_element`: Detects tags other than <prop> or <note>.
   """
 
-  def _deserialize(self, element: T_XmlElement) -> Header:
+  def _deserialize(self, element: T) -> Header:
     self._check_tag(element, "header")
 
     if (text := self.backend.get_text(element)) is not None:
@@ -191,16 +191,14 @@ class HeaderDeserializer(BaseElementDeserializer[T_XmlElement]):
     )
 
 
-class BptDeserializer(
-  BaseElementDeserializer[T_XmlElement], InlineContentDeserializerMixin[T_XmlElement]
-):
+class BptDeserializer[T](BaseElementDeserializer[T], InlineContentDeserializerMixin[T]):
   """
   Deserializer for the `<bpt>` (Begin Paired Tag) element.
 
   Uses `InlineContentDeserializerMixin` to process its `<sub>` children.
   """
 
-  def _deserialize(self, element: T_XmlElement) -> Bpt:
+  def _deserialize(self, element: T) -> Bpt:
     self._check_tag(element, "bpt")
     i = self._parse_attribute_as_int(element, "i", True)
     x = self._parse_attribute_as_int(element, "x", False)
@@ -209,28 +207,24 @@ class BptDeserializer(
     return Bpt(i=i, x=x, type=type, content=content)  # type: ignore[arg-type]
 
 
-class EptDeserializer(
-  BaseElementDeserializer[T_XmlElement], InlineContentDeserializerMixin[T_XmlElement]
-):
+class EptDeserializer[T](BaseElementDeserializer[T], InlineContentDeserializerMixin[T]):
   """
   Deserializer for the `<ept>` (End Paired Tag) element.
   """
 
-  def _deserialize(self, element: T_XmlElement) -> Ept:
+  def _deserialize(self, element: T) -> Ept:
     self._check_tag(element, "ept")
     i = self._parse_attribute_as_int(element, "i", True)
     content = self.deserialize_content(element, ("sub",))
     return Ept(i=i, content=content)  # type: ignore[arg-type]
 
 
-class ItDeserializer(
-  BaseElementDeserializer[T_XmlElement], InlineContentDeserializerMixin[T_XmlElement]
-):
+class ItDeserializer[T](BaseElementDeserializer[T], InlineContentDeserializerMixin[T]):
   """
   Deserializer for the `<it>` (Isolated Tag) element.
   """
 
-  def _deserialize(self, element: T_XmlElement) -> It:
+  def _deserialize(self, element: T) -> It:
     self._check_tag(element, "it")
     pos = self._parse_attribute_as_enum(element, "pos", Pos, True)
     x = self._parse_attribute_as_int(element, "x", False)
@@ -239,14 +233,12 @@ class ItDeserializer(
     return It(pos=pos, x=x, type=type, content=content)  # type: ignore[arg-type]
 
 
-class PhDeserializer(
-  BaseElementDeserializer[T_XmlElement], InlineContentDeserializerMixin[T_XmlElement]
-):
+class PhDeserializer[T](BaseElementDeserializer[T], InlineContentDeserializerMixin[T]):
   """
   Deserializer for the `<ph>` (Placeholder) element.
   """
 
-  def _deserialize(self, element: T_XmlElement) -> Ph:
+  def _deserialize(self, element: T) -> Ph:
     self._check_tag(element, "ph")
     x = self._parse_attribute_as_int(element, "x", False)
     assoc = self._parse_attribute_as_enum(element, "assoc", Assoc, False)
@@ -255,16 +247,14 @@ class PhDeserializer(
     return Ph(x=x, assoc=assoc, type=type, content=content)  # type: ignore[arg-type]
 
 
-class SubDeserializer(
-  BaseElementDeserializer[T_XmlElement], InlineContentDeserializerMixin[T_XmlElement]
-):
+class SubDeserializer[T](BaseElementDeserializer[T], InlineContentDeserializerMixin[T]):
   """
   Deserializer for the `<sub>` (Sub-flow) element.
 
   Contains recursive inline markup.
   """
 
-  def _deserialize(self, element: T_XmlElement) -> Sub:
+  def _deserialize(self, element: T) -> Sub:
     self._check_tag(element, "sub")
     datatype = self._parse_attribute(element, "datatype", False)
     type = self._parse_attribute(element, "type", False)
@@ -272,14 +262,12 @@ class SubDeserializer(
     return Sub(datatype=datatype, type=type, content=content)  # type: ignore[arg-type]
 
 
-class HiDeserializer(
-  BaseElementDeserializer[T_XmlElement], InlineContentDeserializerMixin[T_XmlElement]
-):
+class HiDeserializer[T](BaseElementDeserializer[T], InlineContentDeserializerMixin[T]):
   """
   Deserializer for the `<hi>` (Highlight) element.
   """
 
-  def _deserialize(self, element: T_XmlElement) -> Hi:
+  def _deserialize(self, element: T) -> Hi:
     self._check_tag(element, "hi")
     x = self._parse_attribute_as_int(element, "x", False)
     type = self._parse_attribute(element, "type", False)
@@ -287,9 +275,7 @@ class HiDeserializer(
     return Hi(x=x, type=type, content=content)  # type: ignore[arg-type]
 
 
-class TuvDeserializer(
-  BaseElementDeserializer[T_XmlElement], InlineContentDeserializerMixin[T_XmlElement]
-):
+class TuvDeserializer[T](BaseElementDeserializer[T], InlineContentDeserializerMixin[T]):
   """
   Deserializer for the `<tuv>` (Translation Unit Variant) element.
 
@@ -308,7 +294,7 @@ class TuvDeserializer(
       - `extra_text`: Ensures no text exists directly in <tuv> (text must be in <seg>).
   """
 
-  def _deserialize(self, element: T_XmlElement) -> Tuv:
+  def _deserialize(self, element: T) -> Tuv:
     self._check_tag(element, "tuv")
 
     if (text := self.backend.get_text(element)) is not None:
@@ -396,14 +382,14 @@ class TuvDeserializer(
     )
 
 
-class TuDeserializer(BaseElementDeserializer[T_XmlElement]):
+class TuDeserializer[T](BaseElementDeserializer[T]):
   """
   Deserializer for the `<tu>` (Translation Unit) element.
 
   Container for `<tuv>`, `<prop>`, and `<note>` elements.
   """
 
-  def _deserialize(self, element: T_XmlElement) -> Tu:
+  def _deserialize(self, element: T) -> Tu:
     self._check_tag(element, "tu")
 
     if (text := self.backend.get_text(element)) is not None:
@@ -477,7 +463,7 @@ class TuDeserializer(BaseElementDeserializer[T_XmlElement]):
     )
 
 
-class TmxDeserializer(BaseElementDeserializer[T_XmlElement]):
+class TmxDeserializer[T](BaseElementDeserializer[T]):
   """
   Deserializer for the root `<tmx>` element.
 
@@ -495,7 +481,7 @@ class TmxDeserializer(BaseElementDeserializer[T_XmlElement]):
       - `multiple_headers`: Valid TMX must have exactly one header.
   """
 
-  def _deserialize(self, element: T_XmlElement) -> Tmx:
+  def _deserialize(self, element: T) -> Tmx:
     self._check_tag(element, "tmx")
     version = self._parse_attribute(element, "version", True)
     header_found: bool = False

@@ -7,22 +7,20 @@ from pytest_mock import MockerFixture
 import hypomnema as hm
 
 
-class FakeBaseElementSerializer(
-  hm.BaseElementSerializer[hm.T_XmlElement], hm.InlineContentSerializerMixin[hm.T_XmlElement]
-):
-  def _serialize(self, obj: hm.BaseElement) -> hm.T_XmlElement | None:
+class FakeBaseElementSerializer[T](hm.BaseElementSerializer[T], hm.InlineContentSerializerMixin[T]):
+  def _serialize(self, obj: hm.BaseElement) -> T | None:
     raise NotImplementedError
 
 
-class TestBaseElementSerializer[T_XmlElement]:
+class TestBaseElementSerializer[T]:
   handler: FakeBaseElementSerializer
-  backend: hm.XMLBackend[T_XmlElement]
+  backend: hm.XMLBackend[T]
   logger: logging.Logger
   policy: hm.SerializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger

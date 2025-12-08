@@ -9,15 +9,15 @@ import hypomnema as hm
 singleton = object()
 
 
-class TestTuSerializer[T_XmlElement]:
+class TestTuSerializer[T]:
   handler: hm.TuSerializer
-  backend: hm.XMLBackend[T_XmlElement]
+  backend: hm.XMLBackend[T]
   logger: logging.Logger
   policy: hm.SerializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger
@@ -25,7 +25,7 @@ class TestTuSerializer[T_XmlElement]:
     self.mocker = mocker
     self.handler = hm.TuSerializer(backend=self.backend, policy=self.policy, logger=self.logger)
 
-    def test_emit(obj: hm.BaseElement) -> T_XmlElement | None:
+    def test_emit(obj: hm.BaseElement) -> T | None:
       if isinstance(obj, hm.Prop):
         return self.backend.make_elem("prop")
       elif isinstance(obj, hm.Note):

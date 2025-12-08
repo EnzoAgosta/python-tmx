@@ -5,14 +5,13 @@ from typing import Callable, Protocol, TypeVar
 
 from hypomnema.xml.utils import normalize_encoding, prep_tag_set
 
-T_XmlBackend = TypeVar("T_XmlBackend")
+T = TypeVar("T")
+
+__all__ = ["XMLBackend"]
 
 
 class tobytesCallback[T_XmlBackend](Protocol):
   def __call__(self, element: T_XmlBackend, /) -> bytes: ...
-
-
-__all__ = ["XMLBackend", "T_XmlBackend", "tobytesCallback"]
 
 
 class XMLBackend[T_XmlBackend](ABC):
@@ -48,27 +47,27 @@ class XMLBackend[T_XmlBackend](ABC):
   def remove(self, parent: T_XmlBackend, child: T_XmlBackend) -> None: ...
 
 
-class IterableXMLBackend(XMLBackend[T_XmlBackend], ABC):
+class IterableXMLBackend(XMLBackend[T], ABC):
   @abstractmethod
-  def iterwrite(self, path: PathLike[str], elements: Iterable[T_XmlBackend]) -> None: ...
+  def iterwrite(self, path: PathLike[str], elements: Iterable[T]) -> None: ...
   @abstractmethod
   def iterparse(
     self,
     path: PathLike[str],
     tags: str | Collection[str] | None = None,
-  ) -> Iterator[T_XmlBackend]: ...
+  ) -> Iterator[T]: ...
 
   def _iterparse_core(
     self,
     path: PathLike[str],
     tags: str | Collection[str] | None,
-    iterparse: Callable[[PathLike[str], Sequence[str]], Iterator[tuple[str, T_XmlBackend]]],
-  ) -> Iterator[T_XmlBackend]:
+    iterparse: Callable[[PathLike[str], Sequence[str]], Iterator[tuple[str, T]]],
+  ) -> Iterator[T]:
     def should_yield(tag: str) -> bool:
       return tag_set is None or tag in tag_set
 
     tag_set = prep_tag_set(tags)
-    stack: list[tuple[T_XmlBackend, bool]] = []
+    stack: list[tuple[T, bool]] = []
     yielding_ancestors: int = 0
     context = iterparse(path, ("start", "end"))
 
@@ -84,7 +83,7 @@ class IterableXMLBackend(XMLBackend[T_XmlBackend], ABC):
       cur_elem, cur_yield = stack[-1]
       assert cur_elem is elem
 
-      parent: T_XmlBackend | None = stack[-2][0] if len(stack) >= 2 else None
+      parent: T | None = stack[-2][0] if len(stack) >= 2 else None
       ancestor_will_be_yielded = yielding_ancestors - (1 if parent is None else 0) > 0
 
       if cur_yield:
@@ -103,7 +102,7 @@ class IterableXMLBackend(XMLBackend[T_XmlBackend], ABC):
 
   def _prep_root(
     self,
-    root: T_XmlBackend | None,
+    root: T | None,
     root_tag: str | None,
     root_attr: Mapping | None,
   ) -> tuple[str, dict[str, str]]:
@@ -156,9 +155,9 @@ class IterableXMLBackend(XMLBackend[T_XmlBackend], ABC):
   def _iterwrite_core(
     self,
     path: PathLike[str],
-    elements: Iterable[T_XmlBackend],
+    elements: Iterable[T],
     encoding: str,
-    root: T_XmlBackend | None,
+    root: T | None,
     root_tag: str | None,
     root_attr: Mapping[str, str] | None,
     flush_every: int,

@@ -6,15 +6,15 @@ from pytest_mock import MockerFixture
 import hypomnema as hm
 
 
-class TestNoteDeserializer[T_XmlElement]:
+class TestNoteDeserializer[T]:
   handler: hm.NoteDeserializer
-  backend: hm.XMLBackend[T_XmlElement]
+  backend: hm.XMLBackend[T]
   logger: logging.Logger
   policy: hm.DeserializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger
@@ -23,7 +23,7 @@ class TestNoteDeserializer[T_XmlElement]:
     self.handler = hm.NoteDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
     self.handler._set_emit(lambda x: None)
 
-  def make_note_elem(self) -> T_XmlElement:
+  def make_note_elem(self) -> T:
     elem = self.backend.make_elem("note")
     self.backend.set_text(elem, "Valid Note Content")
     self.backend.set_attr(elem, f"{hm.XML_NS}lang", "en")

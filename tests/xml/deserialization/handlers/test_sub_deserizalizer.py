@@ -6,15 +6,15 @@ from pytest_mock import MockerFixture
 import hypomnema as hm
 
 
-class TestSubDeserializer[T_XmlElement]:
+class TestSubDeserializer[T]:
   handler: hm.SubDeserializer
-  backend: hm.XMLBackend[T_XmlElement]
+  backend: hm.XMLBackend[T]
   logger: logging.Logger
   policy: hm.DeserializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger
@@ -23,7 +23,7 @@ class TestSubDeserializer[T_XmlElement]:
     self.handler = hm.SubDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
     self.handler._set_emit(lambda x: None)
 
-  def make_sub_elem(self) -> T_XmlElement:
+  def make_sub_elem(self) -> T:
     elem = self.backend.make_elem("sub")
     self.backend.set_text(elem, "Valid Sub Content")
     self.backend.set_attr(elem, "datatype", "plaintext")
