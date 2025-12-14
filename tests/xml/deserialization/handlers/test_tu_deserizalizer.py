@@ -6,15 +6,15 @@ from pytest_mock import MockerFixture
 import hypomnema as hm
 
 
-class TestTuDeserializer[T_XmlElement]:
+class TestTuDeserializer[T]:
   handler: hm.TuDeserializer
-  backend: hm.XMLBackend[T_XmlElement]
+  backend: hm.XMLBackend[T]
   logger: logging.Logger
   policy: hm.DeserializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger
@@ -23,7 +23,7 @@ class TestTuDeserializer[T_XmlElement]:
     self.handler = hm.TuDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
     self.handler._set_emit(lambda x: None)
 
-  def make_tu_elem(self) -> T_XmlElement:
+  def make_tu_elem(self) -> T:
     elem = self.backend.make_elem("tu")
     self.backend.set_attr(elem, "tuid", "1")
     self.backend.set_attr(elem, "o-encoding", "base64")
