@@ -1,9 +1,14 @@
-from hypomnema.xml.backends.base import XMLBackend
-from hypomnema.xml.backends.lxml import LxmlBackend
-from hypomnema.xml.backends.standard import StandardBackend
+from __future__ import annotations
 
-__all__ = [
-  "XMLBackend",
-  "StandardBackend",
-  "LxmlBackend",
-]
+from .base import XMLBackend
+from .standard import StandardBackend
+
+__all__ = ["XMLBackend", "StandardBackend"]
+
+try:
+  from .lxml import LxmlBackend  # noqa: F401
+except ImportError:
+  pass
+else:
+  __all__.append("LxmlBackend")
+ 
