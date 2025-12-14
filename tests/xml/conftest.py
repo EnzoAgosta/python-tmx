@@ -11,7 +11,7 @@ import hypomnema as hm
   params=["standard", "lxml", "test"],
   ids=["Backend=Standard library, ", "Backend=Lxml, ", "Backend=Strict, "],
 )
-def backend(request: pytest.FixtureRequest) -> Generator[hm.XMLBackend, None, None]:
+def backend(request: pytest.FixtureRequest) -> Generator[hm.XMLBackend | StrictBackend]:
   if request.param == "lxml":
     yield hm.LxmlBackend()
   elif request.param == "standard":
