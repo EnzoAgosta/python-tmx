@@ -3,6 +3,7 @@ from logging import Logger, getLogger
 from hypomnema.base.errors import MissingHandlerError
 from hypomnema.base.types import BaseElement
 from hypomnema.xml.backends.base import XMLBackend
+from hypomnema.xml.constants import T_XmlElement
 from hypomnema.xml.deserialization._handlers import (BptDeserializer,
                                                      EptDeserializer,
                                                      HeaderDeserializer,
@@ -23,7 +24,7 @@ _ModuleLogger = getLogger(__name__)
 __all__ = ["Deserializer"]
 
 
-class Deserializer[T]:
+class Deserializer[T_XmlElement]:
   """
   The main orchestrator for converting XML TMX documents into Python objects.
 
@@ -43,7 +44,7 @@ class Deserializer[T]:
     backend: XMLBackend,
     policy: DeserializationPolicy | None = None,
     logger: Logger | None = None,
-    handlers: dict[str, BaseElementDeserializer[T]] | None = None,
+    handlers: dict[str, BaseElementDeserializer[T_XmlElement]] | None = None,
   ):
     """
     Initializes the Deserializer.
@@ -69,7 +70,7 @@ class Deserializer[T]:
       if handler._emit is None:
         handler._set_emit(self.deserialize)
 
-  def _get_default_handlers(self) -> dict[str, BaseElementDeserializer[T]]:
+  def _get_default_handlers(self) -> dict[str, BaseElementDeserializer[T_XmlElement]]:
     """Returns the standard set of handlers for TMX 1.4b compliance."""
     return {
       "note": NoteDeserializer(self.backend, self.policy, self.logger),
@@ -86,7 +87,7 @@ class Deserializer[T]:
       "tmx": TmxDeserializer(self.backend, self.policy, self.logger),
     }
 
-  def deserialize(self, element: T) -> BaseElement | None:
+  def deserialize(self, element: T_XmlElement) -> BaseElement | None:
     """
     Orchestrates the deserialization of an XML element.
 
@@ -98,7 +99,7 @@ class Deserializer[T]:
         - `default`: Attempts to fallback to standard TMX handlers if a custom handler dict is incomplete.
 
     Args:
-        element (T): The root or child element to deserialize.
+        element (T_XmlElement): The root or child element to deserialize.
 
     Returns:
         BaseElement | None: The resulting Python object, or None if skipped/ignored.

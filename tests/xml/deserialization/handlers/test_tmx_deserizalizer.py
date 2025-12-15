@@ -6,15 +6,15 @@ from pytest_mock import MockerFixture
 import hypomnema as hm
 
 
-class TestTmxDeserializer[T]:
+class TestTmxDeserializer[T_XmlElement]:
   handler: hm.TmxDeserializer
-  backend: hm.XMLBackend[T]
+  backend: hm.XMLBackend[T_XmlElement]
   logger: logging.Logger
   policy: hm.DeserializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: hm.XMLBackend[T], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger
@@ -23,7 +23,7 @@ class TestTmxDeserializer[T]:
     self.handler = hm.TmxDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
     self.handler._set_emit(lambda x: None)
 
-  def make_tmx_elem(self) -> T:
+  def make_tmx_elem(self) -> T_XmlElement:
     elem = self.backend.make_elem("tmx")
     self.backend.set_attr(elem, "version", "1.4b")
     header = self.backend.make_elem("header")
@@ -191,7 +191,7 @@ class TestTmxDeserializer[T]:
     assert caplog.record_tuples == [expected_log]
 
   def test_keep_first_header(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    def test_emit(x: T) -> hm.Header | None:
+    def test_emit(x: T_XmlElement) -> hm.Header | None:
       if self.backend.get_tag(x) == "header":
         if self.backend.get_attr(x, "creationtool") == "pytest":
           return hm.Header(
@@ -234,7 +234,7 @@ class TestTmxDeserializer[T]:
     assert caplog.record_tuples == [expected_log]
 
   def test_keep_last_header(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    def test_emit(x: T) -> hm.Header | None:
+    def test_emit(x: T_XmlElement) -> hm.Header | None:
       if self.backend.get_tag(x) == "header":
         if self.backend.get_attr(x, "creationtool") == "pytest2":
           return hm.Header(

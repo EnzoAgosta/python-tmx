@@ -6,20 +6,22 @@ from pytest_mock import MockerFixture
 import hypomnema as hm
 
 
-class TestSerializer[T]:
-  backend: hm.XMLBackend[T]
+class TestSerializer[T_XmlElement]:
+  backend: hm.XMLBackend[T_XmlElement]
   logger: logging.Logger
   policy: hm.SerializationPolicy
 
   @pytest.fixture(autouse=True)
-  def setup(self, backend: hm.XMLBackend[T], test_logger: logging.Logger, mocker: MockerFixture):
+  def setup(
+    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+  ):
     self.backend = backend
     self.logger = test_logger
     self.policy = hm.SerializationPolicy()
     self.mocker = mocker
 
   def test_init_setup_emit(self):
-    mock_handler = self.mocker.Mock(spec=hm.BaseElementSerializer[T], _emit=None)
+    mock_handler = self.mocker.Mock(spec=hm.BaseElementSerializer[T_XmlElement], _emit=None)
 
     handlers = {"Note": mock_handler}
 

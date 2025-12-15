@@ -6,15 +6,15 @@ from pytest_mock import MockerFixture
 import hypomnema as hm
 
 
-class TestHeaderDeserializer[T]:
+class TestHeaderDeserializer[T_XmlElement]:
   handler: hm.HeaderDeserializer
-  backend: hm.XMLBackend[T]
+  backend: hm.XMLBackend[T_XmlElement]
   logger: logging.Logger
   policy: hm.DeserializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: hm.XMLBackend[T], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger
@@ -25,7 +25,7 @@ class TestHeaderDeserializer[T]:
     )
     self.handler._set_emit(lambda x: None)
 
-  def make_header_elem(self) -> T:
+  def make_header_elem(self) -> T_XmlElement:
     elem = self.backend.make_elem("header")
     self.backend.set_attr(elem, "creationtool", "pytest")
     self.backend.set_attr(elem, "creationtoolversion", "0.0.1")

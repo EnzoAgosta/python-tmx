@@ -6,15 +6,15 @@ from pytest_mock import MockerFixture
 import hypomnema as hm
 
 
-class TestPropDeserializer[T]:
+class TestPropDeserializer[T_XmlElement]:
   handler: hm.PropDeserializer
-  backend: hm.XMLBackend[T]
+  backend: hm.XMLBackend[T_XmlElement]
   logger: logging.Logger
   policy: hm.DeserializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: hm.XMLBackend[T], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger
@@ -23,7 +23,7 @@ class TestPropDeserializer[T]:
     self.handler = hm.PropDeserializer(backend=self.backend, policy=self.policy, logger=self.logger)
     self.handler._set_emit(lambda x: None)
 
-  def make_prop_elem(self) -> T:
+  def make_prop_elem(self) -> T_XmlElement:
     elem = self.backend.make_elem("prop")
     self.backend.set_text(elem, "Valid Prop Content")
     self.backend.set_attr(elem, "type", "prop_type")
