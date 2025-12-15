@@ -29,8 +29,7 @@ class StandardBackend(XMLBackend[et.Element]):
     self,
     element: et.Element,
     path: str | bytes | PathLike[str] | PathLike[bytes],
-    *,
-    encoding: str = "utf-8",
+    encoding: str | None = None,
   ) -> None:
     """
     Writes `element` to `path`.
@@ -112,7 +111,7 @@ class StandardBackend(XMLBackend[et.Element]):
     self,
     path: str | bytes | PathLike[str] | PathLike[bytes],
     elements: Iterable[et.Element],
-    encoding: str = "utf-8",
+    encoding: str | None = None,
     root_elem: et.Element | None = None,
     *,
     max_item_per_chunk: int = 1000,
@@ -210,7 +209,7 @@ class StandardBackend(XMLBackend[et.Element]):
           f.write(buffer)
           buffer.clear()
       if buffer:
-        f.write(buffer) 
+        f.write(buffer)
       f.write(end_tag)
 
   def make_elem(self, tag: str) -> et.Element:
@@ -251,6 +250,3 @@ class StandardBackend(XMLBackend[et.Element]):
 
   def clear(self, element: et.Element) -> None:
     element.clear()
-
-  def remove(self, parent: et.Element, child: et.Element) -> None:
-    parent.remove(child)

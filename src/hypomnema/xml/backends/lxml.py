@@ -29,8 +29,8 @@ class LxmlBackend(XMLBackend[et._Element]):
     self,
     element: et._Element,
     path: str | bytes | PathLike[str] | PathLike[bytes],
+    encoding: str | None = None,
     *,
-    encoding: str = "utf-8",
     force_short_empty_elements: bool = True,
   ) -> None:
     """
@@ -117,7 +117,7 @@ class LxmlBackend(XMLBackend[et._Element]):
     self,
     path: str | bytes | PathLike[str] | PathLike[bytes],
     elements: Iterable[et._Element],
-    encoding: str = "utf-8",
+    encoding: str | None = None,
     root_elem: et._Element | None = None,
     *,
     max_item_per_chunk: int = 1000,

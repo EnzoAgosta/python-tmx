@@ -29,16 +29,31 @@ class XMLBackend[T](ABC):
   @abstractmethod
   def set_tail(self, element: T, tail: str | None) -> None: ...
   @abstractmethod
-  def iter_children(self, element: T, tags: str | Collection[str] | None = None) -> Iterator[T]: ... 
+  def iter_children(self, element: T, tags: str | Collection[str] | None = None) -> Iterator[T]: ...
   @abstractmethod
   def parse(self, path: str | bytes | PathLike[str] | PathLike[bytes]) -> T: ...
   @abstractmethod
-  def write(self, element: T, path: str | bytes | PathLike[str] | PathLike[bytes]) -> None: ...
+  def write(
+    self,
+    element: T,
+    path: str | bytes | PathLike[str] | PathLike[bytes],
+    encoding: str | None = None,
+  ) -> None: ...
   @abstractmethod
   def iterparse(
-    self, path: str | bytes | PathLike[str] | PathLike[bytes], tags: str | Collection[str] | None = None
+    self,
+    path: str | bytes | PathLike[str] | PathLike[bytes],
+    tags: str | Collection[str] | None = None,
   ) -> Iterator[T]: ...
   @abstractmethod
-  def iterwrite(self, path: str | bytes | PathLike[str] | PathLike[bytes], elements: Iterable[T]) -> None: ...
+  def iterwrite(
+    self,
+    path: str | bytes | PathLike[str] | PathLike[bytes],
+    elements: Iterable[T],
+    encoding: str | None = None,
+    root_elem: T | None = None,
+    *,
+    max_item_per_chunk: int = 1000,
+  ) -> None: ...
   @abstractmethod
   def clear(self, element: T) -> None: ...
