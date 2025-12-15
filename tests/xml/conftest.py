@@ -8,15 +8,15 @@ import hypomnema as hm
 
 
 @pytest.fixture(
-  params=["standard", "lxml", "test"],
+  params=["standard", "lxml", "strict"],
   ids=["Backend=Standard library, ", "Backend=Lxml, ", "Backend=Strict, "],
 )
-def backend(request: pytest.FixtureRequest) -> Generator[hm.XMLBackend, None, None]:
+def backend(request: pytest.FixtureRequest) -> Generator[hm.XMLBackend]:
   if request.param == "lxml":
     yield hm.LxmlBackend()
   elif request.param == "standard":
     yield hm.StandardBackend()
-  elif request.param == "test":
+  elif request.param == "strict": 
     yield StrictBackend()
   else:
     raise ValueError(f"Invalid backend: {request.param}")
