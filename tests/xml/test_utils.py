@@ -60,3 +60,8 @@ def test_normalize_encoding_raises_on_unknown_type():
 )
 def test_prep_tag_set(val, ret):
   assert hm.prep_tag_set(val) == ret
+
+
+def test_prep_tag_set_raises_on_unknown_type():
+  with pytest.raises(TypeError, match="Unexpected tag type"):
+    hm.prep_tag_set(1)  # type: ignore
