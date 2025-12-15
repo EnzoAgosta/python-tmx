@@ -6,17 +6,17 @@ from typing import Protocol, TypeGuard, TypeVar
 
 from hypomnema.base.errors import (AttributeSerializationError,
                                    XmlSerializationError)
-from hypomnema.base.types import (Assoc, BaseElement, BaseInlineElement, Pos,
-                                  Segtype, Tuv)
+from hypomnema.base.types import BaseElement, BaseInlineElement, Tuv
 from hypomnema.xml.backends.base import XMLBackend
+from hypomnema.xml.constants import T_Enum, T_XmlElement
 from hypomnema.xml.policy import SerializationPolicy
 
 T_Expected = TypeVar("T_Expected", bound=BaseElement)
-T_Enum = TypeVar("T_Enum", Pos, Segtype, Assoc)
+
 __all__ = ["BaseElementSerializer", "InlineContentSerializerMixin"]
 
 
-class SerializerHost[T](Protocol):
+class SerializerHost(Protocol[T_XmlElement]):
   """
   Protocol defining the contract for the orchestrator driving the serialization process.
 
@@ -24,11 +24,11 @@ class SerializerHost[T](Protocol):
   without creating circular import dependencies.
   """
 
-  backend: XMLBackend[T]
+  backend: XMLBackend[T_XmlElement]
   policy: SerializationPolicy
   logger: Logger
 
-  def emit(self, obj: BaseElement) -> T | None:
+  def emit(self, obj: BaseElement) -> T_XmlElement | None:
     """
     Dispatches a child Python object to its appropriate handler for serialization.
 
@@ -36,12 +36,12 @@ class SerializerHost[T](Protocol):
         obj (BaseElement): The Python object to serialize.
 
     Returns:
-        T | None: The resulting XML element, or None if skipped based on policy.
+        T_XmlElement | None: The resulting XML element, or None if skipped based on policy.
     """
     ...
 
 
-class BaseElementSerializer[T](ABC):
+class BaseElementSerializer[T_XmlElement](ABC):
   """
   Abstract base class for all TMX element serializers.
 
@@ -60,12 +60,12 @@ class BaseElementSerializer[T](ABC):
     policy: SerializationPolicy,
     logger: Logger,
   ):
-    self.backend: XMLBackend[T] = backend
+    self.backend: XMLBackend[T_XmlElement] = backend
     self.policy = policy
     self.logger = logger
-    self._emit: Callable[[BaseElement], T | None] | None = None
+    self._emit: Callable[[BaseElement], T_XmlElement | None] | None = None
 
-  def _set_emit(self, emit: Callable[[BaseElement], T | None]) -> None:
+  def _set_emit(self, emit: Callable[[BaseElement], T_XmlElement | None]) -> None:
     """
     Injects the orchestrator's callback function.
 
@@ -76,7 +76,7 @@ class BaseElementSerializer[T](ABC):
     """
     self._emit = emit
 
-  def emit(self, obj: BaseElement) -> T | None:
+  def emit(self, obj: BaseElement) -> T_XmlElement | None:
     """
     Delegates serialization of a child object to the orchestrator.
 
@@ -84,7 +84,7 @@ class BaseElementSerializer[T](ABC):
         obj (BaseElement): The child object.
 
     Returns:
-        T | None: The serialized element.
+        T_XmlElement | None: The serialized element.
 
     Raises:
         AssertionError: If `_set_emit` has not been called yet.
@@ -93,7 +93,7 @@ class BaseElementSerializer[T](ABC):
     return self._emit(obj)
 
   @abstractmethod
-  def _serialize(self, obj: BaseElement) -> T | None:
+  def _serialize(self, obj: BaseElement) -> T_XmlElement | None:
     """
     Converts a Python TMX object into an XML element.
 
@@ -101,7 +101,7 @@ class BaseElementSerializer[T](ABC):
         obj (BaseElement): The specific object to serialize (e.g., Header).
 
     Returns:
-        T | None: The constructed XML node.
+        T_XmlElement | None: The constructed XML node.
     """
     ...
 
@@ -141,7 +141,7 @@ class BaseElementSerializer[T](ABC):
 
   def _set_dt_attribute(
     self,
-    target: T,
+    target: T_XmlElement,
     value: datetime | None,
     attribute: str,
     required: bool,
@@ -154,7 +154,7 @@ class BaseElementSerializer[T](ABC):
         - `invalid_attribute_type`: Checks if value is actually a `datetime` instance.
 
     Args:
-        target (T): The XML element to modify.
+        target (T_XmlElement): The XML element to modify.
         value (datetime | None): The value to set.
         attribute (str): The XML attribute name.
         required (bool): Whether this attribute is mandatory in TMX.
@@ -185,7 +185,7 @@ class BaseElementSerializer[T](ABC):
 
   def _set_int_attribute(
     self,
-    target: T,
+    target: T_XmlElement,
     value: int | None,
     attribute: str,
     required: bool,
@@ -198,7 +198,7 @@ class BaseElementSerializer[T](ABC):
         - `invalid_attribute_type`: Checks if value is an `int`.
 
     Args:
-        target (T): The XML element.
+        target (T_XmlElement): The XML element.
         value (int | None): The integer value.
         attribute (str): XML attribute name.
         required (bool): Mandatory flag.
@@ -224,7 +224,7 @@ class BaseElementSerializer[T](ABC):
 
   def _set_enum_attribute(
     self,
-    target: T,
+    target: T_XmlElement,
     value: T_Enum | None,
     attribute: str,
     enum_type: type[T_Enum],
@@ -238,7 +238,7 @@ class BaseElementSerializer[T](ABC):
         - `invalid_attribute_type`: Checks if value is an instance of `enum_type`.
 
     Args:
-        target (T): The XML element.
+        target (T_XmlElement): The XML element.
         value (T_Enum | None): The enum member.
         attribute (str): XML attribute name.
         enum_type (type[T_Enum]): The expected Enum class.
@@ -268,7 +268,7 @@ class BaseElementSerializer[T](ABC):
 
   def _set_attribute(
     self,
-    target: T,
+    target: T_XmlElement,
     value: str | None,
     attribute: str,
     required: bool,
@@ -281,7 +281,7 @@ class BaseElementSerializer[T](ABC):
         - `invalid_attribute_type`: Checks if value is a string.
 
     Args:
-        target (T): The XML element.
+        target (T_XmlElement): The XML element.
         value (str | None): The string value.
         attribute (str): XML attribute name.
         required (bool): Mandatory flag.
@@ -308,7 +308,7 @@ class BaseElementSerializer[T](ABC):
     self.backend.set_attr(target, attribute, value)
 
 
-class InlineContentSerializerMixin[T](SerializerHost[T]):
+class InlineContentSerializerMixin[T_XmlElement](SerializerHost[T_XmlElement]):
   """
   Mixin for Serializers that need to produce mixed content (text + tags).
 
@@ -322,7 +322,7 @@ class InlineContentSerializerMixin[T](SerializerHost[T]):
   def serialize_content(
     self,
     source: BaseInlineElement | Tuv,
-    target: T,
+    target: T_XmlElement,
     allowed: tuple[type[BaseInlineElement], ...],
   ) -> None:
     """
@@ -336,13 +336,13 @@ class InlineContentSerializerMixin[T](SerializerHost[T]):
 
     Args:
         source (BaseInlineElement | Tuv): The object containing the `.content` list.
-        target (T): The parent XML element to populate.
+        target (T_XmlElement): The parent XML element to populate.
         allowed (tuple[type]): A whitelist of allowed Python classes for child elements.
 
     Raises:
         XmlSerializationError: If an invalid object type is found in content and policy is 'raise'.
     """
-    last_child: T | None = None
+    last_child: T_XmlElement | None = None
     for item in source.content:
       if isinstance(item, str):
         if last_child is None:

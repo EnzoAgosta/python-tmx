@@ -6,13 +6,15 @@ from pytest_mock import MockerFixture
 import hypomnema as hm
 
 
-class TestDeserializer[T]:
-  backend: hm.XMLBackend[T]
+class TestDeserializer[T_XmlElement]:
+  backend: hm.XMLBackend[T_XmlElement]
   logger: logging.Logger
   policy: hm.DeserializationPolicy
 
   @pytest.fixture(autouse=True)
-  def setup(self, backend: hm.XMLBackend[T], test_logger: logging.Logger, mocker: MockerFixture):
+  def setup(
+    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
+  ):
     self.backend = backend
     self.logger = test_logger
     self.policy = hm.DeserializationPolicy()

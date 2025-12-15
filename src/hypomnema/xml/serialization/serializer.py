@@ -4,6 +4,7 @@ from logging import Logger, getLogger
 from hypomnema.base.errors import MissingHandlerError
 from hypomnema.base.types import BaseElement
 from hypomnema.xml.backends.base import XMLBackend
+from hypomnema.xml.constants import T_XmlElement
 from hypomnema.xml.policy import SerializationPolicy
 from hypomnema.xml.serialization._handlers import (BptSerializer,
                                                    EptSerializer,
@@ -22,7 +23,7 @@ _ModuleLogger = getLogger(__name__)
 __all__ = ["Serializer"]
 
 
-class Serializer[T]:
+class Serializer[T_XmlElement]:
   """
   The main orchestrator for converting Python TMX objects into XML elements.
 
@@ -38,10 +39,10 @@ class Serializer[T]:
 
   def __init__(
     self,
-    backend: XMLBackend[T],
+    backend: XMLBackend[T_XmlElement],
     policy: SerializationPolicy | None = None,
     logger: Logger | None = None,
-    handlers: Mapping[str, BaseElementSerializer[T]] | None = None,
+    handlers: Mapping[str, BaseElementSerializer[T_XmlElement]] | None = None,
   ):
     """
     Initializes the Serializer.
@@ -67,7 +68,7 @@ class Serializer[T]:
       if handler._emit is None:
         handler._set_emit(self.serialize)
 
-  def _get_default_handlers(self) -> dict[str, BaseElementSerializer[T]]:
+  def _get_default_handlers(self) -> dict[str, BaseElementSerializer[T_XmlElement]]:
     """Returns the standard set of serializers for TMX 1.4b compliance."""
     return {
       "Note": NoteSerializer(self.backend, self.policy, self.logger),
@@ -84,7 +85,7 @@ class Serializer[T]:
       "Tmx": TmxSerializer(self.backend, self.policy, self.logger),
     }
 
-  def serialize(self, obj: BaseElement) -> T | None:
+  def serialize(self, obj: BaseElement) -> T_XmlElement | None:
     """
     Orchestrates the serialization of a Python object.
 
@@ -99,7 +100,7 @@ class Serializer[T]:
         obj (BaseElement): The TMX object to serialize.
 
     Returns:
-        T | None: The resulting XML node, or None if skipped.
+        T_XmlElement | None: The resulting XML node, or None if skipped.
 
     Raises:
         MissingHandlerError: If unknown type and policy is 'raise'.

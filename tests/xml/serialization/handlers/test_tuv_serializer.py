@@ -7,15 +7,15 @@ from pytest_mock import MockerFixture
 import hypomnema as hm
 
 
-class TestTuvSerializer[T]:
+class TestTuvSerializer[T_XmlElement]:
   handler: hm.TuvSerializer
-  backend: hm.XMLBackend[T]
+  backend: hm.XMLBackend[T_XmlElement]
   logger: logging.Logger
   policy: hm.SerializationPolicy
 
   @pytest.fixture(autouse=True)
   def setup_method_fixture(
-    self, backend: hm.XMLBackend[T], test_logger: logging.Logger, mocker: MockerFixture
+    self, backend: hm.XMLBackend[T_XmlElement], test_logger: logging.Logger, mocker: MockerFixture
   ):
     self.backend = backend
     self.logger = test_logger
@@ -23,7 +23,7 @@ class TestTuvSerializer[T]:
     self.mocker = mocker
     self.handler = hm.TuvSerializer(backend=self.backend, policy=self.policy, logger=self.logger)
 
-    def test_emit(obj: hm.BaseElement) -> T | None:
+    def test_emit(obj: hm.BaseElement) -> T_XmlElement | None:
       if isinstance(obj, hm.Prop):
         return self.backend.make_elem("prop")
       elif isinstance(obj, hm.Note):
