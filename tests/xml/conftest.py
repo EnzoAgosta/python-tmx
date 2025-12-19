@@ -1,3 +1,4 @@
+from hypomnema.xml.backends import XmlBackend
 import logging
 from collections.abc import Generator
 
@@ -11,12 +12,12 @@ import hypomnema as hm
   params=["standard", "lxml", "strict"],
   ids=["Backend=Standard library, ", "Backend=Lxml, ", "Backend=Strict, "],
 )
-def backend(request: pytest.FixtureRequest) -> Generator[hm.XMLBackend]:
+def backend(request: pytest.FixtureRequest) -> Generator[XmlBackend]:
   if request.param == "lxml":
     yield hm.LxmlBackend()
   elif request.param == "standard":
     yield hm.StandardBackend()
-  elif request.param == "strict": 
+  elif request.param == "strict":
     yield StrictBackend()
   else:
     raise ValueError(f"Invalid backend: {request.param}")

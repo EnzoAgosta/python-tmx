@@ -1,10 +1,28 @@
+from hypomnema.xml.utils import check_tag
 from hypomnema.base.errors import XmlDeserializationError
-from hypomnema.base.types import (Assoc, BaseInlineElement, Bpt, Ept, Header,
-                                  Hi, It, Note, Ph, Pos, Prop, Segtype, Sub,
-                                  Tmx, Tu, Tuv)
+from hypomnema.base.types import (
+  Assoc,
+  BaseInlineElement,
+  Bpt,
+  Ept,
+  Header,
+  Hi,
+  It,
+  Note,
+  Ph,
+  Pos,
+  Prop,
+  Segtype,
+  Sub,
+  Tmx,
+  Tu,
+  Tuv,
+)
 from hypomnema.xml.constants import XML_NS
-from hypomnema.xml.deserialization.base import (BaseElementDeserializer,
-                                                InlineContentDeserializerMixin)
+from hypomnema.xml.deserialization.base import (
+  BaseElementDeserializer,
+  InlineContentDeserializerMixin,
+)
 
 __all__ = [
   "NoteDeserializer",
@@ -22,28 +40,32 @@ __all__ = [
 ]
 
 
-class NoteDeserializer[T](BaseElementDeserializer[T]):
-  """
-  Deserializer for the `<note>` element.
+class NoteDeserializer[BackendElementType](BaseElementDeserializer[BackendElementType, Note]):
+  """Deserializer for the TMX `<note>` element."""
 
-  Structure:
-      <note xml:lang="..." o-encoding="...">Content</note>
-
-  Policies Enforced:
-      - `empty_content`: Checks if the note has text. Default behavior is `raise`.
-      - `invalid_child_element`: Checks if the note contains nested tags (it should be text-only).
-  """
-
-  def _deserialize(self, element: T) -> Note:
+  def _deserialize(self, element: BackendElementType) -> Note:
     """
-    Parses a <note> element.
+    Convert a `<note>` XML element into a Note object.
 
-    Args:
-        element (T): The element to parse.
+    Parameters
+    ----------
+    element : BackendElementType
+        The `<note>` element to deserialize.
+
+    Returns
+    -------
+    Note
+        The deserialized Note instance.
+
+    Raises
+    ------
+    XmlDeserializationError
+        If the element has no text content or contains invalid child elements
+        and the respective policy behavior is "raise".
     """
-    self._check_tag(element, "note")
-    lang = self._parse_attribute(element, f"{XML_NS}lang", False)
-    o_encoding = self._parse_attribute(element, "o-encoding", False)
+    check_tag(self.backend.get_tag(element), "note", self.logger, self.policy)
+    lang = self._parse_attribute_as_str(element, f"{XML_NS}lang", required=False)
+    o_encoding = self._parse_attribute_as_str(element, "o-encoding", required=False)
     text = self.backend.get_text(element)
 
     if text is None:
@@ -69,24 +91,33 @@ class NoteDeserializer[T](BaseElementDeserializer[T]):
     return Note(text=text, lang=lang, o_encoding=o_encoding)  # type: ignore[arg-type]
 
 
-class PropDeserializer[T](BaseElementDeserializer[T]):
-  """
-  Deserializer for the `<prop>` element.
+class PropDeserializer[BackendElementType](BaseElementDeserializer[BackendElementType, Prop]):
+  """Deserializer for the TMX `<prop>` element."""
 
-  Structure:
-      <prop type="..." xml:lang="..." o-encoding="...">Value</prop>
+  def _deserialize(self, element: BackendElementType) -> Prop:
+    """
+    Convert a `<prop>` XML element into a Prop object.
 
-  Policies Enforced:
-      - `required_attribute_missing`: Checks for 'type'.
-      - `empty_content`: Checks if the property has a value.
-      - `invalid_child_element`: Ensures no nested tags.
-  """
+    Parameters
+    ----------
+    element : BackendElementType
+        The `<prop>` element to deserialize.
 
-  def _deserialize(self, element: T) -> Prop:
-    self._check_tag(element, "prop")
-    _type = self._parse_attribute(element, "type", True)
-    lang = self._parse_attribute(element, f"{XML_NS}lang", False)
-    o_encoding = self._parse_attribute(element, "o-encoding", False)
+    Returns
+    -------
+    Prop
+        The deserialized Prop instance.
+
+    Raises
+    ------
+    XmlDeserializationError
+        If the element has no text content or contains invalid child elements
+        and the respective policy behavior is "raise".
+    """
+    check_tag(self.backend.get_tag(element), "prop", self.logger, self.policy)
+    _type = self._parse_attribute_as_str(element, "type", required=True)
+    lang = self._parse_attribute_as_str(element, f"{XML_NS}lang", required=False)
+    o_encoding = self._parse_attribute_as_str(element, "o-encoding", required=False)
     text = self.backend.get_text(element)
 
     if text is None:
@@ -112,23 +143,30 @@ class PropDeserializer[T](BaseElementDeserializer[T]):
     return Prop(text=text, type=_type, lang=lang, o_encoding=o_encoding)  # type: ignore[arg-type]
 
 
-class HeaderDeserializer[T](BaseElementDeserializer[T]):
-  """
-  Deserializer for the `<header>` element.
+class HeaderDeserializer[BackendElementType](BaseElementDeserializer[BackendElementType, Header]):
+  """Deserializer for the TMX `<header>` element."""
 
-  Structure:
-      <header creationtool="..." ...>
-          <prop>...</prop>
-          <note>...</note>
-      </header>
+  def _deserialize(self, element: BackendElementType) -> Header:
+    """
+    Convert a `<header>` XML element and its children into a Header object.
 
-  Policies Enforced:
-      - `extra_text`: Detects non-whitespace text inside the header (which should only contain tags).
-      - `invalid_child_element`: Detects tags other than <prop> or <note>.
-  """
+    Parameters
+    ----------
+    element : BackendElementType
+        The `<header>` element to deserialize.
 
-  def _deserialize(self, element: T) -> Header:
-    self._check_tag(element, "header")
+    Returns
+    -------
+    Header
+        The deserialized Header instance.
+
+    Raises
+    ------
+    XmlDeserializationError
+        If extra text is found or an invalid child element is encountered
+        and the respective policy behavior is "raise".
+    """
+    check_tag(self.backend.get_tag(element), "header", self.logger, self.policy)
 
     if (text := self.backend.get_text(element)) is not None:
       if text.strip():
@@ -138,18 +176,20 @@ class HeaderDeserializer[T](BaseElementDeserializer[T]):
         if self.policy.extra_text.behavior == "raise":
           raise XmlDeserializationError(f"Element <header> has extra text content '{text}'")
 
-    creationtool = self._parse_attribute(element, "creationtool", True)
-    creationtoolversion = self._parse_attribute(element, "creationtoolversion", True)
-    segtype = self._parse_attribute_as_enum(element, "segtype", Segtype, True)
-    o_tmf = self._parse_attribute(element, "o-tmf", True)
-    adminlang = self._parse_attribute(element, "adminlang", True)
-    srclang = self._parse_attribute(element, "srclang", True)
-    datatype = self._parse_attribute(element, "datatype", True)
-    o_encoding = self._parse_attribute(element, "o-encoding", False)
-    creationdate = self._parse_attribute_as_dt(element, "creationdate", False)
-    creationid = self._parse_attribute(element, "creationid", False)
-    changedate = self._parse_attribute_as_dt(element, "changedate", False)
-    changeid = self._parse_attribute(element, "changeid", False)
+    creationtool = self._parse_attribute_as_str(element, "creationtool", required=True)
+    creationtoolversion = self._parse_attribute_as_str(
+      element, "creationtoolversion", required=True
+    )
+    segtype = self._parse_attribute_as_enum(element, "segtype", Segtype, required=True)
+    o_tmf = self._parse_attribute_as_str(element, "o-tmf", required=True)
+    adminlang = self._parse_attribute_as_str(element, "adminlang", required=True)
+    srclang = self._parse_attribute_as_str(element, "srclang", required=True)
+    datatype = self._parse_attribute_as_str(element, "datatype", required=True)
+    o_encoding = self._parse_attribute_as_str(element, "o-encoding", required=False)
+    creationdate = self._parse_attribute_as_datetime(element, "creationdate", required=False)
+    creationid = self._parse_attribute_as_str(element, "creationid", required=False)
+    changedate = self._parse_attribute_as_datetime(element, "changedate", required=False)
+    changeid = self._parse_attribute_as_str(element, "changeid", required=False)
 
     notes: list[Note] = []
     props: list[Prop] = []
@@ -166,9 +206,7 @@ class HeaderDeserializer[T](BaseElementDeserializer[T]):
           notes.append(note)
       else:
         self.logger.log(
-          self.policy.invalid_child_element.log_level,
-          "Invalid child element <%s> in <header>",
-          tag,
+          self.policy.invalid_child_element.log_level, "Invalid child element <%s> in <header>", tag
         )
         if self.policy.invalid_child_element.behavior == "raise":
           raise XmlDeserializationError(f"Invalid child element <{tag}> in <header>")
@@ -191,111 +229,197 @@ class HeaderDeserializer[T](BaseElementDeserializer[T]):
     )
 
 
-class BptDeserializer[T](BaseElementDeserializer[T], InlineContentDeserializerMixin[T]):
-  """
-  Deserializer for the `<bpt>` (Begin Paired Tag) element.
+class BptDeserializer[BackendElementType](
+  BaseElementDeserializer[BackendElementType, Bpt],
+  InlineContentDeserializerMixin[BackendElementType],
+):
+  """Deserializer for the TMX `<bpt>` (Begin Paired Tag) element."""
 
-  Uses `InlineContentDeserializerMixin` to process its `<sub>` children.
-  """
+  def _deserialize(self, element: BackendElementType) -> Bpt:
+    """
+    Convert a `<bpt>` XML element into a Bpt object.
 
-  def _deserialize(self, element: T) -> Bpt:
-    self._check_tag(element, "bpt")
+    Parameters
+    ----------
+    element : BackendElementType
+        The `<bpt>` element to deserialize.
+
+    Returns
+    -------
+    Bpt
+        The deserialized Bpt instance.
+    """
+    check_tag(self.backend.get_tag(element), "bpt", self.logger, self.policy)
     i = self._parse_attribute_as_int(element, "i", True)
     x = self._parse_attribute_as_int(element, "x", False)
-    type = self._parse_attribute(element, "type", False)
-    content = self.deserialize_content(element, ("sub",))
+    type = self._parse_attribute_as_str(element, "type", False)
+    content = self._deserialize_content(element, ("sub",))
     return Bpt(i=i, x=x, type=type, content=content)  # type: ignore[arg-type]
 
 
-class EptDeserializer[T](BaseElementDeserializer[T], InlineContentDeserializerMixin[T]):
-  """
-  Deserializer for the `<ept>` (End Paired Tag) element.
-  """
+class EptDeserializer[BackendElementType](
+  BaseElementDeserializer[BackendElementType, Ept],
+  InlineContentDeserializerMixin[BackendElementType],
+):
+  """Deserializer for the TMX `<ept>` (End Paired Tag) element."""
 
-  def _deserialize(self, element: T) -> Ept:
-    self._check_tag(element, "ept")
+  def _deserialize(self, element: BackendElementType) -> Ept:
+    """
+    Convert an `<ept>` XML element into an Ept object.
+
+    Parameters
+    ----------
+    element : BackendElementType
+        The `<ept>` element to deserialize.
+
+    Returns
+    -------
+    Ept
+        The deserialized Ept instance.
+    """
+    check_tag(self.backend.get_tag(element), "ept", self.logger, self.policy)
     i = self._parse_attribute_as_int(element, "i", True)
-    content = self.deserialize_content(element, ("sub",))
+    content = self._deserialize_content(element, ("sub",))
     return Ept(i=i, content=content)  # type: ignore[arg-type]
 
 
-class ItDeserializer[T](BaseElementDeserializer[T], InlineContentDeserializerMixin[T]):
-  """
-  Deserializer for the `<it>` (Isolated Tag) element.
-  """
+class ItDeserializer[BackendElementType](
+  BaseElementDeserializer[BackendElementType, It],
+  InlineContentDeserializerMixin[BackendElementType],
+):
+  """Deserializer for the TMX `<it>` (Isolated Tag) element."""
 
-  def _deserialize(self, element: T) -> It:
-    self._check_tag(element, "it")
+  def _deserialize(self, element: BackendElementType) -> It:
+    """
+    Convert an `<it>` XML element into an It object.
+
+    Parameters
+    ----------
+    element : BackendElementType
+        The `<it>` element to deserialize.
+
+    Returns
+    -------
+    It
+        The deserialized It instance.
+    """
+    check_tag(self.backend.get_tag(element), "it", self.logger, self.policy)
     pos = self._parse_attribute_as_enum(element, "pos", Pos, True)
     x = self._parse_attribute_as_int(element, "x", False)
-    type = self._parse_attribute(element, "type", False)
-    content = self.deserialize_content(element, ("sub",))
+    type = self._parse_attribute_as_str(element, "type", False)
+    content = self._deserialize_content(element, ("sub",))
     return It(pos=pos, x=x, type=type, content=content)  # type: ignore[arg-type]
 
 
-class PhDeserializer[T](BaseElementDeserializer[T], InlineContentDeserializerMixin[T]):
-  """
-  Deserializer for the `<ph>` (Placeholder) element.
-  """
+class PhDeserializer[BackendElementType](
+  BaseElementDeserializer[BackendElementType, Ph],
+  InlineContentDeserializerMixin[BackendElementType],
+):
+  """Deserializer for the TMX `<ph>` (Placeholder) element."""
 
-  def _deserialize(self, element: T) -> Ph:
-    self._check_tag(element, "ph")
+  def _deserialize(self, element: BackendElementType) -> Ph:
+    """
+    Convert a `<ph>` XML element into a Ph object.
+
+    Parameters
+    ----------
+    element : BackendElementType
+        The `<ph>` element to deserialize.
+
+    Returns
+    -------
+    Ph
+        The deserialized Ph instance.
+    """
+    check_tag(self.backend.get_tag(element), "ph", self.logger, self.policy)
     x = self._parse_attribute_as_int(element, "x", False)
     assoc = self._parse_attribute_as_enum(element, "assoc", Assoc, False)
-    type = self._parse_attribute(element, "type", False)
-    content = self.deserialize_content(element, ("sub",))
+    type = self._parse_attribute_as_str(element, "type", False)
+    content = self._deserialize_content(element, ("sub",))
     return Ph(x=x, assoc=assoc, type=type, content=content)  # type: ignore[arg-type]
 
 
-class SubDeserializer[T](BaseElementDeserializer[T], InlineContentDeserializerMixin[T]):
-  """
-  Deserializer for the `<sub>` (Sub-flow) element.
+class SubDeserializer[BackendElementType](
+  BaseElementDeserializer[BackendElementType, Sub],
+  InlineContentDeserializerMixin[BackendElementType],
+):
+  """Deserializer for the TMX `<sub>` (Sub-flow) element."""
 
-  Contains recursive inline markup.
-  """
+  def _deserialize(self, element: BackendElementType) -> Sub:
+    """
+    Convert a `<sub>` XML element into a Sub object.
 
-  def _deserialize(self, element: T) -> Sub:
-    self._check_tag(element, "sub")
-    datatype = self._parse_attribute(element, "datatype", False)
-    type = self._parse_attribute(element, "type", False)
-    content = self.deserialize_content(element, ("bpt", "ept", "ph", "it", "hi"))
+    Parameters
+    ----------
+    element : BackendElementType
+        The `<sub>` element to deserialize.
+
+    Returns
+    -------
+    Sub
+        The deserialized Sub instance.
+    """
+    check_tag(self.backend.get_tag(element), "sub", self.logger, self.policy)
+    datatype = self._parse_attribute_as_str(element, "datatype", False)
+    type = self._parse_attribute_as_str(element, "type", False)
+    content = self._deserialize_content(element, ("bpt", "ept", "ph", "it", "hi"))
     return Sub(datatype=datatype, type=type, content=content)  # type: ignore[arg-type]
 
 
-class HiDeserializer[T](BaseElementDeserializer[T], InlineContentDeserializerMixin[T]):
-  """
-  Deserializer for the `<hi>` (Highlight) element.
-  """
+class HiDeserializer[BackendElementType](
+  BaseElementDeserializer[BackendElementType, Hi],
+  InlineContentDeserializerMixin[BackendElementType],
+):
+  """Deserializer for the TMX `<hi>` (Highlight) element."""
 
-  def _deserialize(self, element: T) -> Hi:
-    self._check_tag(element, "hi")
+  def _deserialize(self, element: BackendElementType) -> Hi:
+    """
+    Convert a `<hi>` XML element into a Hi object.
+
+    Parameters
+    ----------
+    element : BackendElementType
+        The `<hi>` element to deserialize.
+
+    Returns
+    -------
+    Hi
+        The deserialized Hi instance.
+    """
+    check_tag(self.backend.get_tag(element), "hi", self.logger, self.policy)
     x = self._parse_attribute_as_int(element, "x", False)
-    type = self._parse_attribute(element, "type", False)
-    content = self.deserialize_content(element, ("bpt", "ept", "ph", "it", "hi"))
+    type = self._parse_attribute_as_str(element, "type", False)
+    content = self._deserialize_content(element, ("bpt", "ept", "ph", "it", "hi"))
     return Hi(x=x, type=type, content=content)  # type: ignore[arg-type]
 
 
-class TuvDeserializer[T](BaseElementDeserializer[T], InlineContentDeserializerMixin[T]):
-  """
-  Deserializer for the `<tuv>` (Translation Unit Variant) element.
+class TuvDeserializer[BackendElementType](
+  BaseElementDeserializer[BackendElementType, Tuv],
+  InlineContentDeserializerMixin[BackendElementType],
+):
+  """Deserializer for the TMX `<tuv>` (Translation Unit Variant) element."""
 
-  Structure:
-      <tuv xml:lang="...">
-          <prop>...</prop>
-          <seg>Mixed Content</seg>
-          <note>...</note>
-      </tuv>
+  def _deserialize(self, element: BackendElementType) -> Tuv:
+    """
+    Convert a `<tuv>` XML element and its `<seg>` into a Tuv object.
 
-  This handler bridges the structural world (Props/Notes) and the inline world (<seg>).
+    Parameters
+    ----------
+    element : BackendElementType
+        The `<tuv>` element to deserialize.
 
-  Policies Enforced:
-      - `missing_seg`: Controls behavior if no <seg> child is found.
-      - `multiple_seg`: Controls behavior if multiple <seg> children are found.
-      - `extra_text`: Ensures no text exists directly in <tuv> (text must be in <seg>).
-  """
+    Returns
+    -------
+    Tuv
+        The deserialized Tuv instance.
 
-  def _deserialize(self, element: T) -> Tuv:
-    self._check_tag(element, "tuv")
+    Raises
+    ------
+    XmlDeserializationError
+        If extra text is found, multiple `<seg>` elements are present, or
+        the `<seg>` element is missing and respective policy behavior is "raise".
+    """
+    check_tag(self.backend.get_tag(element), "tuv", self.logger, self.policy)
 
     if (text := self.backend.get_text(element)) is not None:
       if text.strip():
@@ -305,18 +429,18 @@ class TuvDeserializer[T](BaseElementDeserializer[T], InlineContentDeserializerMi
         if self.policy.extra_text.behavior == "raise":
           raise XmlDeserializationError(f"Element <tuv> has extra text content '{text}'")
 
-    lang = self._parse_attribute(element, f"{XML_NS}lang", True)
-    o_encoding = self._parse_attribute(element, "o-encoding", False)
-    datatype = self._parse_attribute(element, "datatype", False)
+    lang = self._parse_attribute_as_str(element, f"{XML_NS}lang", True)
+    o_encoding = self._parse_attribute_as_str(element, "o-encoding", False)
+    datatype = self._parse_attribute_as_str(element, "datatype", False)
     usagecount = self._parse_attribute_as_int(element, "usagecount", False)
-    lastusagedate = self._parse_attribute_as_dt(element, "lastusagedate", False)
-    creationtool = self._parse_attribute(element, "creationtool", False)
-    creationtoolversion = self._parse_attribute(element, "creationtoolversion", False)
-    creationdate = self._parse_attribute_as_dt(element, "creationdate", False)
-    creationid = self._parse_attribute(element, "creationid", False)
-    changedate = self._parse_attribute_as_dt(element, "changedate", False)
-    changeid = self._parse_attribute(element, "changeid", False)
-    o_tmf = self._parse_attribute(element, "o-tmf", False)
+    lastusagedate = self._parse_attribute_as_datetime(element, "lastusagedate", False)
+    creationtool = self._parse_attribute_as_str(element, "creationtool", False)
+    creationtoolversion = self._parse_attribute_as_str(element, "creationtoolversion", False)
+    creationdate = self._parse_attribute_as_datetime(element, "creationdate", False)
+    creationid = self._parse_attribute_as_str(element, "creationid", False)
+    changedate = self._parse_attribute_as_datetime(element, "changedate", False)
+    changeid = self._parse_attribute_as_str(element, "changeid", False)
+    o_tmf = self._parse_attribute_as_str(element, "o-tmf", False)
 
     props: list[Prop] = []
     notes: list[Note] = []
@@ -335,21 +459,16 @@ class TuvDeserializer[T](BaseElementDeserializer[T], InlineContentDeserializerMi
           notes.append(note)
       elif tag == "seg":
         if seg_found:
-          self.logger.log(
-            self.policy.multiple_seg.log_level,
-            "Multiple <seg> elements in <tuv>",
-          )
+          self.logger.log(self.policy.multiple_seg.log_level, "Multiple <seg> elements in <tuv>")
           if self.policy.multiple_seg.behavior == "raise":
             raise XmlDeserializationError("Multiple <seg> elements in <tuv>")
           if self.policy.multiple_seg.behavior == "keep_first":
             continue
         seg_found = True
-        content = self.deserialize_content(child, ("bpt", "ept", "ph", "it", "hi"))
+        content = self._deserialize_content(child, ("bpt", "ept", "ph", "it", "hi"))
       else:
         self.logger.log(
-          self.policy.invalid_child_element.log_level,
-          "Invalid child element <%s> in <tuv>",
-          tag,
+          self.policy.invalid_child_element.log_level, "Invalid child element <%s> in <tuv>", tag
         )
         if self.policy.invalid_child_element.behavior == "raise":
           raise XmlDeserializationError(f"Invalid child element <{tag}> in <tuv>")
@@ -360,8 +479,13 @@ class TuvDeserializer[T](BaseElementDeserializer[T], InlineContentDeserializerMi
       )
       if self.policy.missing_seg.behavior == "raise":
         raise XmlDeserializationError("Element <tuv> is missing a <seg> child element")
-      if self.policy.missing_seg.behavior == "ignore":
+      elif self.policy.missing_seg.behavior == "ignore":
         content = []
+      else:
+        self.logger.log(
+          self.policy.missing_seg.log_level, "Falling back to an empty string"
+        )
+        content = [""]
 
     return Tuv(
       lang=lang,  # type: ignore[arg-type]
@@ -382,15 +506,29 @@ class TuvDeserializer[T](BaseElementDeserializer[T], InlineContentDeserializerMi
     )
 
 
-class TuDeserializer[T](BaseElementDeserializer[T]):
-  """
-  Deserializer for the `<tu>` (Translation Unit) element.
+class TuDeserializer[BackendElementType](BaseElementDeserializer[BackendElementType, Tu]):
+  """Deserializer for the TMX `<tu>` (Translation Unit) element."""
 
-  Container for `<tuv>`, `<prop>`, and `<note>` elements.
-  """
+  def _deserialize(self, element: BackendElementType) -> Tu:
+    """
+    Convert a `<tu>` XML element and its variants into a Tu object.
 
-  def _deserialize(self, element: T) -> Tu:
-    self._check_tag(element, "tu")
+    Parameters
+    ----------
+    element : BackendElementType
+        The `<tu>` element to deserialize.
+
+    Returns
+    -------
+    Tu
+        The deserialized Tu instance.
+
+    Raises
+    ------
+    XmlDeserializationError
+        If extra text or an invalid child element is encountered and policy is "raise".
+    """
+    check_tag(self.backend.get_tag(element), "tu", self.logger, self.policy)
 
     if (text := self.backend.get_text(element)) is not None:
       if text.strip():
@@ -400,20 +538,20 @@ class TuDeserializer[T](BaseElementDeserializer[T]):
         if self.policy.extra_text.behavior == "raise":
           raise XmlDeserializationError(f"Element <tu> has extra text content '{text}'")
 
-    tuid = self._parse_attribute(element, "tuid", False)
-    o_encoding = self._parse_attribute(element, "o-encoding", False)
-    datatype = self._parse_attribute(element, "datatype", False)
+    tuid = self._parse_attribute_as_str(element, "tuid", False)
+    o_encoding = self._parse_attribute_as_str(element, "o-encoding", False)
+    datatype = self._parse_attribute_as_str(element, "datatype", False)
     usagecount = self._parse_attribute_as_int(element, "usagecount", False)
-    lastusagedate = self._parse_attribute_as_dt(element, "lastusagedate", False)
-    creationtool = self._parse_attribute(element, "creationtool", False)
-    creationtoolversion = self._parse_attribute(element, "creationtoolversion", False)
-    creationdate = self._parse_attribute_as_dt(element, "creationdate", False)
-    creationid = self._parse_attribute(element, "creationid", False)
-    changedate = self._parse_attribute_as_dt(element, "changedate", False)
+    lastusagedate = self._parse_attribute_as_datetime(element, "lastusagedate", False)
+    creationtool = self._parse_attribute_as_str(element, "creationtool", False)
+    creationtoolversion = self._parse_attribute_as_str(element, "creationtoolversion", False)
+    creationdate = self._parse_attribute_as_datetime(element, "creationdate", False)
+    creationid = self._parse_attribute_as_str(element, "creationid", False)
+    changedate = self._parse_attribute_as_datetime(element, "changedate", False)
     segtype = self._parse_attribute_as_enum(element, "segtype", Segtype, False)
-    changeid = self._parse_attribute(element, "changeid", False)
-    o_tmf = self._parse_attribute(element, "o-tmf", False)
-    srclang = self._parse_attribute(element, "srclang", False)
+    changeid = self._parse_attribute_as_str(element, "changeid", False)
+    o_tmf = self._parse_attribute_as_str(element, "o-tmf", False)
+    srclang = self._parse_attribute_as_str(element, "srclang", False)
 
     props: list[Prop] = []
     notes: list[Note] = []
@@ -435,9 +573,7 @@ class TuDeserializer[T](BaseElementDeserializer[T]):
           variants.append(tuv)
       else:
         self.logger.log(
-          self.policy.invalid_child_element.log_level,
-          "Invalid child element <%s> in <tu>",
-          tag,
+          self.policy.invalid_child_element.log_level, "Invalid child element <%s> in <tu>", tag
         )
         if self.policy.invalid_child_element.behavior == "raise":
           raise XmlDeserializationError(f"Invalid child element <{tag}> in <tu>")
@@ -463,27 +599,31 @@ class TuDeserializer[T](BaseElementDeserializer[T]):
     )
 
 
-class TmxDeserializer[T](BaseElementDeserializer[T]):
-  """
-  Deserializer for the root `<tmx>` element.
+class TmxDeserializer[BackendElementType](BaseElementDeserializer[BackendElementType, Tmx]):
+  """Deserializer for the root `<tmx>` XML element."""
 
-  Structure:
-      <tmx version="...">
-          <header>...</header>
-          <body>
-              <tu>...</tu>
-              ...
-          </body>
-      </tmx>
+  def _deserialize(self, element: BackendElementType) -> Tmx:
+    """
+    Convert a `<tmx>` XML element into a Tmx object structure.
 
-  Policies Enforced:
-      - `missing_header`: Valid TMX must have a header.
-      - `multiple_headers`: Valid TMX must have exactly one header.
-  """
+    Parameters
+    ----------
+    element : BackendElementType
+        The root `<tmx>` element to deserialize.
 
-  def _deserialize(self, element: T) -> Tmx:
-    self._check_tag(element, "tmx")
-    version = self._parse_attribute(element, "version", True)
+    Returns
+    -------
+    Tmx
+        The deserialized Tmx instance.
+
+    Raises
+    ------
+    XmlDeserializationError
+        If multiple headers are found, the header is missing, or invalid
+        children exist and the policy is set to "raise".
+    """
+    check_tag(self.backend.get_tag(element), "tmx", self.logger, self.policy)
+    version = self._parse_attribute_as_str(element, "version", True)
     header_found: bool = False
     header: Header | None = None
     body: list[Tu] = []
@@ -501,8 +641,7 @@ class TmxDeserializer[T](BaseElementDeserializer[T]):
       if tag == "header":
         if header_found:
           self.logger.log(
-            self.policy.multiple_headers.log_level,
-            "Multiple <header> elements in <tmx>",
+            self.policy.multiple_headers.log_level, "Multiple <header> elements in <tmx>"
           )
           if self.policy.multiple_headers.behavior == "raise":
             raise XmlDeserializationError("Multiple <header> elements in <tmx>")
@@ -520,9 +659,7 @@ class TmxDeserializer[T](BaseElementDeserializer[T]):
               body.append(tu_obj)
       else:
         self.logger.log(
-          self.policy.invalid_child_element.log_level,
-          "Invalid child element <%s> in <tmx>",
-          tag,
+          self.policy.invalid_child_element.log_level, "Invalid child element <%s> in <tmx>", tag
         )
         if self.policy.invalid_child_element.behavior == "raise":
           raise XmlDeserializationError(f"Invalid child element <{tag}> in <tmx>")

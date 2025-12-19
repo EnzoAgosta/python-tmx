@@ -3,16 +3,15 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 [project]
 name = "hypomnema"
-version = "0.4.3"
+version = "0.4.4"
 authors = [{ name = "Enzo Agosta", email = "agosta.enzowork@gmail.com" }]
 description = "Python library for manipulating, creating and editing tmx files"
 readme = { file = "README.MD", content-type = "text/markdown" }
 license = { text = "MIT" }
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 classifiers = [
-  "Programming Language :: Python :: 3.14",
   "Programming Language :: Python :: 3.13",
-  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.14",
   "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
 ]
@@ -43,6 +42,3 @@ test = [
   "pytest-cov>=7.0.0",
   "pytest-mock>=3.15.1",
 ]
-
-[tool.setuptools]
-license-files = []

@@ -1,176 +1,151 @@
+from enum import StrEnum
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from datetime import datetime
 from logging import Logger
-from typing import Protocol, TypeGuard, TypeVar
 
-from hypomnema.base.errors import (AttributeSerializationError,
-                                   XmlSerializationError)
-from hypomnema.base.types import (Assoc, BaseElement, BaseInlineElement, Pos,
-                                  Segtype, Tuv)
-from hypomnema.xml.backends.base import XMLBackend
+from hypomnema.base.errors import AttributeSerializationError, XmlSerializationError
+from hypomnema.base.types import BaseElement, BaseInlineElement, Tuv
+from hypomnema.xml.backends.base import XmlBackend
 from hypomnema.xml.policy import SerializationPolicy
 
-T_Expected = TypeVar("T_Expected", bound=BaseElement)
-T_Enum = TypeVar("T_Enum", Pos, Segtype, Assoc)
-__all__ = ["BaseElementSerializer", "InlineContentSerializerMixin"]
+__all__ = ["BaseElementSerializer", "InlineContentSerializerMixin", "ChildrenSerializerMixin"]
 
 
-class SerializerHost[T](Protocol):
+class BaseElementSerializer[BackendElementType, TmxElementType: BaseElement](ABC):
   """
-  Protocol defining the contract for the orchestrator driving the serialization process.
+  Abstract base class for converting TMX objects into XML elements.
 
-  This allows handlers and mixins to callback into the main recursion loop (via `emit`)
-  without creating circular import dependencies.
-  """
+  Parameters
+  ----------
+  backend : XMLBackend[BackendElementType]
+      The XML library wrapper used to create and manipulate elements.
+  policy : SerializationPolicy
+      The configuration for handling errors and logging during serialization.
+  logger : Logger
+      The logging instance for reporting policy violations.
 
-  backend: XMLBackend[T]
-  policy: SerializationPolicy
-  logger: Logger
-
-  def emit(self, obj: BaseElement) -> T | None:
-    """
-    Dispatches a child Python object to its appropriate handler for serialization.
-
-    Args:
-        obj (BaseElement): The Python object to serialize.
-
-    Returns:
-        T | None: The resulting XML element, or None if skipped based on policy.
-    """
-    ...
-
-
-class BaseElementSerializer[T](ABC):
-  """
-  Abstract base class for all TMX element serializers.
-
-  Provides utilities for type checking, attribute setting (with type conversion),
-  and policy enforcement regarding missing or invalid data.
-
-  Attributes:
-      backend (XMLBackend): The abstraction layer for building XML nodes.
-      policy (SerializationPolicy): Configuration controlling validation strictness.
-      logger (Logger): Channel for debug/warning/error logs.
+  Attributes
+  ----------
+  backend : XMLBackend[BackendElementType]
+      The XML library wrapper.
+  policy : SerializationPolicy
+      The serialization configuration.
+  logger : Logger
+      The logging instance.
   """
 
   def __init__(
-    self,
-    backend: XMLBackend,
-    policy: SerializationPolicy,
-    logger: Logger,
+    self, backend: XmlBackend[BackendElementType], policy: SerializationPolicy, logger: Logger
   ):
-    self.backend: XMLBackend[T] = backend
+    self.backend: XmlBackend[BackendElementType] = backend
     self.policy = policy
     self.logger = logger
-    self._emit: Callable[[BaseElement], T | None] | None = None
+    self._emit: Callable[[BaseElement], BackendElementType | None] | None = None
 
-  def _set_emit(self, emit: Callable[[BaseElement], T | None]) -> None:
+  def _set_emit(self, emit: Callable[[BaseElement], BackendElementType | None]) -> None:
     """
-    Injects the orchestrator's callback function.
+    Set the dispatch function for recursive serialization.
+    Must be called before `emit()` is called.
 
-    Must be called before `emit()` is used.
-
-    Args:
-        emit (Callable): The main dispatch function (usually `Serializer.serialize`).
+    Parameters
+    ----------
+    emit : Callable[[BaseElement], BackendElementType | None]
+        A function that dispatches objects to their specific serializers.
     """
     self._emit = emit
 
-  def emit(self, obj: BaseElement) -> T | None:
+  def emit(self, obj: BaseElement) -> BackendElementType | None:
     """
-    Delegates serialization of a child object to the orchestrator.
+    Invoke the dispatcher to serialize a BaseElement object.
 
-    Args:
-        obj (BaseElement): The child object.
+    Parameters
+    ----------
+    obj : BaseElement
+        The object to serialize.
 
-    Returns:
-        T | None: The serialized element.
+    Returns
+    -------
+    BackendElementType | None
+        The serialized XML element, or None if the dispatcher returns None.
 
-    Raises:
-        AssertionError: If `_set_emit` has not been called yet.
+    Raises
+    ----------
+    AssertionError
+        If called before the dispatcher is set via `_set_emit`.
     """
     assert self._emit is not None, "emit() called before set_emit() was called"
     return self._emit(obj)
 
   @abstractmethod
-  def _serialize(self, obj: BaseElement) -> T | None:
+  def _serialize(self, obj: TmxElementType) -> BackendElementType | None:
     """
-    Converts a Python TMX object into an XML element.
+    Perform the actual serialization of the specific TMX object type.
 
-    Args:
-        obj (BaseElement): The specific object to serialize (e.g., Header).
+    Parameters
+    ----------
+    obj : TmxElementType
+        The TMX object instance to convert.
 
-    Returns:
-        T | None: The constructed XML node.
+    Returns
+    -------
+    BackendElementType | None
+        The resulting XML element.
     """
     ...
 
-  def _check_obj_type(
-    self, obj: BaseElement, expected_type: type[T_Expected]
-  ) -> TypeGuard[T_Expected]:
-    """
-    Validates that the object passed to the handler matches the expected type.
-
-    Policy Impact (`policy.invalid_object_type`):
-        - `raise`: Raises `XmlSerializationError` on mismatch.
-        - `ignore`: Returns `False`, allowing the caller to abort gracefully.
-
-    Args:
-        obj (BaseElement): The object instance.
-        expected_type (type): The expected class (e.g., `Header`).
-
-    Returns:
-        bool: True if the type matches, False if mismatch (and policy allowed ignore).
-
-    Raises:
-        XmlSerializationError: If types mismatch and policy is 'raise'.
-    """
-    if not isinstance(obj, expected_type):
-      self.logger.log(
-        self.policy.invalid_object_type.log_level,
-        "Cannot serialize object of type %r to xml element using %r",
-        type(obj).__name__,
-        type(self).__name__,
-      )
-      if self.policy.invalid_object_type.behavior == "raise":
-        raise XmlSerializationError(
-          f"Cannot serialize object of type {type(obj).__name__!r} to xml element using {type(self).__name__!r}"
-        )
-      return False
-    return True
-
-  def _set_dt_attribute(
-    self,
-    target: T,
-    value: datetime | None,
-    attribute: str,
-    required: bool,
+  def _handle_missing_attribute(
+    self, target: BackendElementType, attribute: str, required: bool
   ) -> None:
     """
-    Serializes a `datetime` object to an ISO 8601 string attribute.
+    Handle cases where an attribute value is None according to policy.
 
-    Policy Impact:
-        - `required_attribute_missing`: Checks if `required=True` but value is None.
-        - `invalid_attribute_type`: Checks if value is actually a `datetime` instance.
+    Parameters
+    ----------
+    target : BackendElementType
+        The XML element where the attribute would be set.
+    attribute : str
+        The name of the attribute.
+    required : bool
+        Whether the TMX specification requires this attribute.
 
-    Args:
-        target (T): The XML element to modify.
-        value (datetime | None): The value to set.
-        attribute (str): The XML attribute name.
-        required (bool): Whether this attribute is mandatory in TMX.
+    Raises
+    ------
+    AttributeSerializationError
+        If the attribute is required and the policy behavior is "raise".
+    """
+    if required:
+      self.logger.log(
+        self.policy.required_attribute_missing.log_level,
+        "Required attribute %r is missing on element <%s>",
+        attribute,
+        self.backend.get_tag(target),
+      )
+      if self.policy.required_attribute_missing.behavior == "raise":
+        raise AttributeSerializationError(
+          f"Required attribute {attribute!r} is missing on element <{self.backend.get_tag(target)}>"
+        )
+    return
 
-    Raises:
-        AttributeSerializationError: If validation fails and policy is 'raise'.
+  def _set_datetime_attribute(
+    self, target: BackendElementType, value: datetime | None, attribute: str, required: bool
+  ) -> None:
+    """
+    Serialize and set a datetime attribute in ISO 8601 format.
+
+    Parameters
+    ----------
+    target : BackendElementType
+        The XML element to modify.
+    value : datetime | None
+        The datetime object to serialize.
+    attribute : str
+        The name of the attribute in the XML element.
+    required : bool
+        Whether the attribute is mandatory.
     """
     if value is None:
-      if required:
-        self.logger.log(
-          self.policy.required_attribute_missing.log_level,
-          "Required attribute %r is None",
-          attribute,
-        )
-        if self.policy.required_attribute_missing.behavior == "raise":
-          raise AttributeSerializationError(f"Required attribute {attribute!r} is None")
+      self._handle_missing_attribute(target, attribute, required)
       return
     if not isinstance(value, datetime):
       self.logger.log(
@@ -184,34 +159,24 @@ class BaseElementSerializer[T](ABC):
     self.backend.set_attr(target, attribute, value.isoformat())
 
   def _set_int_attribute(
-    self,
-    target: T,
-    value: int | None,
-    attribute: str,
-    required: bool,
+    self, target: BackendElementType, value: int | None, attribute: str, required: bool
   ) -> None:
     """
-    Serializes an integer value to a string attribute.
+    Serialize and set an integer attribute.
 
-    Policy Impact:
-        - `required_attribute_missing`: Checks for None on required fields.
-        - `invalid_attribute_type`: Checks if value is an `int`.
-
-    Args:
-        target (T): The XML element.
-        value (int | None): The integer value.
-        attribute (str): XML attribute name.
-        required (bool): Mandatory flag.
+    Parameters
+    ----------
+    target : BackendElementType
+        The XML element to modify.
+    value : int | None
+        The integer value to serialize.
+    attribute : str
+        The name of the attribute in the XML element.
+    required : bool
+        Whether the attribute is mandatory.
     """
     if value is None:
-      if required:
-        self.logger.log(
-          self.policy.required_attribute_missing.log_level,
-          "Required attribute %r is None",
-          attribute,
-        )
-        if self.policy.required_attribute_missing.behavior == "raise":
-          raise AttributeSerializationError(f"Required attribute {attribute!r} is None")
+      self._handle_missing_attribute(target, attribute, required)
       return
     if not isinstance(value, int):
       self.logger.log(
@@ -222,85 +187,70 @@ class BaseElementSerializer[T](ABC):
       return
     self.backend.set_attr(target, attribute, str(value))
 
-  def _set_enum_attribute(
+  def _set_enum_attribute[EnumType: StrEnum](
     self,
-    target: T,
-    value: T_Enum | None,
+    target: BackendElementType,
+    value: EnumType | None,
     attribute: str,
-    enum_type: type[T_Enum],
+    enum_type: type[EnumType],
     required: bool,
   ) -> None:
     """
-    Serializes an Enum member to its string value.
+    Serialize and set an attribute from a string-based Enum.
 
-    Policy Impact:
-        - `required_attribute_missing`: Checks for None.
-        - `invalid_attribute_type`: Checks if value is an instance of `enum_type`.
-
-    Args:
-        target (T): The XML element.
-        value (T_Enum | None): The enum member.
-        attribute (str): XML attribute name.
-        enum_type (type[T_Enum]): The expected Enum class.
-        required (bool): Mandatory flag.
+    Parameters
+    ----------
+    target : BackendElementType
+        The XML element to modify.
+    value : EnumType | None
+        The enum member to serialize.
+    attribute : str
+        The name of the attribute in the XML element.
+    enum_type : type[EnumType]
+        The specific Enum class for type validation.
+    required : bool
+        Whether the attribute is mandatory.
     """
     if value is None:
-      if required:
-        self.logger.log(
-          self.policy.required_attribute_missing.log_level,
-          "Required attribute %r is None",
-          attribute,
-        )
-        if self.policy.required_attribute_missing.behavior == "raise":
-          raise AttributeSerializationError(f"Required attribute {attribute!r} is None")
+      self._handle_missing_attribute(target, attribute, required)
       return
     if not isinstance(value, enum_type):
       self.logger.log(
         self.policy.invalid_attribute_type.log_level,
-        "Attribute %r is not a %s",
+        "Attribute %r is not a member of %s",
         attribute,
         enum_type,
       )
       if self.policy.invalid_attribute_type.behavior == "raise":
-        raise AttributeSerializationError(f"Attribute {attribute!r} is not a {enum_type}")
+        raise AttributeSerializationError(
+          f"Attribute {attribute!r} is not a member of {enum_type!r}"
+        )
       return
     self.backend.set_attr(target, attribute, value.value)
 
-  def _set_attribute(
-    self,
-    target: T,
-    value: str | None,
-    attribute: str,
-    required: bool,
+  def _set_str_attribute(
+    self, target: BackendElementType, value: str | None, attribute: str, required: bool
   ) -> None:
     """
-    Sets a string attribute.
+    Serialize and set a string attribute.
 
-    Policy Impact:
-        - `required_attribute_missing`: Checks for None.
-        - `invalid_attribute_type`: Checks if value is a string.
-
-    Args:
-        target (T): The XML element.
-        value (str | None): The string value.
-        attribute (str): XML attribute name.
-        required (bool): Mandatory flag.
+    Parameters
+    ----------
+    target : BackendElementType
+        The XML element to modify.
+    value : str | None
+        The string value to serialize.
+    attribute : str
+        The name of the attribute in the XML element.
+    required : bool
+        Whether the attribute is mandatory.
     """
     if value is None:
-      if required:
-        self.logger.log(
-          self.policy.required_attribute_missing.log_level,
-          "Required attribute %r is None",
-          attribute,
-        )
-        if self.policy.required_attribute_missing.behavior == "raise":
-          raise AttributeSerializationError(f"Required attribute {attribute!r} is None")
+      self._handle_missing_attribute(target, attribute, required)
       return
     if not isinstance(value, str):
       self.logger.log(
-        self.policy.invalid_attribute_type.log_level,
-        "Attribute %r is not a string",
-        attribute,
+        self.policy.invalid_attribute_type.log_level, "Attribute %r is not a string", attribute
       )
       if self.policy.invalid_attribute_type.behavior == "raise":
         raise AttributeSerializationError(f"Attribute {attribute!r} is not a string")
@@ -308,68 +258,140 @@ class BaseElementSerializer[T](ABC):
     self.backend.set_attr(target, attribute, value)
 
 
-class InlineContentSerializerMixin[T](SerializerHost[T]):
+class InlineContentSerializerMixin[BackendElementType]:
   """
-  Mixin for Serializers that need to produce mixed content (text + tags).
+  Mixin for serializing mixed content (text and inline elements).
 
-  Used by handlers like `TuvSerializer`, `BptSerializer`, etc. to serialize
-  a list of strings and objects into a parent XML element, properly managing
-  text nodes and tail text.
+  Attributes
+  ----------
+  backend : XMLBackend[BackendElementType]
+      The XML library wrapper.
+  policy : SerializationPolicy
+      The serialization configuration.
+  logger : Logger
+      The logging instance.
+  emit : Callable[[BaseElement], BackendElementType | None]
+      Dispatcher for serializing inline child elements.
   """
 
+  backend: XmlBackend[BackendElementType]
+  policy: SerializationPolicy
+  logger: Logger
+  emit: Callable[[BaseElement], BackendElementType | None]
   __slots__ = tuple()
 
-  def serialize_content(
+  def _serialize_content_into(
     self,
     source: BaseInlineElement | Tuv,
-    target: T,
+    target: BackendElementType,
     allowed: tuple[type[BaseInlineElement], ...],
   ) -> None:
     """
-    Iterates over a content list and appends text/elements to the target.
+    Iteratively serialize mixed text and XML elements into a target element.
 
-    This handles the logic of appending text to the parent's `.text` (if it's the first child)
-    or the previous sibling's `.tail` (if it's subsequent text).
+    Parameters
+    ----------
+    source : BaseInlineElement | Tuv
+        The object containing the mixed content list.
+    target : BackendElementType
+        The XML element to populate.
+    allowed : tuple[type[BaseInlineElement], ...]
+        The permitted types for inline child elements.
 
-    Policy Impact:
-        - `policy.invalid_content_type`: Checks if an item in the list is an allowed type.
-
-    Args:
-        source (BaseInlineElement | Tuv): The object containing the `.content` list.
-        target (T): The parent XML element to populate.
-        allowed (tuple[type]): A whitelist of allowed Python classes for child elements.
-
-    Raises:
-        XmlSerializationError: If an invalid object type is found in content and policy is 'raise'.
+    Raises
+    ------
+    XmlSerializationError
+        If a child object type is not a string or in the allowed tuple,        and policy behavior is "raise".
     """
-    last_child: T | None = None
+    last_child: BackendElementType | None = None
     for item in source.content:
       if isinstance(item, str):
         if last_child is None:
-          text = self.backend.get_text(target)
-          if text is None:
-            text = ""
+          text = self.backend.get_text(target) or ""
           self.backend.set_text(target, text + item)
         else:
-          tail = self.backend.get_tail(last_child)
-          if tail is None:
-            tail = ""
+          tail = self.backend.get_tail(last_child) or ""
           self.backend.set_tail(last_child, tail + item)
+
       elif isinstance(item, allowed):
         child_elem = self.emit(item)
         if child_elem is not None:
           self.backend.append(target, child_elem)
           last_child = child_elem
+
       else:
+        allowed_names = ", ".join(x.__name__ for x in allowed)
         self.logger.log(
           self.policy.invalid_content_type.log_level,
-          "Incorrect child element in %s: expected one of %s, got %s",
-          type(source).__name__,
-          ", ".join(x.__name__ for x in allowed),
-          type(item).__name__,
+          "Incorrect child element in %s: expected one of %s, got %r",
+          source.__class__.__name__,
+          allowed_names,
+          item.__class__.__name__,
         )
         if self.policy.invalid_content_type.behavior == "raise":
           raise XmlSerializationError(
-            f"Incorrect child element in {type(source).__name__}: expected one of {', '.join(x.__name__ for x in allowed)}, got {type(item).__name__}"
+            f"Incorrect child element in {source.__class__.__name__}:"
+            f" expected one of {allowed_names},"
+            f" got {item.__class__.__name__!r}"
           )
         continue
+
+
+class ChildrenSerializerMixin[BackendElementType]:
+  """
+  Mixin for serializing homogeneous lists of child elements.
+
+  Attributes
+  ----------
+  backend : XMLBackend[BackendElementType]
+      The XML library wrapper.
+  policy : SerializationPolicy
+      The serialization configuration.
+  logger : Logger
+      The logging instance.
+  emit : Callable[[BaseElement], BackendElementType | None]
+      Dispatcher for serializing child elements.
+  """
+
+  emit: Callable[[BaseElement], BackendElementType | None]
+  policy: SerializationPolicy
+  backend: XmlBackend[BackendElementType]
+  logger: Logger
+
+  def _serialize_children[ChildType: BaseElement](
+    self, children: list[ChildType], target: BackendElementType, expected_type: type[ChildType]
+  ) -> None:
+    """
+    Serialize a list of child objects and append them to a target element.
+
+    Parameters
+    ----------
+    children : list[ChildType]
+        The list of TMX objects to serialize.
+    target : BackendElementType
+        The parent XML element to receive the children.
+    expected_type : type[ChildType]
+        The required type for objects in the children list.
+
+    Raises
+    ------
+    XmlSerializationError
+        If a child object does not match `expected_type` and policy
+        behavior is "raise".
+    """
+    for child in children:
+      if isinstance(child, expected_type):
+        child_element = self.emit(child)
+        if child_element is not None:
+          self.backend.append(target, child_element)
+      else:
+        self.logger.log(
+          self.policy.invalid_child_element.log_level,
+          "Invalid child element %r when serializing <%s>",
+          child.__class__.__name__,
+          self.backend.get_tag(target),
+        )
+        if self.policy.invalid_child_element.behavior == "raise":
+          raise XmlSerializationError(
+            f"Invalid child element {child.__class__.__name__!r} when serializing <{self.backend.get_tag(target)}>"
+          )

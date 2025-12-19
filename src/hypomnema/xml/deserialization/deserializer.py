@@ -2,19 +2,21 @@ from logging import Logger, getLogger
 
 from hypomnema.base.errors import MissingHandlerError
 from hypomnema.base.types import BaseElement
-from hypomnema.xml.backends.base import XMLBackend
-from hypomnema.xml.deserialization._handlers import (BptDeserializer,
-                                                     EptDeserializer,
-                                                     HeaderDeserializer,
-                                                     HiDeserializer,
-                                                     ItDeserializer,
-                                                     NoteDeserializer,
-                                                     PhDeserializer,
-                                                     PropDeserializer,
-                                                     SubDeserializer,
-                                                     TmxDeserializer,
-                                                     TuDeserializer,
-                                                     TuvDeserializer)
+from hypomnema.xml.backends.base import XmlBackend
+from hypomnema.xml.deserialization._handlers import (
+  BptDeserializer,
+  EptDeserializer,
+  HeaderDeserializer,
+  HiDeserializer,
+  ItDeserializer,
+  NoteDeserializer,
+  PhDeserializer,
+  PropDeserializer,
+  SubDeserializer,
+  TmxDeserializer,
+  TuDeserializer,
+  TuvDeserializer,
+)
 from hypomnema.xml.deserialization.base import BaseElementDeserializer
 from hypomnema.xml.policy import DeserializationPolicy
 
@@ -23,38 +25,43 @@ _ModuleLogger = getLogger(__name__)
 __all__ = ["Deserializer"]
 
 
-class Deserializer[T]:
+class Deserializer[BackendElementType]:
   """
-  The main orchestrator for converting XML TMX documents into Python objects.
+  Orchestrator for converting XML elements into TMX objects using registered handlers.
 
-  This class acts as a facade and dispatcher. It does not parse XML logic itself;
-  instead, it inspects the tag of the incoming element and delegates processing
-  to a registered `BaseElementDeserializer` handler.
+  Parameters
+  ----------
+  backend : XMLBackend
+      The XML library wrapper used for element inspection.
+  policy : DeserializationPolicy | None, optional
+      The configuration for error handling and logging. Defaults to a standard
+      DeserializationPolicy.
+  logger : Logger | None, optional
+      The logger for reporting operations and policy violations. Defaults to
+       the module-level logger.
+  handlers : dict[str, BaseElementDeserializer] | None, optional
+      A mapping of XML tags to their respective deserializer instances. If None,
+      default TMX handlers are used.
 
-  Attributes:
-      backend (XMLBackend): The adapter interface for the underlying XML parser.
-      policy (DeserializationPolicy): Configuration controlling strictness and error recovery.
-      logger (Logger): The logging channel.
-      handlers (dict): A map of tag names (str) to handler instances.
+  Attributes
+  ----------
+  backend : XMLBackend
+      The XML library wrapper.
+  policy : DeserializationPolicy
+      The active deserialization policy.
+  logger : Logger
+      The active logger.
+  handlers : dict[str, BaseElementDeserializer]
+      The registered tag-to-handler mapping.
   """
 
   def __init__(
     self,
-    backend: XMLBackend,
+    backend: XmlBackend,
     policy: DeserializationPolicy | None = None,
     logger: Logger | None = None,
-    handlers: dict[str, BaseElementDeserializer[T]] | None = None,
+    handlers: dict[str, BaseElementDeserializer] | None = None,
   ):
-    """
-    Initializes the Deserializer.
-
-    Args:
-        backend (XMLBackend): The backend instance (e.g., LxmlBackend).
-        policy (DeserializationPolicy | None): Custom policy options. Defaults to a standard policy.
-        logger (Logger | None): Custom logger. Defaults to module logger.
-        handlers (dict | None): Custom handler map. If None, default handlers for
-            TMX 1.4b (tu, tuv, header, etc.) are loaded.
-    """
     self.backend = backend
     self.policy = policy or DeserializationPolicy()
     self.logger = logger or _ModuleLogger
@@ -69,8 +76,15 @@ class Deserializer[T]:
       if handler._emit is None:
         handler._set_emit(self.deserialize)
 
-  def _get_default_handlers(self) -> dict[str, BaseElementDeserializer[T]]:
-    """Returns the standard set of handlers for TMX 1.4b compliance."""
+  def _get_default_handlers(self) -> dict[str, BaseElementDeserializer]:
+    """
+    Initialize the internal mapping of default TMX element deserializers.
+
+    Returns
+    -------
+    dict[str, BaseElementDeserializer]
+        A dictionary mapping TMX tags to their default deserializer instances.
+    """
     return {
       "note": NoteDeserializer(self.backend, self.policy, self.logger),
       "prop": PropDeserializer(self.backend, self.policy, self.logger),
@@ -86,25 +100,26 @@ class Deserializer[T]:
       "tmx": TmxDeserializer(self.backend, self.policy, self.logger),
     }
 
-  def deserialize(self, element: T) -> BaseElement | None:
+  def deserialize(self, element: BackendElementType) -> BaseElement | None:
     """
-    Orchestrates the deserialization of an XML element.
+    Dispatch an XML element to a handler and return the resulting TMX object.
 
-    This method identifies the element's tag and delegates to the appropriate handler.
+    Parameters
+    ----------
+    element : BackendElementType
+        The backend XML element to deserialize.
 
-    Policy Impact (`policy.missing_handler`):
-        - `raise`: Raises `MissingHandlerError` if no handler exists for the tag.
-        - `ignore`: Returns `None`.
-        - `default`: Attempts to fallback to standard TMX handlers if a custom handler dict is incomplete.
+    Returns
+    -------
+    BaseElement | None
+        The deserialized TMX object, or None if the policy is set to "ignore"
+        on missing handlers.
 
-    Args:
-        element (T): The root or child element to deserialize.
-
-    Returns:
-        BaseElement | None: The resulting Python object, or None if skipped/ignored.
-
-    Raises:
-        MissingHandlerError: If an unknown tag is encountered and policy is 'raise'.
+    Raises
+    ------
+    MissingHandlerError
+        If no handler is found for the element tag and the policy is set to
+        "raise", or if "default" fallback fails to find a handler.
     """
     tag = self.backend.get_tag(element)
     self.logger.debug("Deserializing <%s>", tag)
@@ -117,9 +132,7 @@ class Deserializer[T]:
         return None
       else:
         self.logger.log(
-          self.policy.missing_handler.log_level,
-          "Falling back to default handler for <%s>",
-          tag,
+          self.policy.missing_handler.log_level, "Falling back to default handler for <%s>", tag
         )
         handler = self._get_default_handlers().get(tag)
         if handler is None:

@@ -1,7 +1,6 @@
-from __future__ import annotations
 from warnings import warn
 
-from .base import XMLBackend
+from .base import XmlBackend
 from .standard import StandardBackend
 
 __all__ = ["XMLBackend", "StandardBackend"]

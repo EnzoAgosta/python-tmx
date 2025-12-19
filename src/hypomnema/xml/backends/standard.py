@@ -2,13 +2,13 @@ import xml.etree.ElementTree as et
 from collections.abc import Collection, Iterable, Iterator
 from os import PathLike
 
-from hypomnema.xml.backends.base import XMLBackend
+from hypomnema.xml.backends.base import XmlBackend
 from hypomnema.xml.utils import normalize_encoding, normalize_tag, prep_tag_set
 
 __all__ = ["StandardBackend"]
 
 
-class StandardBackend(XMLBackend[et.Element]):
+class StandardBackend(XmlBackend[et.Element]):
   """Standard Library-based XML backend."""
 
   def parse(self, path: str | bytes | PathLike[str] | PathLike[bytes]) -> et.Element:
