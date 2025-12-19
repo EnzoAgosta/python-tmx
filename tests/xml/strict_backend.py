@@ -1,12 +1,11 @@
+from hypomnema.xml.backends import XmlBackend
+from hypomnema.xml.utils import normalize_encoding, prep_tag_set, normalize_tag
 from collections.abc import Collection, Iterable, Iterator
 from os import PathLike
-import hypomnema as hm
 import lxml.etree as et
 
-from hypomnema.xml.utils import normalize_encoding, normalize_tag, prep_tag_set
 
-
-class StrictBackend(hm.XMLBackend[int]):
+class StrictBackend(XmlBackend[int]):
   """
   A test-only backend that passes integers (IDs) to handlers instead of objects.
 
@@ -51,11 +50,7 @@ class StrictBackend(hm.XMLBackend[int]):
         if e.text is None:
           e.text = ""
     tree = et.ElementTree(root)
-    tree.write(
-      path,
-      encoding=normalize_encoding(encoding),
-      xml_declaration=True,
-    )
+    tree.write(path, encoding=normalize_encoding(encoding), xml_declaration=True)
 
   def iterparse(
     self,
@@ -101,11 +96,7 @@ class StrictBackend(hm.XMLBackend[int]):
     else:
       root_obj = self._element_id_to_element_map[root_elem]
 
-    root_string: bytes = et.tostring(
-      root_obj,
-      encoding=_encoding,
-      xml_declaration=False,
-    )
+    root_string: bytes = et.tostring(root_obj, encoding=_encoding, xml_declaration=False)
 
     root_string: bytes = et.tostring(root_obj, encoding=_encoding, xml_declaration=False)
     pos = root_string.rfind(b"</")

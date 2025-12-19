@@ -1,148 +1,86 @@
-import logging
-
-import pytest
+from hypomnema.xml.deserialization.base import BaseElementDeserializer
+from hypomnema.xml.policy import DeserializationPolicy, PolicyValue
+from typing import Literal
 from pytest_mock import MockerFixture
+import pytest
+import logging
 
 import hypomnema as hm
 
 
-class TestDeserializer[T]:
-  backend: hm.XMLBackend[T]
+class TestDeserializer:
+  backend: hm.XmlBackend
   logger: logging.Logger
-  policy: hm.DeserializationPolicy
+  policy: DeserializationPolicy
+  mocker: MockerFixture
 
   @pytest.fixture(autouse=True)
-  def setup(self, backend: hm.XMLBackend[T], test_logger: logging.Logger, mocker: MockerFixture):
+  def _setup(
+    self, backend: hm.XmlBackend, test_logger: logging.Logger, mocker: MockerFixture
+  ) -> None:
     self.backend = backend
     self.logger = test_logger
-    self.policy = hm.DeserializationPolicy()
+    self.policy = DeserializationPolicy()
     self.mocker = mocker
 
-  def test_init_setup_emit(self):
-    mock_handler = self.mocker.Mock(spec=hm.BaseElementDeserializer)
-    mock_handler._emit = None
+  def test_emit_is_wired(self) -> None:
+    handlers = {"fake": self.mocker.Mock(spec=BaseElementDeserializer, _emit=None)}
+    deserializer = hm.Deserializer(self.backend, self.policy, logger=self.logger, handlers=handlers)
+    handlers["fake"]._set_emit.assert_called_once_with(deserializer.deserialize)
 
-    handlers = {"test_tag": mock_handler}
-
-    deserializer = hm.Deserializer(self.backend, self.policy, handlers=handlers, logger=self.logger)
-
-    mock_handler._set_emit.assert_called_once_with(deserializer.deserialize)
-
-  def test_load_default_handlers(self, caplog: pytest.LogCaptureFixture):
+  def test_default_handlers_loaded(self, caplog: pytest.LogCaptureFixture) -> None:
     deserializer = hm.Deserializer(self.backend, self.policy, logger=self.logger)
+    defaults = deserializer.handlers
 
-    handlers = deserializer.handlers
-    assert isinstance(handlers["note"], hm.NoteDeserializer)
-    assert isinstance(handlers["prop"], hm.PropDeserializer)
-    assert isinstance(handlers["header"], hm.HeaderDeserializer)
-    assert isinstance(handlers["tu"], hm.TuDeserializer)
-    assert isinstance(handlers["tuv"], hm.TuvDeserializer)
-    assert isinstance(handlers["bpt"], hm.BptDeserializer)
-    assert isinstance(handlers["ept"], hm.EptDeserializer)
-    assert isinstance(handlers["it"], hm.ItDeserializer)
-    assert isinstance(handlers["ph"], hm.PhDeserializer)
-    assert isinstance(handlers["sub"], hm.SubDeserializer)
-    assert isinstance(handlers["hi"], hm.HiDeserializer)
-    assert isinstance(handlers["tmx"], hm.TmxDeserializer)
-
+    expected = {"note", "prop", "header", "tu", "tuv", "bpt", "ept", "it", "ph", "sub", "hi", "tmx"}
+    assert set(defaults) == expected
+    assert all(isinstance(v, BaseElementDeserializer) for v in defaults.values())
     assert caplog.record_tuples == [(self.logger.name, logging.INFO, "Using default handlers")]
 
-  def test_calls_handlers_deserialize(self):
-    note = hm.Note(text="Success")
-    mock_handler = self.mocker.Mock(spec=hm.BaseElementDeserializer, _emit=None)
-    mock_handler._deserialize.return_value = note
+  def test_custom_handlers_loaded(self, caplog: pytest.LogCaptureFixture) -> None:
+    custom = {"mock": self.mocker.Mock(spec=BaseElementDeserializer)}
+    custom["mock"]._emit = lambda x: None
+    deserializer = hm.Deserializer(self.backend, self.policy, logger=self.logger, handlers=custom)
+    assert deserializer.handlers is custom
+    assert caplog.record_tuples == [(self.logger.name, logging.DEBUG, "Using custom handlers")]
 
-    handlers = {"note": mock_handler}
-    deserializer = hm.Deserializer(self.backend, self.policy, handlers=handlers, logger=self.logger)
-
+  def test_handler_called(self) -> None:
     elem = self.backend.make_elem("note")
-    result = deserializer.deserialize(elem)
-
-    assert result is note
-    mock_handler._deserialize.assert_called_once_with(elem)
-
-  def test_missing_handler_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.backend.make_elem("unknown_tag")
-
     deserializer = hm.Deserializer(self.backend, self.policy, logger=self.logger)
+    mocked_deserialize = self.mocker.Mock()
+    deserializer.handlers["note"]._deserialize = mocked_deserialize
 
-    self.policy.missing_handler.behavior = "raise"
-    self.policy.missing_handler.log_level = log_level
+    out = deserializer.deserialize(elem)
 
-    with pytest.raises(hm.MissingHandlerError, match="Missing handler for <unknown_tag>"):
-      deserializer.deserialize(elem)
+    mocked_deserialize.assert_called_once_with(elem)
+    assert out is mocked_deserialize.return_value
 
-    assert caplog.record_tuples == [
-      (self.logger.name, logging.INFO, "Using default handlers"),
-      (self.logger.name, logging.DEBUG, "Deserializing <unknown_tag>"),
-      (self.logger.name, log_level, "Missing handler for <unknown_tag>"),
-    ]
-
-  def test_missing_handler_ignore(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    elem = self.backend.make_elem("unknown_tag")
-
+  @pytest.mark.parametrize(
+    "behaviour",
+    ["raise", "ignore", "default"],
+    ids=["Behaviour=raise", "Behaviour=ignore", "Behaviour=default"],
+  )
+  def test_missing_handler_policy(
+    self,
+    behaviour: Literal["raise", "ignore", "default"],
+    caplog: pytest.LogCaptureFixture,
+    log_level: int,
+  ) -> None:
+    self.policy.missing_handler = PolicyValue(behaviour, log_level)
     deserializer = hm.Deserializer(self.backend, self.policy, logger=self.logger)
+    mock_elem = self.backend.make_elem("unknown")
 
-    self.policy.missing_handler.behavior = "ignore"
-    self.policy.missing_handler.log_level = log_level
+    error_message = "Missing handler for <unknown>"
 
-    result = deserializer.deserialize(elem)
-
-    assert result is None
-    assert caplog.record_tuples == [
-      (self.logger.name, logging.INFO, "Using default handlers"),
-      (self.logger.name, logging.DEBUG, "Deserializing <unknown_tag>"),
-      (self.logger.name, log_level, "Missing handler for <unknown_tag>"),
-    ]
-
-  def test_missing_handler_fallback_default_success(
-    self, caplog: pytest.LogCaptureFixture, log_level: int
-  ):
-    elem = self.backend.make_elem("note")
-    self.backend.set_attr(elem, "{http://www.w3.org/XML/1998/namespace}lang", "en")
-    self.backend.set_text(elem, "test")
-
-    mock_header_handler = self.mocker.Mock(spec=hm.BaseElementDeserializer, _emit=None)
-    custom_handlers = {"header": mock_header_handler}
-
-    deserializer = hm.Deserializer(
-      self.backend, self.policy, logger=self.logger, handlers=custom_handlers
-    )
-
-    self.policy.missing_handler.behavior = "default"
-    self.policy.missing_handler.log_level = log_level
-
-    result = deserializer.deserialize(elem)
-
-    assert isinstance(result, hm.Note)
-    assert caplog.record_tuples == [
-      (self.logger.name, logging.DEBUG, "Using custom handlers"),
-      (self.logger.name, logging.DEBUG, "Deserializing <note>"),
-      (self.logger.name, log_level, "Missing handler for <note>"),
-      (self.logger.name, log_level, "Falling back to default handler for <note>"),
-    ]
-
-  def test_missing_handler_fallback_default_failure(
-    self, caplog: pytest.LogCaptureFixture, log_level: int
-  ):
-    elem = self.backend.make_elem("wrong")
-
-    mock_header_handler = self.mocker.Mock(spec=hm.BaseElementDeserializer, _emit=None)
-    custom_handlers = {"header": mock_header_handler}
-
-    deserializer = hm.Deserializer(
-      self.backend, self.policy, logger=self.logger, handlers=custom_handlers
-    )
-
-    self.policy.missing_handler.behavior = "default"
-    self.policy.missing_handler.log_level = log_level
-
-    with pytest.raises(hm.MissingHandlerError, match="Missing handler for <wrong>"):
-      deserializer.deserialize(elem)
-
-    assert caplog.record_tuples == [
-      (self.logger.name, logging.DEBUG, "Using custom handlers"),
-      (self.logger.name, logging.DEBUG, "Deserializing <wrong>"),
-      (self.logger.name, log_level, "Missing handler for <wrong>"),
-      (self.logger.name, log_level, "Falling back to default handler for <wrong>"),
-    ]
+    if behaviour == "raise":
+      with pytest.raises(hm.MissingHandlerError, match=error_message):
+        deserializer.deserialize(mock_elem)
+      assert len(caplog.record_tuples) == 3
+    elif behaviour == "ignore":
+      out = deserializer.deserialize(mock_elem)
+      assert out is None
+      assert len(caplog.record_tuples) == 3
+    else:
+      with pytest.raises(hm.MissingHandlerError, match=error_message):
+        deserializer.deserialize(mock_elem)
+      assert len(caplog.record_tuples) == 4

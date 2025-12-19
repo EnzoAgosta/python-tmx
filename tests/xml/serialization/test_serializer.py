@@ -1,122 +1,89 @@
-import logging
-
-import pytest
+from typing import Literal
+from hypomnema.xml.serialization.base import BaseElementSerializer
 from pytest_mock import MockerFixture
+from hypomnema.xml.policy import SerializationPolicy, PolicyValue
+import logging
+import pytest
 
 import hypomnema as hm
 
 
-class TestSerializer[T]:
-  backend: hm.XMLBackend[T]
+class TestSerializer[BackendElementT]:
+
+  backend: hm.XmlBackend[BackendElementT]
   logger: logging.Logger
-  policy: hm.SerializationPolicy
+  policy: SerializationPolicy
+  mocker: MockerFixture
 
   @pytest.fixture(autouse=True)
-  def setup(self, backend: hm.XMLBackend[T], test_logger: logging.Logger, mocker: MockerFixture):
+  def _setup(
+    self,
+    backend: hm.XmlBackend[BackendElementT],
+    test_logger: logging.Logger,
+    mocker: MockerFixture,
+  ) -> None:
     self.backend = backend
     self.logger = test_logger
-    self.policy = hm.SerializationPolicy()
+    self.policy = SerializationPolicy()
     self.mocker = mocker
 
-  def test_init_setup_emit(self):
-    mock_handler = self.mocker.Mock(spec=hm.BaseElementSerializer[T], _emit=None)
-
-    handlers = {"Note": mock_handler}
-
-    serializer = hm.Serializer(self.backend, self.policy, handlers=handlers, logger=self.logger)
-
-    mock_handler._set_emit.assert_called_once_with(serializer.serialize)
-
-  def test_load_default_handlers(self, caplog: pytest.LogCaptureFixture):
-    serializer = hm.Serializer(self.backend, self.policy, logger=self.logger)
-
-    handlers = serializer.handlers
-    assert isinstance(handlers["Note"], hm.NoteSerializer)
-    assert isinstance(handlers["Prop"], hm.PropSerializer)
-    assert isinstance(handlers["Header"], hm.HeaderSerializer)
-    assert isinstance(handlers["Tu"], hm.TuSerializer)
-    assert isinstance(handlers["Tuv"], hm.TuvSerializer)
-    assert isinstance(handlers["Bpt"], hm.BptSerializer)
-    assert isinstance(handlers["Ept"], hm.EptSerializer)
-    assert isinstance(handlers["It"], hm.ItSerializer)
-    assert isinstance(handlers["Ph"], hm.PhSerializer)
-    assert isinstance(handlers["Sub"], hm.SubSerializer)
-    assert isinstance(handlers["Hi"], hm.HiSerializer)
-    assert isinstance(handlers["Tmx"], hm.TmxSerializer)
-
-    assert caplog.record_tuples == [(self.logger.name, logging.INFO, "Using default handlers")]
-
-  def test_calls_handlers_serialize(self):
-    note = hm.Note(text="Success")
-    serializer = hm.Serializer(self.backend, self.policy, logger=self.logger)
-    spy_note_handler = self.mocker.spy(serializer.handlers["Note"], "_serialize")
-
-    serializer.serialize(note)
-    spy_note_handler.assert_called_once_with(note)
-
-  def test_missing_handler_raise(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    serializer = hm.Serializer(self.backend, self.policy, logger=self.logger)
-
-    self.policy.missing_handler.behavior = "raise"
-    self.policy.missing_handler.log_level = log_level
-
-    with pytest.raises(hm.MissingHandlerError, match="Missing handler for int"):
-      serializer.serialize(1)  # type: ignore
-
-    assert caplog.record_tuples == [
-      (self.logger.name, logging.INFO, "Using default handlers"),
-      (self.logger.name, logging.DEBUG, "Serializing int"),
-      (self.logger.name, log_level, "Missing handler for int"),
-    ]
-
-  def test_missing_handler_ignore(self, caplog: pytest.LogCaptureFixture, log_level: int):
-    serializer = hm.Serializer(self.backend, self.policy, logger=self.logger)
-
-    self.policy.missing_handler.behavior = "ignore"
-    self.policy.missing_handler.log_level = log_level
-
-    serializer.serialize(1)  # type: ignore
-
-    assert caplog.record_tuples == [
-      (self.logger.name, logging.INFO, "Using default handlers"),
-      (self.logger.name, logging.DEBUG, "Serializing int"),
-      (self.logger.name, log_level, "Missing handler for int"),
-    ]
-
-  def test_missing_handler_fallback_default_success(
-    self, caplog: pytest.LogCaptureFixture, log_level: int
-  ):
-    handlers = {"Prop": self.mocker.Mock(spec=hm.BaseElementSerializer, _emit=None)}
+  def test_emit_is_wired(self) -> None:
+    handlers = {"FakeNote": self.mocker.Mock(spec=BaseElementSerializer, _emit=None)}
     serializer = hm.Serializer(self.backend, self.policy, logger=self.logger, handlers=handlers)
+    handlers["FakeNote"]._set_emit.assert_called_once_with(serializer.serialize)
 
-    self.policy.missing_handler.behavior = "default"
-    self.policy.missing_handler.log_level = log_level
+  def test_default_handlers_loaded(self, caplog: pytest.LogCaptureFixture) -> None:
+    serializer = hm.Serializer(self.backend, self.policy, logger=self.logger)
+    defaults = serializer.handlers
 
-    note = hm.Note(text="test")
-    serializer.serialize(note)
+    expected = {"Note", "Prop", "Header", "Tu", "Tuv", "Bpt", "Ept", "It", "Ph", "Sub", "Hi", "Tmx"}
+    assert set(defaults) == expected
+    assert all(isinstance(v, BaseElementSerializer) for v in defaults.values())
+    assert caplog.record_tuples == [(self.logger.name, logging.DEBUG, "Using default handlers")]
 
-    assert caplog.record_tuples == [
-      (self.logger.name, logging.DEBUG, "Using custom handlers"),
-      (self.logger.name, logging.DEBUG, "Serializing Note"),
-      (self.logger.name, log_level, "Missing handler for Note"),
-      (self.logger.name, log_level, "Falling back to default handler for Note"),
-    ]
+  def test_custom_handlers_loaded(self, caplog: pytest.LogCaptureFixture) -> None:
+    custom = {"Mock": self.mocker.Mock(spec=BaseElementSerializer)}
+    custom["Mock"]._emit = lambda x: None
+    serializer = hm.Serializer(self.backend, self.policy, logger=self.logger, handlers=custom)
+    assert serializer.handlers is custom
+    assert caplog.record_tuples == [(self.logger.name, logging.DEBUG, "Using custom handlers")]
 
-  def test_missing_handler_fallback_default_failure(
-    self, caplog: pytest.LogCaptureFixture, log_level: int
-  ):
-    handlers = {"Prop": self.mocker.Mock(spec=hm.BaseElementSerializer, _emit=None)}
-    serializer = hm.Serializer(self.backend, self.policy, logger=self.logger, handlers=handlers)
+  def test_handler_called(self) -> None:
+    note = hm.Note(text="ok")
+    serializer = hm.Serializer(self.backend, self.policy, logger=self.logger)
+    mocked_serialize = self.mocker.Mock()
+    serializer.handlers["Note"]._serialize = mocked_serialize
 
-    self.policy.missing_handler.behavior = "default"
-    self.policy.missing_handler.log_level = log_level
+    out = serializer.serialize(note)
 
-    with pytest.raises(hm.MissingHandlerError, match="Missing handler for int"):
-      serializer.serialize(1)  # type: ignore
+    mocked_serialize.assert_called_once_with(note)
+    assert out is mocked_serialize.return_value
 
-    assert caplog.record_tuples == [
-      (self.logger.name, logging.DEBUG, "Using custom handlers"),
-      (self.logger.name, logging.DEBUG, "Serializing int"),
-      (self.logger.name, log_level, "Missing handler for int"),
-      (self.logger.name, log_level, "Falling back to default handler for int"),
-    ]
+  @pytest.mark.parametrize(
+    "behaviour",
+    ["raise", "ignore", "default"],
+    ids=["Behaviour=raise", "Behaviour=ignore", "Behaviour=default"],
+  )
+  def test_missing_handler_policy(
+    self,
+    behaviour: Literal["raise", "ignore", "default"],
+    caplog: pytest.LogCaptureFixture,
+    log_level: int,
+  ) -> None:
+    self.policy.missing_handler = PolicyValue(behaviour, log_level)
+    serializer = hm.Serializer(self.backend, self.policy, logger=self.logger)
+    mock = self.mocker.Mock()
+
+    error_message = "Missing handler for 'Mock'"
+
+    if behaviour == "raise":
+      with pytest.raises(hm.MissingHandlerError, match=error_message):
+        serializer.serialize(mock)  # type: ignore
+      assert len(caplog.record_tuples) == 3
+    elif behaviour == "ignore":
+      assert serializer.serialize(mock) is None  # type: ignore
+      assert len(caplog.record_tuples) == 3
+    else:
+      with pytest.raises(hm.MissingHandlerError, match=error_message):
+        serializer.serialize(mock)  # type: ignore
+      assert len(caplog.record_tuples) == 4

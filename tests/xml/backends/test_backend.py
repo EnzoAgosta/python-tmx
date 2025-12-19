@@ -54,11 +54,11 @@ def make_mixed_content_xml() -> str:
 
 
 class TestBackend:
-  backend: hm.XMLBackend
+  backend: hm.XmlBackend
   mocker: MockerFixture
 
   @pytest.fixture(autouse=True)
-  def setup(self, backend: hm.XMLBackend, mocker: MockerFixture):
+  def setup(self, backend: hm.XmlBackend, mocker: MockerFixture):
     self.backend = backend
     self.mocker = mocker
 
