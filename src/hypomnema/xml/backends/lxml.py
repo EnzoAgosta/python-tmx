@@ -2,13 +2,13 @@ import lxml.etree as et
 from collections.abc import Collection, Iterable, Iterator
 from os import PathLike
 
-from hypomnema.xml.backends.base import XMLBackend
+from hypomnema.xml.backends.base import XmlBackend
 from hypomnema.xml.utils import normalize_encoding, normalize_tag, prep_tag_set
 
 __all__ = ["LxmlBackend"]
 
 
-class LxmlBackend(XMLBackend[et._Element]):
+class LxmlBackend(XmlBackend[et._Element]):
   """Lxml Library-based XML backend."""
 
   def parse(self, path: str | bytes | PathLike[str] | PathLike[bytes]) -> et._Element:
@@ -206,7 +206,7 @@ class LxmlBackend(XMLBackend[et._Element]):
       f.write(root_open)
       counter = 0
       for elem in elements:
-        buffer.extend(et.tostring(elem, encoding=_encoding, xml_declaration=False)) 
+        buffer.extend(et.tostring(elem, encoding=_encoding, xml_declaration=False))
         counter += 1
         if counter == max_item_per_chunk:
           f.write(buffer)
