@@ -1,3 +1,3 @@
 # ruff: noqa: F403
-from .base import *
-from .xml import *
+from hypomnema.base import *
+from hypomnema.xml import *
