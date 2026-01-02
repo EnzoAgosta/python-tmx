@@ -10,8 +10,6 @@ from .errors import (
 from .types import (
   # Type aliases
   BaseElement,
-  BaseInlineElement,
-  BaseStructuralElement,
   # Enums
   Pos,
   Assoc,
