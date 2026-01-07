@@ -1,33 +1,16 @@
+from unicodedata import category
+from pathlib import Path
 from hypomnema.base.errors import XmlSerializationError, InvalidTagError
 from hypomnema.xml.policy import SerializationPolicy, DeserializationPolicy
 from codecs import lookup
-from collections.abc import Collection
+from collections.abc import Collection, Mapping
 from logging import Logger
 from typing import TypeIs, Any
 from encodings import normalize_encoding as python_normalize_encoding
+from os import PathLike
 
 
 def normalize_tag(tag: Any) -> str:
-  """
-  Extract the local name from an XML tag, removing namespaces or extracting from objects.
-
-  Parameters
-  ----------
-  tag : Any
-      The tag to normalize. Can be a string (Clark notation or plain), bytes,
-      a lxml or Standard Library QName object, or an object with either a
-      `localname` or `text` attribute.
-
-  Returns
-  -------
-  str
-      The local name of the tag.
-
-  Raises
-  ------
-  TypeError
-      If the tag type is not supported.
-  """
   if isinstance(tag, str):
     return tag.split("}", 1)[1] if "}" in tag else tag
   elif isinstance(tag, (bytes, bytearray)):
@@ -41,27 +24,9 @@ def normalize_tag(tag: Any) -> str:
 
 
 def normalize_encoding(encoding: str | None) -> str:
-  """
-  Validate and normalize an encoding name to its standard codec name.
-
-  Parameters
-  ----------
-  encoding : str | None
-      The encoding string to normalize. If None or "unicode", defaults to "utf-8".
-
-  Returns
-  -------
-  str
-      The canonical codec name.
-
-  Raises
-  ------
-  ValueError
-      If the encoding is not recognized by the Python codec registry.
-  """
-  if encoding is None or encoding.lower() == "unicode":
-    return "utf-8"
-  normalized_encoding = python_normalize_encoding(encoding)
+  normalized_encoding = python_normalize_encoding(encoding or "utf-8").lower()
+  if encoding == "unicode":
+    normalized_encoding = "utf-8"
   try:
     codec = lookup(normalized_encoding)
     return codec.name
@@ -69,67 +34,21 @@ def normalize_encoding(encoding: str | None) -> str:
     raise ValueError(f"Unknown encoding: {normalized_encoding}") from e
 
 
-def prep_tag_set[TagName: str | bytes](
-  tags: TagName | Collection[TagName] | None,
+def prep_tag_set(
+  tags: str | Collection[str] | None, nsmap: dict[str | None, str] | None = None
 ) -> set[str] | None:
-  """
-  Normalize a single tag or a collection of tags into a unique set.
-
-  Parameters
-  ----------
-  tags : str | Collection[str] | None
-      Input tag or tags to process.
-
-  Returns
-  -------
-  set[str] | None
-      A set of normalized local names, or None if the input was None or empty.
-
-  Raises
-  ------
-  TypeError
-      If the input type is not a string, collection, or None.
-  """
-  if tags is None:
+  _nsmap = dict() if nsmap is None else nsmap
+  if not tags:
     return None
   if isinstance(tags, str):
-    if not len(tags):
-      return None
-    tag_set = {normalize_tag(tags)}
-  elif isinstance(tags, Collection):
-    tag_set = set(normalize_tag(tag) for tag in tags)
-  else:
-    raise TypeError(f"Unexpected tag type: {type(tags)}")
-  return tag_set or None
+    qname = QName(tags, _nsmap)
+    return {qname.qualified_name}
+  return {QName(tag, _nsmap).qualified_name for tag in tags}
 
 
 def assert_object_type[ExpectedType](
   obj: Any, expected_type: type[ExpectedType], *, logger: Logger, policy: SerializationPolicy
 ) -> TypeIs[ExpectedType]:
-  """
-  Verify that an object matches the expected type according to the serialization policy.
-
-  Parameters
-  ----------
-  obj : Any
-      The object instance to verify.
-  expected_type : type[ExpectedType]
-      The type class that the object is expected to be an instance of.
-  logger : Logger
-      The logger instance used to report policy violations.
-  policy : SerializationPolicy
-      The policy determining the logging level and whether to raise an exception.
-
-  Returns
-  -------
-  TypeIs[ExpectedType]
-      True if the object is an instance of expected_type, False otherwise.
-
-  Raises
-  ------
-  XmlSerializationError
-      If the object type is incorrect and policy.invalid_object_type.behavior is "raise".
-  """
   if not isinstance(obj, expected_type):
     logger.log(
       policy.invalid_object_type.log_level,
@@ -146,31 +65,111 @@ def assert_object_type[ExpectedType](
 
 
 def check_tag(tag: str, expected_tag: str, logger: Logger, policy: DeserializationPolicy) -> None:
-  """
-  Validate that an XML element's tag matches the expected TMX element name.
-
-  Parameters
-  ----------
-  element : BackendElementType
-      The XML element to validate.
-  expected_tag : str
-      The tag name expected by the caller (e.g., "tu", "tuv").
-  backend : XMLBackend[BackendElementType]
-      The XML library wrapper used to extract the tag name.
-  logger : Logger
-      The logger instance used to report tag mismatches.
-  policy : DeserializationPolicy
-      The policy determining the logging level and whether to raise an exception.
-
-  Raises
-  ------
-  InvalidTagError
-      If the element's tag does not match `expected_tag` and
-      `policy.invalid_tag.behavior` is "raise".
-  """
   if not tag == expected_tag:
     logger.log(
       policy.invalid_tag.log_level, "Incorrect tag: expected %s, got %s", expected_tag, tag
     )
     if policy.invalid_tag.behavior == "raise":
       raise InvalidTagError(f"Incorrect tag: expected {expected_tag}, got {tag}")
+
+
+def make_usable_path(path: str | bytes | PathLike, *, mkdir: bool = True) -> Path:
+  path = path.decode() if isinstance(path, bytes) else path
+  final_path = Path(path).expanduser()
+  if final_path.is_symlink():
+    final_path = final_path.resolve()
+  if mkdir:
+    final_path.parent.mkdir(parents=True, exist_ok=True)
+  return final_path
+
+
+_NAME_START_CATEGORIES = {"Lu", "Ll", "Lt", "Lm", "Lo", "Nl"}
+_NAME_CHAR_CATEGORIES = _NAME_START_CATEGORIES | {"Nd", "Mc", "Mn", "Pc"}
+
+
+def _is_letter(char: str) -> bool:
+  """True if char is an XML 1.0 Letter (Name-start)."""
+  cat = category(char)
+  if cat in _NAME_START_CATEGORIES:
+    return True
+  return char == "_"  # ASCII underscore is explicitly allowed
+
+
+def _is_ncname_char(char: str) -> bool:
+  """True if char is allowed anywhere in an NCName after the first char."""
+  cat = category(char)
+  if cat in _NAME_CHAR_CATEGORIES:
+    return True
+  return char in (".", "-", "_")
+
+
+def is_ncname(name: str) -> bool:
+  """Return True if *name* is a valid XML 1.0 NCName."""
+  if not name:
+    return False
+  if not _is_letter(name[0]):
+    return False
+  return all(_is_ncname_char(ch) for ch in name[1:])
+
+
+def _split_qualified_tag(
+  tag: str, nsmap: Mapping[str | None, str]
+) -> tuple[str | None, str | None, str]:
+  uri, localname = tag[1:].split("}", 1)
+  if not is_ncname(localname):
+    raise ValueError(f"NCName {localname} is not a valid xml localname")
+  for prefix, value in nsmap.items():
+    if value == uri:
+      return uri, prefix, localname
+  return None, None, localname
+
+
+def _split_prefixed_tag(
+  tag: str, nsmap: Mapping[str | None, str]
+) -> tuple[str | None, str | None, str]:
+  prefix, localname = tag.split(":", 1)
+  if not is_ncname(localname):
+    raise ValueError(f"NCName {localname} is not a valid xml localname")
+  if not is_ncname(prefix):
+    raise ValueError(f"NCName {prefix} is not a valid xml prefix")
+  return nsmap.get(prefix), prefix, localname
+
+
+class QName:
+  uri: str | None
+  """The namespace URI."""
+  prefix: str | None
+  """The namespace prefix."""
+  local_name: str
+  """The local name."""
+
+  def __init__(
+    self, tag: str | bytes | bytearray, nsmap: Mapping[str | None, str], encoding: str = "utf-8"
+  ) -> None:
+    if isinstance(tag, str):
+      tag = tag
+    if isinstance(tag, (bytes, bytearray)):
+      tag = tag.decode(encoding)
+    else:
+      raise TypeError(f"Unexpected tag type: {type(tag)}")
+
+    if tag[0] == "{":
+      self.uri, self.prefix, self.local_name = _split_qualified_tag(tag, nsmap)
+    elif tag[0] == ":":
+      self.uri, self.prefix, self.local_name = _split_prefixed_tag(tag, nsmap)
+    else:
+      self.uri, self.prefix, self.local_name = None, None, tag
+
+  @property
+  def qualified_name(self) -> str:
+    """The fully qualified name."""
+    if self.uri is None:
+      return self.local_name
+    return f"{{{self.uri}}}{self.local_name}"
+
+  @property
+  def prefixed_name(self) -> str:
+    """The prefixed name."""
+    if self.prefix is None:
+      return self.local_name
+    return f"{self.prefix}:{self.local_name}"
