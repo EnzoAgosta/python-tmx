@@ -14,14 +14,12 @@ from hypomnema.xml.serialization._handlers import (
   TmxSerializer,
 )
 from hypomnema.xml.serialization.base import BaseElementSerializer
-from hypomnema.xml.backends.base import XmlBackend
+from hypomnema.xml.backends.base import XmlBackend, T_Attributes
 from hypomnema.xml.policy import SerializationPolicy
 from hypomnema.base.types import BaseElement
 from collections.abc import Mapping
 from logging import Logger, getLogger
 
-
-_ModuleLogger = getLogger(__name__)
 
 __all__ = ["Serializer"]
 
@@ -29,14 +27,14 @@ __all__ = ["Serializer"]
 class Serializer[BackendElementType]:
   def __init__(
     self,
-    backend: XmlBackend[BackendElementType],
+    backend: XmlBackend[BackendElementType, T_Attributes],
     policy: SerializationPolicy | None = None,
     logger: Logger | None = None,
     handlers: Mapping[str, BaseElementSerializer] | None = None,
   ):
-    self.backend = backend
-    self.policy = policy or SerializationPolicy()
-    self.logger = logger or _ModuleLogger
+    self.backend: XmlBackend[BackendElementType, T_Attributes] = backend
+    self.policy: SerializationPolicy = policy or SerializationPolicy()
+    self.logger: Logger = logger or getLogger(str(self))
     if handlers is None:
       self.logger.debug("Using default handlers")
       handlers = self._get_default_handlers()

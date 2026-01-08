@@ -17,8 +17,7 @@ from hypomnema.base.types import (
   Tu,
   Tuv,
 )
-from hypomnema.xml.constants import XML_NS
-from hypomnema.xml.serialization.base import BaseElementSerializer, InlineContentSerializerMixin, ChildrenSerializerMixin
+from hypomnema.xml.serialization.base import BaseElementSerializer
 
 __all__ = [
   "PropSerializer",
@@ -55,9 +54,9 @@ class PropSerializer[BackendElementType](BaseElementSerializer[BackendElementTyp
     """
     if not assert_object_type(obj, Prop, logger=self.logger, policy=self.policy):
       return None
-    element = self.backend.make_elem("prop")
+    element = self.backend.create_element("prop")
     self._set_str_attribute(element, obj.type, "type", required=True)
-    self._set_str_attribute(element, obj.lang, f"{XML_NS}lang", required=False)
+    self._set_str_attribute(element, obj.lang, "xml:lang", required=False)
     self._set_str_attribute(element, obj.o_encoding, "o-encoding", required=False)
     self.backend.set_text(element, obj.text)
     return element
@@ -82,16 +81,14 @@ class NoteSerializer[BackendElementType](BaseElementSerializer[BackendElementTyp
     """
     if not assert_object_type(obj, Note, logger=self.logger, policy=self.policy):
       return None
-    element = self.backend.make_elem("note")
-    self._set_str_attribute(element, obj.lang, f"{XML_NS}lang", required=False)
+    element = self.backend.create_element("note")
+    self._set_str_attribute(element, obj.lang, "xml:lang", required=False)
     self._set_str_attribute(element, obj.o_encoding, "o-encoding", required=False)
     self.backend.set_text(element, obj.text)
     return element
 
 
-class HeaderSerializer[BackendElementType](
-  BaseElementSerializer[BackendElementType, Header], ChildrenSerializerMixin[BackendElementType]
-):
+class HeaderSerializer[BackendElementType](BaseElementSerializer[BackendElementType, Header]):
   """Serializer for the TMX `<header>` element."""
 
   def _serialize(self, obj: BaseElement) -> BackendElementType | None:
@@ -110,7 +107,7 @@ class HeaderSerializer[BackendElementType](
     """
     if not assert_object_type(obj, Header, logger=self.logger, policy=self.policy):
       return None
-    element = self.backend.make_elem("header")
+    element = self.backend.create_element("header")
     self._set_str_attribute(element, obj.creationtool, "creationtool", required=True)
     self._set_str_attribute(element, obj.creationtoolversion, "creationtoolversion", required=True)
     self._set_enum_attribute(element, obj.segtype, "segtype", Segtype, required=True)
@@ -128,11 +125,7 @@ class HeaderSerializer[BackendElementType](
     return element
 
 
-class TuvSerializer[BackendElementType](
-  BaseElementSerializer[BackendElementType, Tuv],
-  InlineContentSerializerMixin[BackendElementType],
-  ChildrenSerializerMixin[BackendElementType],
-):
+class TuvSerializer[BackendElementType](BaseElementSerializer[BackendElementType, Tuv]):
   """Serializer for the TMX `<tuv>` (Translation Unit Variant) element."""
 
   def _serialize(self, obj: BaseElement) -> BackendElementType | None:
@@ -151,8 +144,8 @@ class TuvSerializer[BackendElementType](
     """
     if not assert_object_type(obj, Tuv, logger=self.logger, policy=self.policy):
       return None
-    element = self.backend.make_elem("tuv")
-    self._set_str_attribute(element, obj.lang, f"{XML_NS}lang", required=True)
+    element = self.backend.create_element("tuv")
+    self._set_str_attribute(element, obj.lang, "xml:lang", required=True)
     self._set_str_attribute(element, obj.o_encoding, "o-encoding", required=False)
     self._set_str_attribute(element, obj.datatype, "datatype", required=False)
     self._set_int_attribute(element, obj.usagecount, "usagecount", required=False)
@@ -166,17 +159,13 @@ class TuvSerializer[BackendElementType](
     self._set_str_attribute(element, obj.o_tmf, "o-tmf", required=False)
     self._serialize_children(obj.notes, element, Note)
     self._serialize_children(obj.props, element, Prop)
-    seg_element = self.backend.make_elem("seg")
+    seg_element = self.backend.create_element("seg")
     self._serialize_content_into(obj, seg_element, (Bpt, Ept, Ph, It, Hi))
-    self.backend.append(element, seg_element)
+    self.backend.append_child(element, seg_element)
     return element
 
 
-class TuSerializer[BackendElementType](
-  BaseElementSerializer[BackendElementType, Tu],
-  InlineContentSerializerMixin[BackendElementType],
-  ChildrenSerializerMixin[BackendElementType],
-):
+class TuSerializer[BackendElementType](BaseElementSerializer[BackendElementType, Tu]):
   """Serializer for the TMX `<tr>` (Translation Unit) element."""
 
   def _serialize(self, obj: BaseElement) -> BackendElementType | None:
@@ -195,7 +184,7 @@ class TuSerializer[BackendElementType](
     """
     if not assert_object_type(obj, Tu, logger=self.logger, policy=self.policy):
       return None
-    element = self.backend.make_elem("tu")
+    element = self.backend.create_element("tu")
     self._set_str_attribute(element, obj.tuid, "tuid", required=False)
     self._set_str_attribute(element, obj.o_encoding, "o-encoding", required=False)
     self._set_str_attribute(element, obj.datatype, "datatype", required=False)
@@ -216,11 +205,7 @@ class TuSerializer[BackendElementType](
     return element
 
 
-class TmxSerializer[BackendElementType](
-  BaseElementSerializer[BackendElementType, Tmx],
-  InlineContentSerializerMixin[BackendElementType],
-  ChildrenSerializerMixin[BackendElementType],
-):
+class TmxSerializer[BackendElementType](BaseElementSerializer[BackendElementType, Tmx]):
   """Serializer for the root `<tmx>` element."""
 
   def _serialize(self, obj: BaseElement) -> BackendElementType | None:
@@ -244,18 +229,16 @@ class TmxSerializer[BackendElementType](
     """
     if not assert_object_type(obj, Tmx, logger=self.logger, policy=self.policy):
       return None
-    element = self.backend.make_elem("tmx")
+    element = self.backend.create_element("tmx")
     self._set_str_attribute(element, obj.version, "version", required=True)
     self._serialize_children([obj.header], element, Header)
-    body = self.backend.make_elem("body")
+    body = self.backend.create_element("body")
     self._serialize_children(obj.body, body, Tu)
-    self.backend.append(element, body)
+    self.backend.append_child(element, body)
     return element
 
 
-class BptSerializer[BackendElementType](
-  BaseElementSerializer[BackendElementType, Bpt], InlineContentSerializerMixin[BackendElementType]
-):
+class BptSerializer[BackendElementType](BaseElementSerializer[BackendElementType, Bpt]):
   """Serializer for the TMX `<bpt>` (Begin Paired Tag) element."""
 
   def _serialize(self, obj: BaseElement) -> BackendElementType | None:
@@ -274,7 +257,7 @@ class BptSerializer[BackendElementType](
     """
     if not assert_object_type(obj, Bpt, logger=self.logger, policy=self.policy):
       return None
-    element = self.backend.make_elem("bpt")
+    element = self.backend.create_element("bpt")
     self._set_int_attribute(element, obj.i, "i", required=True)
     self._set_int_attribute(element, obj.x, "x", required=False)
     self._set_str_attribute(element, obj.type, "type", required=False)
@@ -282,9 +265,7 @@ class BptSerializer[BackendElementType](
     return element
 
 
-class EptSerializer[BackendElementType](
-  BaseElementSerializer[BackendElementType, Ept], InlineContentSerializerMixin[BackendElementType]
-):
+class EptSerializer[BackendElementType](BaseElementSerializer[BackendElementType, Ept]):
   """Serializer for the TMX `<ept>` (End Paired Tag) element."""
 
   def _serialize(self, obj: BaseElement) -> BackendElementType | None:
@@ -303,15 +284,13 @@ class EptSerializer[BackendElementType](
     """
     if not assert_object_type(obj, Ept, logger=self.logger, policy=self.policy):
       return None
-    element = self.backend.make_elem("ept")
+    element = self.backend.create_element("ept")
     self._set_int_attribute(element, obj.i, "i", required=True)
     self._serialize_content_into(obj, element, (Sub,))
     return element
 
 
-class HiSerializer[BackendElementType](
-  BaseElementSerializer[BackendElementType, Hi], InlineContentSerializerMixin[BackendElementType]
-):
+class HiSerializer[BackendElementType](BaseElementSerializer[BackendElementType, Hi]):
   """Serializer for the TMX `<hi>` (Highlight) element."""
 
   def _serialize(self, obj: BaseElement) -> BackendElementType | None:
@@ -330,16 +309,14 @@ class HiSerializer[BackendElementType](
     """
     if not assert_object_type(obj, Hi, logger=self.logger, policy=self.policy):
       return None
-    element = self.backend.make_elem("hi")
+    element = self.backend.create_element("hi")
     self._set_int_attribute(element, obj.x, "x", required=False)
     self._set_str_attribute(element, obj.type, "type", required=False)
     self._serialize_content_into(obj, element, (Bpt, Ept, Ph, It, Hi))
     return element
 
 
-class ItSerializer[BackendElementType](
-  BaseElementSerializer[BackendElementType, It], InlineContentSerializerMixin[BackendElementType]
-):
+class ItSerializer[BackendElementType](BaseElementSerializer[BackendElementType, It]):
   """Serializer for the TMX `<it>` (Isolated Tag) element."""
 
   def _serialize(self, obj: BaseElement) -> BackendElementType | None:
@@ -358,7 +335,7 @@ class ItSerializer[BackendElementType](
     """
     if not assert_object_type(obj, It, logger=self.logger, policy=self.policy):
       return None
-    element = self.backend.make_elem("it")
+    element = self.backend.create_element("it")
     self._set_enum_attribute(element, obj.pos, "pos", Pos, required=True)
     self._set_int_attribute(element, obj.x, "x", required=False)
     self._set_str_attribute(element, obj.type, "type", required=False)
@@ -366,9 +343,7 @@ class ItSerializer[BackendElementType](
     return element
 
 
-class PhSerializer[BackendElementType](
-  BaseElementSerializer[BackendElementType, Ph], InlineContentSerializerMixin[BackendElementType]
-):
+class PhSerializer[BackendElementType](BaseElementSerializer[BackendElementType, Ph]):
   """Serializer for the TMX `<ph>` (Placeholder) element."""
 
   def _serialize(self, obj: BaseElement) -> BackendElementType | None:
@@ -387,7 +362,7 @@ class PhSerializer[BackendElementType](
     """
     if not assert_object_type(obj, Ph, logger=self.logger, policy=self.policy):
       return None
-    element = self.backend.make_elem("ph")
+    element = self.backend.create_element("ph")
     self._set_int_attribute(element, obj.x, "x", required=False)
     self._set_enum_attribute(element, obj.assoc, "assoc", Assoc, required=False)
     self._set_str_attribute(element, obj.type, "type", required=False)
@@ -395,9 +370,7 @@ class PhSerializer[BackendElementType](
     return element
 
 
-class SubSerializer[BackendElementType](
-  BaseElementSerializer[BackendElementType, Sub], InlineContentSerializerMixin[BackendElementType]
-):
+class SubSerializer[BackendElementType](BaseElementSerializer[BackendElementType, Sub]):
   """Serializer for the TMX `<sub>` (Sub-flow) element."""
 
   def _serialize(self, obj: BaseElement) -> BackendElementType | None:
@@ -416,7 +389,7 @@ class SubSerializer[BackendElementType](
     """
     if not assert_object_type(obj, Sub, logger=self.logger, policy=self.policy):
       return None
-    element = self.backend.make_elem("sub")
+    element = self.backend.create_element("sub")
     self._set_str_attribute(element, obj.datatype, "datatype", required=False)
     self._set_str_attribute(element, obj.type, "type", required=False)
     self._serialize_content_into(obj, element, (Bpt, Ept, Ph, It, Hi))

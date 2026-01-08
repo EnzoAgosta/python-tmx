@@ -5,14 +5,14 @@ from logging import Logger
 from typing import Callable
 
 from hypomnema.base.errors import AttributeDeserializationError, XmlDeserializationError
-from hypomnema.base.types import BaseElement, BaseInlineElement
-from hypomnema.xml.backends.base import XmlBackend
+from hypomnema.base.types import GenericBaseElement, GenericInlineElement, GenericSub
+from hypomnema.xml.backends.base import XmlBackend, T_Attributes
 from hypomnema.xml.policy import DeserializationPolicy
 
-__all__ = ["BaseElementDeserializer", "InlineContentDeserializerMixin"]
+__all__ = ["BaseElementDeserializer"]
 
 
-class BaseElementDeserializer[BackendElementType, TmxElementType: BaseElement](ABC):
+class BaseElementDeserializer[BackendElementType, TmxElementType: GenericBaseElement](ABC):
   """
   Abstract base class for converting XML elements into TMX objects.
 
@@ -36,12 +36,12 @@ class BaseElementDeserializer[BackendElementType, TmxElementType: BaseElement](A
   """
 
   def __init__(self, backend: XmlBackend, policy: DeserializationPolicy, logger: Logger):
-    self.backend: XmlBackend[BackendElementType] = backend
+    self.backend: XmlBackend[BackendElementType, T_Attributes] = backend
     self.policy = policy
     self.logger = logger
-    self._emit: Callable[[BackendElementType], BaseElement | None] | None = None
+    self._emit: Callable[[BackendElementType], GenericBaseElement | None] | None = None
 
-  def _set_emit(self, emit: Callable[[BackendElementType], BaseElement | None]) -> None:
+  def _set_emit(self, emit: Callable[[BackendElementType], GenericBaseElement | None]) -> None:
     """
     Set the dispatch function for recursive deserialization.
 
@@ -52,7 +52,7 @@ class BaseElementDeserializer[BackendElementType, TmxElementType: BaseElement](A
     """
     self._emit = emit
 
-  def emit(self, obj: BackendElementType) -> BaseElement | None:
+  def emit(self, obj: BackendElementType) -> GenericBaseElement | None:
     """
     Invoke the dispatcher to deserialize an XML element.
 
@@ -75,7 +75,7 @@ class BaseElementDeserializer[BackendElementType, TmxElementType: BaseElement](A
     return self._emit(obj)
 
   @abstractmethod
-  def _deserialize(self, element: BackendElementType) -> BaseElement | None:
+  def _deserialize(self, element: BackendElementType) -> GenericBaseElement | None:
     """
     Perform the actual deserialization of the specific XML element.
 
@@ -144,7 +144,7 @@ class BaseElementDeserializer[BackendElementType, TmxElementType: BaseElement](A
     AttributeDeserializationError
         If parsing fails or a required attribute is missing and policy is "raise".
     """
-    value = self.backend.get_attr(element, attribute)
+    value = self.backend.get_attribute(element, attribute)
     if value is None:
       self._handle_missing_attribute(element, attribute, required)
       return
@@ -187,7 +187,7 @@ class BaseElementDeserializer[BackendElementType, TmxElementType: BaseElement](A
     AttributeDeserializationError
         If parsing fails or a required attribute is missing and policy is "raise".
     """
-    value = self.backend.get_attr(element, attribute)
+    value = self.backend.get_attribute(element, attribute)
     if value is None:
       self._handle_missing_attribute(element, attribute, required)
       return
@@ -234,7 +234,7 @@ class BaseElementDeserializer[BackendElementType, TmxElementType: BaseElement](A
         If the value is not a valid enum member or a required attribute is
         missing and policy is "raise".
     """
-    value = self.backend.get_attr(element, attribute)
+    value = self.backend.get_attribute(element, attribute)
     if value is None:
       self._handle_missing_attribute(element, attribute, required)
       return
@@ -273,38 +273,15 @@ class BaseElementDeserializer[BackendElementType, TmxElementType: BaseElement](A
     str | None
         The attribute string, or None if missing.
     """
-    value = self.backend.get_attr(element, attribute)
+    value = self.backend.get_attribute(element, attribute)
     if value is None:
       self._handle_missing_attribute(element, attribute, required)
       return
     return value
 
-
-class InlineContentDeserializerMixin[BackendElementType]:
-  """
-  Mixin for deserializing mixed XML content into a list of strings and objects.
-
-  Attributes
-  ----------
-  backend : XMLBackend[BackendElementType]
-      The XML library wrapper.
-  policy : DeserializationPolicy
-      The deserialization configuration.
-  logger : Logger
-      The logging instance.
-  emit : Callable[[BackendElementType], BaseElement | None]
-      Dispatcher for deserializing child XML elements.
-  """
-
-  backend: XmlBackend[BackendElementType]
-  policy: DeserializationPolicy
-  logger: Logger
-  emit: Callable[[BackendElementType], BaseElement | None]
-  __slots__ = tuple()
-
   def _deserialize_content(
     self, source: BackendElementType, allowed: tuple[str, ...]
-  ) -> list[BaseInlineElement | str]:
+  ) -> list[GenericInlineElement | GenericSub | str]:
     """
     Extract text and child elements from an XML element.
 
@@ -319,7 +296,7 @@ class InlineContentDeserializerMixin[BackendElementType]:
 
     Returns
     -------
-    list[BaseInlineElement | str]
+    list[InlineElement | str]
         A list containing strings (text/tails) and deserialized objects.
 
     Raises
@@ -333,7 +310,7 @@ class InlineContentDeserializerMixin[BackendElementType]:
     if (text := self.backend.get_text(source)) is not None:
       result.append(text)
     for child in self.backend.iter_children(source):
-      child_tag = self.backend.get_tag(child)
+      child_tag = self.backend.get_tag(child, as_qname=True)
       if child_tag not in allowed:
         self.logger.log(
           self.policy.invalid_child_element.log_level,
