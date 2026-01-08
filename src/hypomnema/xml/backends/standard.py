@@ -1,252 +1,192 @@
-import xml.etree.ElementTree as et
-from collections.abc import Collection, Iterable, Iterator
-from os import PathLike
-
+from typing import overload, Literal
+from collections.abc import Mapping, Collection, Generator, Iterator
+from hypomnema.xml.utils import QName, prep_tag_set, make_usable_path, normalize_encoding
 from hypomnema.xml.backends.base import XmlBackend
-from hypomnema.xml.utils import normalize_encoding, normalize_tag, prep_tag_set
+import xml.etree.ElementTree as et
+from os import PathLike
 
 __all__ = ["StandardBackend"]
 
 
-class StandardBackend(XmlBackend[et.Element]):
-  """Standard Library-based XML backend."""
+class StandardBackend(XmlBackend[et.Element, dict[str, str]]):
+  __slots__ = tuple()
 
-  def parse(self, path: str | bytes | PathLike[str] | PathLike[bytes]) -> et.Element:
-    """
-    Parses XML file at `path`.
-    This will read the entire file and keep the entire tree in memory.
-    If you need to parse a large file, consider using `iterparse`.
-
-    Args:
-      path: Path to XML file. Must be a string or a PathLike object.
-
-    Returns:
-      Element
-    """
-    return et.parse(path).getroot()
-
-  def write(
+  @overload
+  def get_tag(
     self,
     element: et.Element,
-    path: str | bytes | PathLike[str] | PathLike[bytes],
-    encoding: str | None = None,
-  ) -> None:
-    """
-    Writes `element` to `path`.
-    This will build the entire tree in memory and write it to disk.
-    If you can stream the elements consider using `iterwrite`.
+    *,
+    encoding: str = "utf-8",
+    as_qname: Literal[True],
+    nsmap: Mapping[str | None, str] | None = None,
+  ) -> QName: ...
+  @overload
+  def get_tag(
+    self,
+    element: et.Element,
+    *,
+    encoding: str = "utf-8",
+    as_qname: bool = False,
+    nsmap: Mapping[str | None, str] | None = None,
+  ) -> str: ...
+  def get_tag(
+    self,
+    element: et.Element,
+    *,
+    encoding: str = "utf-8",
+    as_qname: bool = False,
+    nsmap: Mapping[str | None, str] | None = None,
+  ) -> str | QName:
+    element_tag = element.tag
+    _encoding = normalize_encoding(encoding)
+    if isinstance(element_tag, et.QName):
+      tag = element_tag.text
+    elif isinstance(element_tag, (bytes, bytearray)):
+      tag = element_tag.decode(_encoding)
+    else:
+      tag = element_tag
+    qname_wrapper = QName(
+      tag, nsmap if nsmap is not None else self._global_nsmap, encoding=_encoding
+    )
+    return qname_wrapper if as_qname else qname_wrapper.qualified_name
 
-    Args:
-      element: Element to write.
-      path: Path to XML file. Must be a string or a PathLike object.
-    """
+  def create_element(
+    self,
+    tag: str | QName,
+    attributes: dict[str, str] | None = None,
+    *,
+    nsmap: Mapping[str | None, str] | None = None,
+  ) -> et.Element:
+    if isinstance(tag, str):
+      element_tag = QName(tag, nsmap if nsmap is not None else self._global_nsmap)
+    elif isinstance(tag, QName):
+      element_tag = tag
+    else:
+      raise TypeError(f"Unexpected tag type: {type(tag)}")
+    attributes = attributes if attributes is not None else {}
+    return et.Element(element_tag.qualified_name, attrib=attributes)
+
+  def append_child(self, parent: et.Element, child: et.Element) -> None:
+    if not isinstance(parent, et.Element):
+      raise TypeError(f"Parent is not an xml.ElementTree.Element: {type(parent)}")
+    if not isinstance(child, et.Element):
+      raise TypeError(f"Child is not an xml.ElementTree.Element: {type(child)}")
+    parent.append(child)
+
+  def get_attribute(
+    self,
+    element: et.Element,
+    attribute_name: str,
+    default: str | None = None,
+    *,
+    nsmap: Mapping[str | None, str] | None = None,
+  ) -> str | None:
+    if not isinstance(element, et.Element):
+      raise TypeError(f"Element is not an xml.ElementTree.Element: {type(element)}")
+    if attribute_name[0] == "{" or ":" in attribute_name:
+      attribute_name = QName(
+        attribute_name, nsmap if nsmap is not None else self._global_nsmap
+      ).qualified_name
+    return element.get(attribute_name, default)
+
+  def set_attribute(
+    self,
+    element: et.Element,
+    attribute_name: str,
+    attribute_value: str | None,
+    *,
+    nsmap: Mapping[str | None, str] | None = None,
+  ) -> None:
+    if not isinstance(element, et.Element):
+      raise TypeError(f"Element is not an xml.ElementTree.Element: {type(element)}")
+    if attribute_name[0] == "{" or ":" in attribute_name:
+      attribute_name = QName(
+        attribute_name, nsmap if nsmap is not None else self._global_nsmap
+      ).qualified_name
+    try:
+      if attribute_value is None:
+        element.attrib.pop(attribute_name)
+      else:
+        element.attrib[attribute_name] = attribute_value
+    except KeyError:
+      pass
+
+  def get_attribute_map(self, element: et.Element) -> dict[str, str]:
+    if not isinstance(element, et.Element):
+      raise TypeError(f"Element is not an xml.ElementTree.Element: {type(element)}")
+    return element.attrib
+
+  def get_text(self, element: et.Element) -> str | None:
+    if not isinstance(element, et.Element):
+      raise TypeError(f"Element is not an xml.ElementTree.Element: {type(element)}")
+    return element.text
+
+  def set_text(self, element: et.Element, text: str | None) -> None:
+    if not isinstance(element, et.Element):
+      raise TypeError(f"Element is not an xml.ElementTree.Element: {type(element)}")
+    element.text = text
+
+  def get_tail(self, element: et.Element) -> str | None:
+    if not isinstance(element, et.Element):
+      raise TypeError(f"Element is not an xml.ElementTree.Element: {type(element)}")
+    return element.tail
+
+  def set_tail(self, element: et.Element, tail: str | None) -> None:
+    if not isinstance(element, et.Element):
+      raise TypeError(f"Element is not an xml.ElementTree.Element: {type(element)}")
+    element.tail = tail
+
+  def iter_children(
+    self,
+    element: et.Element,
+    tag_filter: str | Collection[str] | None = None,
+    *,
+    nsmap: Mapping[str, str] | None = None,
+  ) -> Generator[et.Element]:
+    if not isinstance(element, et.Element):
+      raise TypeError(f"Element is not an xml.ElementTree.Element: {type(element)}")
+    tag_filter = prep_tag_set(tag_filter)
+    for child in element:
+      if tag_filter is None or child.tag in tag_filter:
+        yield child
+
+  def parse(self, path: str | bytes | PathLike, encoding: str = "utf-8") -> et.Element:
+    path = make_usable_path(path, mkdir=False)
+    root = et.parse(path, parser=et.XMLParser(encoding=normalize_encoding(encoding))).getroot()
+    return root
+
+  def write(
+    self, element: et.Element, path: str | bytes | PathLike, encoding: str = "utf-8"
+  ) -> None:
+    if not isinstance(element, et.Element):
+      raise TypeError(f"Element is not an xml.ElementTree.Element: {type(element)}")
+    path = make_usable_path(path, mkdir=True)
     et.ElementTree(element).write(
       path, normalize_encoding(encoding), xml_declaration=True, short_empty_elements=False
     )
 
+  def clear(self, element: et.Element) -> None:
+    if not isinstance(element, et.Element):
+      raise TypeError(f"Element is not an xml.ElementTree.Element: {type(element)}")
+    element.clear()
+
+  def to_bytes(
+    self, element: et.Element, encoding: str = "utf-8", self_closing: bool = False
+  ) -> bytes:
+    if not isinstance(element, et.Element):
+      raise TypeError(f"Element is not an xml.ElementTree.Element: {type(element)}")
+    if self_closing and not element.text:
+      element.text = ""
+    return et.tostring(element, encoding=normalize_encoding(encoding), xml_declaration=False)
+
   def iterparse(
     self,
-    path: str | bytes | PathLike[str] | PathLike[bytes],
-    tags: str | Collection[str] | None = None,
-  ) -> Iterator[et.Element]:
-    """
-    Incrementally parse XML from `path` and yield elements whose normalized
-    tag matches `tags`. Elements are yielded on their end event and are
-    structurally complete at the time they are yielded.
-
-    Memory model:
-    - Only elements whose tag matches `tags` are considered for yielding.
-    - A stack tracks matching elements whose end tag has not yet been seen.
-    - Any element encountered while this stack is empty is cleared
-      immediately on its end event.
-    - When a matching element is yielded, it is cleared as soon as the stack
-      becomes empty, meaning no future yielded element can be a descendant.
-
-    Usage:
-    - Process each yielded element before advancing the iterator; previously
-      yielded elements may be cleared after the next iteration step.
-    - Do not retain element references beyond the current iteration.
-
-    Tag filtering:
-    - `tags` may be a string, a collection of strings, or None.
-      * None, an empty string, or an empty collection means “yield all
-        elements”.
-    - Non-matching elements are not yielded but may appear as descendants of
-      yielded elements.
-
-    Special note:
-    - When `tags` is None/empty, the entire document is effectively treated as
-      matching; subtrees are only cleared once their ancestors close.
-      This mode is correct but not memory-efficient.
-
-    Parameters
-    ----------
-    path : file path or file-like object supported by ElementTree.iterparse
-    tags : tag or tags to yield (normalized via `get_tag`)
-
-    Yields
-    ------
-    xml.etree.ElementTree.Element
-        Fully-built elements in document order, deepest children first.
-    """
-    tag_set: set[str] | None = prep_tag_set(tags)
-    pending_yield_stack: list[et.Element] = []
-
-    for event, elem in et.iterparse(path, ("start", "end")):
-      if event == "start":
-        tag = self.get_tag(elem)
-        if tag_set is None or tag in tag_set:
-          pending_yield_stack.append(elem)
-        continue
-      if not pending_yield_stack:
-        self.clear(elem)
-        continue
-      if elem is pending_yield_stack[-1]:
-        pending_yield_stack.pop()
-        yield elem
-      if not pending_yield_stack:
-        self.clear(elem)
-
-  def iterwrite(
-    self,
-    path: str | bytes | PathLike[str] | PathLike[bytes],
-    elements: Iterable[et.Element],
-    encoding: str | None = None,
-    root_elem: et.Element | None = None,
+    path: str | bytes | PathLike,
+    tag_filter: str | Collection[str] | None = None,
     *,
-    max_item_per_chunk: int = 1000,
-  ) -> None:
-    """
-    Stream a sequence of XML elements to `path`, wrapped inside a root
-    element, without constructing the entire document tree in memory.
-
-    The output document has the form:
-
-        <?xml version="1.0" encoding="ENC"?>
-        <root ...>
-          [existing content of root_elem, if any]
-          [all streamed elements, in order]
-        </root>
-
-    The caller is responsible for providing elements in valid document order
-    and ensuring the resulting XML is well-formed and schema-compliant.
-
-    Root element
-    ------------
-    - If `root_elem` is None, a `<tmx version="1.4">` element is created and
-      used as the document root.
-    - If `root_elem` is provided, it is serialized once and used as a
-      template:
-      * Any existing children and text of `root_elem` are written before the
-        streamed `elements`.
-      * The closing tag of `root_elem` is written after all streamed
-        `elements`.
-    - Attributes, namespaces, and other metadata of `root_elem` are preserved
-      exactly as serialized by `ElementTree`.
-
-    Streaming / buffering
-    ---------------------
-    - Elements from `elements` are serialized with `ElementTree.tostring`
-      and written out in order.
-    - Up to `max_items_per_chunk` serialized elements are buffered in memory
-      before being flushed to disk with a single write.
-    - This provides streaming behaviour in terms of element count; the full
-      document is never held as a single in-memory string.
-
-    Encoding and formatting
-    -----------------------
-    - `encoding` is normalized and used both for the XML declaration and for
-      `ElementTree.tostring`.
-    - The file is opened in binary mode with exclusive creation (`"xb"`); a
-      `FileExistsError` is raised if `path` already exists.
-    - No pretty-printing or additional whitespace is added. Whitespace is
-      preserved exactly as produced by `ElementTree.tostring`, which is
-      suitable for TMX where whitespace may be significant.
-
-    Parameters
-    ----------
-    path :
-        Target file path or file-like path object. The file must not already
-        exist.
-    elements :
-        Iterable of fully-built `xml.etree.ElementTree.Element` instances to
-        be written as children of `root_elem`, in order.
-    encoding :
-        Name of the output character encoding (e.g. "utf-8"). Used for both
-        the XML declaration and element serialization.
-    root_elem :
-        Root element of the document. If None, a default `<tmx version="1.4">`
-        element is used.
-    max_items_per_chunk :
-        Maximum number of serialized elements to buffer before flushing them
-        to disk. Must be >= 1.
-    """
-    if max_item_per_chunk < 1:
-      raise ValueError("buffer_size must be >= 1")
-    _encoding: str = normalize_encoding(encoding)
-    if root_elem is None:
-      root_elem = et.Element("tmx", {"version": "1.4"})
-    root_string: bytes = et.tostring(
-      root_elem, encoding=_encoding, xml_declaration=False, short_empty_elements=False
-    )
-    pos = root_string.rfind(b"</")
-    if pos == -1:
-      raise ValueError("Cannot find closing tag for root element: " + root_string.decode(_encoding))
-    root_open = root_string[:pos]
-    end_tag = root_string[pos:]
-
-    buffer = bytearray()
-    with open(path, "xb") as f:
-      f.write(b'<?xml version="1.0" encoding="' + _encoding.encode("ascii") + b'"?>\n')
-      f.write(root_open)
-      counter = 0
-      for elem in elements:
-        buffer.extend(
-          et.tostring(elem, encoding=_encoding, xml_declaration=False, short_empty_elements=False)
-        )
-        counter += 1
-        if counter == max_item_per_chunk:
-          f.write(buffer)
-          buffer.clear()
-      if buffer:
-        f.write(buffer)
-      f.write(end_tag)
-
-  def make_elem(self, tag: str) -> et.Element:
-    return et.Element(tag)
-
-  def set_attr(self, element: et.Element, key: str, val: str) -> None:
-    element.set(key, val)
-
-  def set_text(self, element: et.Element, text: str | None) -> None:
-    element.text = text
-
-  def append(self, parent: et.Element, child: et.Element) -> None:
-    parent.append(child)
-
-  def get_attr(self, element: et.Element, key: str, default: str | None = None) -> str | None:
-    return element.attrib.get(key, default)
-
-  def get_text(self, element: et.Element) -> str | None:
-    return element.text
-
-  def get_tail(self, element: et.Element) -> str | None:
-    return element.tail
-
-  def set_tail(self, element: et.Element, tail: str | None) -> None:
-    element.tail = tail
-
-  def iter_children(
-    self, element: et.Element, tags: str | Collection[str] | None = None
+    nsmap: Mapping[str, str] | None = None,
   ) -> Iterator[et.Element]:
-    tag_set = prep_tag_set(tags)
-    for child in element:
-      child_tag = self.get_tag(child)
-      if tag_set is None or child_tag in tag_set:
-        yield child
-
-  def get_tag(self, element: et.Element) -> str:
-    return normalize_tag(element.tag)
-
-  def clear(self, element: et.Element) -> None:
-    element.clear()
+    tag_filter = prep_tag_set(tag_filter)
+    path = make_usable_path(path, mkdir=False)
+    ctx = et.iterparse(path, events=("start", "end"))
+    yield from self._iterparse(ctx, tag_filter)
