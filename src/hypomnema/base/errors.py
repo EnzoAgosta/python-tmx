@@ -17,15 +17,15 @@ class XmlDeserializationError(Exception):
   pass
 
 
-class AttributeSerializationError(XmlSerializationError):
+class AttributeSerializationError(Exception):
   pass
 
 
-class AttributeDeserializationError(XmlDeserializationError):
+class AttributeDeserializationError(Exception):
   pass
 
 
-class InvalidTagError(XmlDeserializationError):
+class InvalidTagError(Exception):
   pass
 
 
@@ -33,5 +33,5 @@ class InvalidContentError(Exception):
   pass
 
 
-class MissingHandlerError(XmlSerializationError):
+class MissingHandlerError(Exception):
   pass
