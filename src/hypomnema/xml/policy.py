@@ -5,12 +5,6 @@ from typing import Literal
 __all__ = ["DeserializationPolicy", "SerializationPolicy", "PolicyValue"]
 
 
-def _default[DefaultBehavior: str](
-  default_behavior: DefaultBehavior,
-) -> PolicyValue[DefaultBehavior]:
-  return field(default_factory=lambda: PolicyValue(default_behavior, logging.DEBUG))
-
-
 @dataclass(slots=True)
 class PolicyValue[Behavior: str]:
   """
@@ -33,6 +27,12 @@ class PolicyValue[Behavior: str]:
 
   behavior: Behavior
   log_level: int
+
+
+def _default[DefaultBehavior: str](
+  default_behavior: DefaultBehavior,
+) -> PolicyValue[DefaultBehavior]:
+  return field(default_factory=lambda: PolicyValue(default_behavior, logging.DEBUG))
 
 
 @dataclass(slots=True, kw_only=True)

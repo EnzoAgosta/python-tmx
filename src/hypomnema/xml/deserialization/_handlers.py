@@ -2,10 +2,9 @@ from hypomnema.xml.utils import check_tag
 from hypomnema.base.errors import XmlDeserializationError
 from hypomnema.base.types import (
   Assoc,
-  BaseInlineElement,
+  InlineElement,
   Bpt,
   Ept,
-  Header,
   Hi,
   It,
   Note,
@@ -16,13 +15,10 @@ from hypomnema.base.types import (
   Sub,
   Tmx,
   Tu,
+  Header,
   Tuv,
 )
-from hypomnema.xml.constants import XML_NS
-from hypomnema.xml.deserialization.base import (
-  BaseElementDeserializer,
-  InlineContentDeserializerMixin,
-)
+from hypomnema.xml.deserialization.base import BaseElementDeserializer
 
 __all__ = [
   "NoteDeserializer",
@@ -64,7 +60,7 @@ class NoteDeserializer[BackendElementType](BaseElementDeserializer[BackendElemen
         and the respective policy behavior is "raise".
     """
     check_tag(self.backend.get_tag(element), "note", self.logger, self.policy)
-    lang = self._parse_attribute_as_str(element, f"{XML_NS}lang", required=False)
+    lang = self._parse_attribute_as_str(element, "xml:lang", required=False)
     o_encoding = self._parse_attribute_as_str(element, "o-encoding", required=False)
     text = self.backend.get_text(element)
 
@@ -116,7 +112,7 @@ class PropDeserializer[BackendElementType](BaseElementDeserializer[BackendElemen
     """
     check_tag(self.backend.get_tag(element), "prop", self.logger, self.policy)
     _type = self._parse_attribute_as_str(element, "type", required=True)
-    lang = self._parse_attribute_as_str(element, f"{XML_NS}lang", required=False)
+    lang = self._parse_attribute_as_str(element, "xml:lang", required=False)
     o_encoding = self._parse_attribute_as_str(element, "o-encoding", required=False)
     text = self.backend.get_text(element)
 
@@ -229,10 +225,7 @@ class HeaderDeserializer[BackendElementType](BaseElementDeserializer[BackendElem
     )
 
 
-class BptDeserializer[BackendElementType](
-  BaseElementDeserializer[BackendElementType, Bpt],
-  InlineContentDeserializerMixin[BackendElementType],
-):
+class BptDeserializer[BackendElementType](BaseElementDeserializer[BackendElementType, Bpt]):
   """Deserializer for the TMX `<bpt>` (Begin Paired Tag) element."""
 
   def _deserialize(self, element: BackendElementType) -> Bpt:
@@ -257,10 +250,7 @@ class BptDeserializer[BackendElementType](
     return Bpt(i=i, x=x, type=type, content=content)  # type: ignore[arg-type]
 
 
-class EptDeserializer[BackendElementType](
-  BaseElementDeserializer[BackendElementType, Ept],
-  InlineContentDeserializerMixin[BackendElementType],
-):
+class EptDeserializer[BackendElementType](BaseElementDeserializer[BackendElementType, Ept]):
   """Deserializer for the TMX `<ept>` (End Paired Tag) element."""
 
   def _deserialize(self, element: BackendElementType) -> Ept:
@@ -283,10 +273,7 @@ class EptDeserializer[BackendElementType](
     return Ept(i=i, content=content)  # type: ignore[arg-type]
 
 
-class ItDeserializer[BackendElementType](
-  BaseElementDeserializer[BackendElementType, It],
-  InlineContentDeserializerMixin[BackendElementType],
-):
+class ItDeserializer[BackendElementType](BaseElementDeserializer[BackendElementType, It]):
   """Deserializer for the TMX `<it>` (Isolated Tag) element."""
 
   def _deserialize(self, element: BackendElementType) -> It:
@@ -311,10 +298,7 @@ class ItDeserializer[BackendElementType](
     return It(pos=pos, x=x, type=type, content=content)  # type: ignore[arg-type]
 
 
-class PhDeserializer[BackendElementType](
-  BaseElementDeserializer[BackendElementType, Ph],
-  InlineContentDeserializerMixin[BackendElementType],
-):
+class PhDeserializer[BackendElementType](BaseElementDeserializer[BackendElementType, Ph]):
   """Deserializer for the TMX `<ph>` (Placeholder) element."""
 
   def _deserialize(self, element: BackendElementType) -> Ph:
@@ -339,10 +323,7 @@ class PhDeserializer[BackendElementType](
     return Ph(x=x, assoc=assoc, type=type, content=content)  # type: ignore[arg-type]
 
 
-class SubDeserializer[BackendElementType](
-  BaseElementDeserializer[BackendElementType, Sub],
-  InlineContentDeserializerMixin[BackendElementType],
-):
+class SubDeserializer[BackendElementType](BaseElementDeserializer[BackendElementType, Sub]):
   """Deserializer for the TMX `<sub>` (Sub-flow) element."""
 
   def _deserialize(self, element: BackendElementType) -> Sub:
@@ -363,13 +344,10 @@ class SubDeserializer[BackendElementType](
     datatype = self._parse_attribute_as_str(element, "datatype", False)
     type = self._parse_attribute_as_str(element, "type", False)
     content = self._deserialize_content(element, ("bpt", "ept", "ph", "it", "hi"))
-    return Sub(datatype=datatype, type=type, content=content)  # type: ignore[arg-type]
+    return Sub(datatype=datatype, type=type, content=content)
 
 
-class HiDeserializer[BackendElementType](
-  BaseElementDeserializer[BackendElementType, Hi],
-  InlineContentDeserializerMixin[BackendElementType],
-):
+class HiDeserializer[BackendElementType](BaseElementDeserializer[BackendElementType, Hi]):
   """Deserializer for the TMX `<hi>` (Highlight) element."""
 
   def _deserialize(self, element: BackendElementType) -> Hi:
@@ -390,13 +368,10 @@ class HiDeserializer[BackendElementType](
     x = self._parse_attribute_as_int(element, "x", False)
     type = self._parse_attribute_as_str(element, "type", False)
     content = self._deserialize_content(element, ("bpt", "ept", "ph", "it", "hi"))
-    return Hi(x=x, type=type, content=content)  # type: ignore[arg-type]
+    return Hi(x=x, type=type, content=content)
 
 
-class TuvDeserializer[BackendElementType](
-  BaseElementDeserializer[BackendElementType, Tuv],
-  InlineContentDeserializerMixin[BackendElementType],
-):
+class TuvDeserializer[BackendElementType](BaseElementDeserializer[BackendElementType, Tuv]):
   """Deserializer for the TMX `<tuv>` (Translation Unit Variant) element."""
 
   def _deserialize(self, element: BackendElementType) -> Tuv:
@@ -429,7 +404,7 @@ class TuvDeserializer[BackendElementType](
         if self.policy.extra_text.behavior == "raise":
           raise XmlDeserializationError(f"Element <tuv> has extra text content '{text}'")
 
-    lang = self._parse_attribute_as_str(element, f"{XML_NS}lang", True)
+    lang = self._parse_attribute_as_str(element, "xml:lang", True)
     o_encoding = self._parse_attribute_as_str(element, "o-encoding", False)
     datatype = self._parse_attribute_as_str(element, "datatype", False)
     usagecount = self._parse_attribute_as_int(element, "usagecount", False)
@@ -444,7 +419,7 @@ class TuvDeserializer[BackendElementType](
 
     props: list[Prop] = []
     notes: list[Note] = []
-    content: list[str | BaseInlineElement] | None = None
+    content: list[str | InlineElement] | None = None
     seg_found = False
 
     for child in self.backend.iter_children(element):
@@ -482,9 +457,7 @@ class TuvDeserializer[BackendElementType](
       elif self.policy.missing_seg.behavior == "ignore":
         content = []
       else:
-        self.logger.log(
-          self.policy.missing_seg.log_level, "Falling back to an empty string"
-        )
+        self.logger.log(self.policy.missing_seg.log_level, "Falling back to an empty string")
         content = [""]
 
     return Tuv(

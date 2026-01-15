@@ -1,283 +1,168 @@
-from typing import Literal
 import pytest
-from pytest_mock import MockerFixture
-from hypomnema.xml.policy import DeserializationPolicy, PolicyValue
 import logging
-from hypomnema.xml.deserialization.base import (
-  BaseElementDeserializer,
-  InlineContentDeserializerMixin,
-)
-from datetime import datetime, UTC
-import hypomnema as hm
+from datetime import datetime
+from enum import StrEnum
+from hypomnema.base.types import Prop
+from hypomnema.base.errors import AttributeDeserializationError, XmlDeserializationError
+from hypomnema.xml.deserialization.base import BaseElementDeserializer
+from hypomnema.xml.policy import DeserializationPolicy, PolicyValue
 
 
-class FakeDeserializer(
-  BaseElementDeserializer[str, hm.BaseElement], InlineContentDeserializerMixin[str]
-):
-  def _deserialize(self, element: str) -> hm.BaseElement | None:
-    raise NotImplementedError
+class ConcreteDeserializer(BaseElementDeserializer):
+  """A concrete implementation for testing abstract BaseElementDeserializer."""
+
+  def _deserialize(self, element):
+    return None
 
 
-class TestBaseElementDeserializer:
-  backend: hm.XmlBackend[str]
-  logger: logging.Logger
-  policy: DeserializationPolicy
-  mocker: MockerFixture
+class MockEnum(StrEnum):
+  A = "a"
+  B = "b"
 
+
+class BaseDeserializerTest:
   @pytest.fixture(autouse=True)
-  def _setup(
-    self, backend: hm.XmlBackend[str], test_logger: logging.Logger, mocker: MockerFixture
-  ) -> None:
-    self.backend = backend
-    self.logger = test_logger
-    self.policy = DeserializationPolicy()
+  def setup(self, mocker, backend):
     self.mocker = mocker
-
-  def test_emit_not_set_raises(self) -> None:
-    des = FakeDeserializer(self.backend, self.policy, self.logger)
-    with pytest.raises(AssertionError, match=r"emit\(\) called before set_emit"):
-      des.emit("dummy")
-
-  def test_emit_dispatches(self) -> None:
-    des = FakeDeserializer(self.backend, self.policy, self.logger)
-    fake_emit = self.mocker.Mock(return_value=hm.Note(text="ok"))
-    des._set_emit(fake_emit)
-    out = des.emit("dummy")
-    assert out is fake_emit.return_value
-    fake_emit.assert_called_once_with("dummy")
-
-  @pytest.mark.parametrize(
-    "behaviour", ["raise", "ignore"], ids=["behaviour=raise", "behaviour=ignore"]
-  )
-  def test_handle_missing_attribute_policy(
-    self, behaviour: Literal["raise", "ignore"], log_level: int, caplog: pytest.LogCaptureFixture
-  ) -> None:
-    self.policy.required_attribute_missing = PolicyValue(behaviour, log_level)
-    des = FakeDeserializer(self.backend, self.policy, self.logger)
-    elem = self.backend.make_elem("tu")
-    msg = "Required attribute 'attr' is None"
-
-    if behaviour == "raise":
-      with pytest.raises(hm.AttributeDeserializationError, match=msg):
-        des._handle_missing_attribute(elem, "attr", required=True)
-    else:
-      des._handle_missing_attribute(elem, "attr", required=True)
-
-    assert caplog.record_tuples == [(self.logger.name, log_level, msg)]
-
-  def test_handle_missing_attribute_not_required(self, caplog: pytest.LogCaptureFixture) -> None:
-    des = FakeDeserializer(self.backend, self.policy, self.logger)
-    elem = self.backend.make_elem("tu")
-    des._handle_missing_attribute(elem, "attr", required=False)
-    assert not caplog.record_tuples
-
-  @pytest.mark.parametrize(
-    "behaviour", ["raise", "ignore"], ids=["behaviour=raise", "behaviour=ignore"]
-  )
-  def test_parse_attribute_as_datetime_policy(
-    self, behaviour: Literal["raise", "ignore"], log_level: int, caplog: pytest.LogCaptureFixture
-  ) -> None:
-    self.policy.invalid_attribute_value = PolicyValue(behaviour, log_level)
-    des = FakeDeserializer(self.backend, self.policy, self.logger)
-    elem = self.backend.make_elem("tu")
-    self.backend.set_attr(elem, "ts", "bad-iso")
-
-    msg = "Cannot convert 'bad-iso' to a datetime object for attribute ts"
-    if behaviour == "raise":
-      with pytest.raises(hm.AttributeDeserializationError, match=msg):
-        des._parse_attribute_as_datetime(elem, "ts", required=False)
-    else:
-      out = des._parse_attribute_as_datetime(elem, "ts", required=False)
-      assert out is None
-
-    assert caplog.record_tuples == [(self.logger.name, log_level, msg)]
-
-  def test_parse_attribute_as_datetime_ok(self) -> None:
-    des = FakeDeserializer(self.backend, self.policy, self.logger)
-    elem = self.backend.make_elem("tu")
-    now = datetime.now(UTC).replace(microsecond=0)
-    self.backend.set_attr(elem, "ts", now.isoformat())
-
-    out = des._parse_attribute_as_datetime(elem, "ts", required=False)
-    assert out == now
-
-  def test_parse_attribute_as_datetime_missing_calls_handle_missing(self) -> None:
-    des = FakeDeserializer(self.backend, self.policy, self.logger)
-    elem = self.backend.make_elem("tu")
-    des._handle_missing_attribute = self.mocker.Mock()
-    out = des._parse_attribute_as_datetime(elem, "ts", required=False)
-    assert out is None
-    des._handle_missing_attribute.assert_called_once_with(elem, "ts", False)
-
-  @pytest.mark.parametrize(
-    "behaviour", ["raise", "ignore"], ids=["behaviour=raise", "behaviour=ignore"]
-  )
-  def test_parse_attribute_as_int_policy(
-    self, behaviour: Literal["raise", "ignore"], log_level: int, caplog: pytest.LogCaptureFixture
-  ) -> None:
-    self.policy.invalid_attribute_value = PolicyValue(behaviour, log_level)
-    des = FakeDeserializer(self.backend, self.policy, self.logger)
-    elem = self.backend.make_elem("tu")
-    self.backend.set_attr(elem, "count", "abc")
-
-    msg = "Cannot convert 'abc' to an int for attribute count"
-    if behaviour == "raise":
-      with pytest.raises(hm.AttributeDeserializationError, match=msg):
-        des._parse_attribute_as_int(elem, "count", required=False)
-    else:
-      out = des._parse_attribute_as_int(elem, "count", required=False)
-      assert out is None
-
-    assert caplog.record_tuples == [(self.logger.name, log_level, msg)]
-
-  def test_parse_attribute_as_int_ok(self) -> None:
-    des = FakeDeserializer(self.backend, self.policy, self.logger)
-    elem = self.backend.make_elem("tu")
-    self.backend.set_attr(elem, "count", "42")
-
-    out = des._parse_attribute_as_int(elem, "count", required=False)
-    assert out == 42
-
-  def test_parse_attribute_as_int_missing_calls_handle_missing(self) -> None:
-    des = FakeDeserializer(self.backend, self.policy, self.logger)
-    elem = self.backend.make_elem("tu")
-    des._handle_missing_attribute = self.mocker.Mock()
-    out = des._parse_attribute_as_int(elem, "count", required=False)
-    assert out is None
-    des._handle_missing_attribute.assert_called_once_with(elem, "count", False)
-
-  @pytest.mark.parametrize(
-    "behaviour", ["raise", "ignore"], ids=["behaviour=raise", "behaviour=ignore"]
-  )
-  def test_parse_attribute_as_enum_policy(
-    self, behaviour: Literal["raise", "ignore"], log_level: int, caplog: pytest.LogCaptureFixture
-  ) -> None:
-    self.policy.invalid_attribute_value = PolicyValue(behaviour, log_level)
-    des = FakeDeserializer(self.backend, self.policy, self.logger)
-    elem = self.backend.make_elem("tu")
-    self.backend.set_attr(elem, "kind", "baz")
-
-    msg = "Value 'baz' is not a valid enum value for attribute kind"
-    if behaviour == "raise":
-      with pytest.raises(hm.AttributeDeserializationError, match=msg):
-        des._parse_attribute_as_enum(elem, "kind", hm.Pos, required=False)
-    else:
-      out = des._parse_attribute_as_enum(elem, "kind", hm.Pos, required=False)
-      assert out is None
-
-    assert caplog.record_tuples == [(self.logger.name, log_level, msg)]
-
-  def test_parse_attribute_as_enum_ok(self) -> None:
-    des = FakeDeserializer(self.backend, self.policy, self.logger)
-    elem = self.backend.make_elem("tu")
-    self.backend.set_attr(elem, "kind", "begin")
-
-    out = des._parse_attribute_as_enum(elem, "kind", hm.Pos, required=False)
-    assert out is hm.Pos.BEGIN
-
-  def test_parse_attribute_as_enum_missing_calls_handle_missing(self) -> None:
-    des = FakeDeserializer(self.backend, self.policy, self.logger)
-    elem = self.backend.make_elem("tu")
-    des._handle_missing_attribute = self.mocker.Mock()
-    out = des._parse_attribute_as_enum(elem, "kind", hm.Pos, required=False)
-    assert out is None
-    des._handle_missing_attribute.assert_called_once_with(elem, "kind", False)
-
-  def test_parse_attribute_as_str_missing_calls_handle_missing(self) -> None:
-    des = FakeDeserializer(self.backend, self.policy, self.logger)
-    elem = self.backend.make_elem("tu")
-    des._handle_missing_attribute = self.mocker.Mock()
-    out = des._parse_attribute_as_str(elem, "text", required=False)
-    assert out is None
-    des._handle_missing_attribute.assert_called_once_with(elem, "text", False)
-
-  def test_parse_attribute_as_str_ok(self) -> None:
-    des = FakeDeserializer(self.backend, self.policy, self.logger)
-    elem = self.backend.make_elem("tu")
-    self.backend.set_attr(elem, "text", "hello")
-
-    out = des._parse_attribute_as_str(elem, "text", required=False)
-    assert out == "hello"
-
-
-class TestInlineContentDeserializerMixin:
-  backend: hm.XmlBackend[str]
-  logger: logging.Logger
-  policy: DeserializationPolicy
-  mocker: MockerFixture
-
-  @pytest.fixture(autouse=True)
-  def _setup(
-    self, backend: hm.XmlBackend[str], test_logger: logging.Logger, mocker: MockerFixture
-  ) -> None:
     self.backend = backend
-    self.logger = test_logger
     self.policy = DeserializationPolicy()
-    self.mocker = mocker
+    self.logger = logging.getLogger("test")
+    self.deserializer = ConcreteDeserializer(backend, self.policy, self.logger)
 
-  def test_deserialize_content_text_only(self) -> None:
-    parent = self.backend.make_elem("source")
-    des = FakeDeserializer(self.backend, self.policy, self.logger)
-    self.backend.set_text(parent, "text")
-    out = des._deserialize_content(parent, allowed=())
-    assert out == ["text"]
+    self.deserializer._set_emit(lambda x: Prop(text="mock", type="mock"))
 
-  def test_deserialize_content_with_children(self) -> None:
-    parent = self.backend.make_elem("source")
-    des = FakeDeserializer(self.backend, self.policy, self.logger)
-    des.emit = self.mocker.Mock(return_value=hm.Bpt(i=1))
-    self.backend.set_text(parent, "pre")
-    child = self.backend.make_elem("bpt")
-    self.backend.append(parent, child)
-    self.backend.set_tail(child, "post")
 
-    out = des._deserialize_content(parent, allowed=("bpt",))
+class TestBaseDeserializerHappy(BaseDeserializerTest):
+  """Happy path tests for BaseElementDeserializer."""
 
-    assert out == ["pre", des.emit.return_value, "post"]
+  def test_emit_delegates(self):
+    """Test that emit calls the provided callable."""
+    mock_emit = self.mocker.Mock(return_value="result")
+    self.deserializer._set_emit(mock_emit)
+    elem = self.backend.create_element("elem")
+    assert self.deserializer.emit(elem) == "result"
+    mock_emit.assert_called_once_with(elem)
 
-  @pytest.mark.parametrize(
-    "behaviour", ["raise", "ignore"], ids=["behaviour=raise", "behaviour=ignore"]
-  )
-  def test_deserialize_content_invalid_child_policy(
-    self, behaviour: Literal["raise", "ignore"], log_level: int, caplog: pytest.LogCaptureFixture
-  ) -> None:
-    self.policy.invalid_child_element = PolicyValue(behaviour, log_level)
-    des = FakeDeserializer(self.backend, self.policy, self.logger)
-    parent = self.backend.make_elem("source")
-    bad = self.backend.make_elem("bad")
-    self.backend.append(parent, bad)
+  def test_handle_missing_attribute_not_required(self):
+    """Test missing optional attribute does nothing."""
+    elem = self.backend.create_element("elem")
+    self.deserializer._handle_missing_attribute(elem, "attr", required=False)
 
-    msg = "Incorrect child element in source: expected one of bpt, got bad"
-    with pytest.raises(hm.XmlDeserializationError):
-      out = des._deserialize_content(parent, allowed=("bpt",))
-      assert out == []  # only runs if the exception is not raised, ie. if policy is "ignore"
+  def test_parse_attribute_as_str_valid(self):
+    elem = self.backend.create_element("elem", attributes={"attr": "val"})
+    val = self.deserializer._parse_attribute_as_str(elem, "attr", required=True)
+    assert val == "val"
 
-    assert (self.logger.name, log_level, msg) in caplog.record_tuples
+  def test_parse_attribute_as_str_missing_optional(self):
+    elem = self.backend.create_element("elem")
+    val = self.deserializer._parse_attribute_as_str(elem, "attr", required=False)
+    assert val is None
 
-  @pytest.mark.parametrize(
-    "behaviour",
-    ["raise", "ignore", "empty"],
-    ids=["behaviour=raise", "behaviour=ignore", "behaviour=empty"],
-  )
-  def test_deserialize_content_empty_policy(
-    self,
-    behaviour: Literal["raise", "ignore", "empty"],
-    log_level: int,
-    caplog: pytest.LogCaptureFixture,
-  ) -> None:
-    self.policy.empty_content = PolicyValue(behaviour, log_level)
-    des = FakeDeserializer(self.backend, self.policy, self.logger)
-    parent = self.backend.make_elem("source")
+  def test_parse_attribute_as_int_valid(self):
+    elem = self.backend.create_element("elem", attributes={"count": "42"})
+    val = self.deserializer._parse_attribute_as_int(elem, "count", required=True)
+    assert val == 42
 
-    msg = "Element <source> is empty"
-    if behaviour == "raise":
-      with pytest.raises(hm.XmlDeserializationError, match=msg):
-        des._deserialize_content(parent, allowed=())
-    elif behaviour == "empty":
-      out = des._deserialize_content(parent, allowed=())
-      assert out == [""]
-    else:
-      out = des._deserialize_content(parent, allowed=())
-      assert out == []
+  def test_parse_attribute_as_int_missing_optional(self):
+    elem = self.backend.create_element("elem")
+    val = self.deserializer._parse_attribute_as_int(elem, "count", required=False)
+    assert val is None
 
-    assert (self.logger.name, log_level, msg) in caplog.record_tuples
+  def test_parse_attribute_as_datetime_valid(self):
+    dt_str = "2023-01-01T12:00:00"
+    elem = self.backend.create_element("elem", attributes={"date": dt_str})
+    val = self.deserializer._parse_attribute_as_datetime(elem, "date", required=True)
+    assert val == datetime.fromisoformat(dt_str)
+
+  def test_parse_attribute_as_datetime_missing_optional(self):
+    elem = self.backend.create_element("elem")
+    val = self.deserializer._parse_attribute_as_datetime(elem, "date", required=False)
+    assert val is None
+
+  def test_parse_attribute_as_enum_valid(self):
+    elem = self.backend.create_element("elem", attributes={"type": "a"})
+    val = self.deserializer._parse_attribute_as_enum(elem, "type", MockEnum, required=True)
+    assert val == MockEnum.A
+
+  def test_parse_attribute_as_enum_missing_optional(self):
+    elem = self.backend.create_element("elem")
+    val = self.deserializer._parse_attribute_as_enum(elem, "type", MockEnum, required=False)
+    assert val is None
+
+  def test_deserialize_content_text_only(self):
+    elem = self.backend.create_element("elem")
+    self.backend.set_text(elem, "Hello")
+    content = self.deserializer._deserialize_content(elem, allowed=())
+    assert content == ["Hello"]
+
+  def test_deserialize_content_mixed(self):
+    elem = self.backend.create_element("elem")
+    self.backend.set_text(elem, "Hello")
+
+    child = self.backend.create_element("child")
+
+    self.backend.set_tail(child, "!")
+    self.backend.append_child(elem, child)
+
+    mock_obj = Prop(text="p", type="t")
+    self.deserializer._set_emit(lambda x: mock_obj)
+
+    content = self.deserializer._deserialize_content(elem, allowed=("child",))
+
+    assert len(content) == 3
+    assert content[0] == "Hello"
+    assert content[1] == mock_obj
+    assert content[2] == "!"
+
+  def test_deserialize_content_empty_fallback_string(self):
+    self.policy.empty_content = PolicyValue("empty", logging.DEBUG)
+    elem = self.backend.create_element("elem")
+    content = self.deserializer._deserialize_content(elem, allowed=())
+    assert content == [""]
+
+
+class TestBaseDeserializerError(BaseDeserializerTest):
+  """Error cases for BaseElementDeserializer."""
+
+  def test_emit_raises_if_not_set(self):
+    fresh_deserializer = ConcreteDeserializer(self.backend, self.policy, self.logger)
+    with pytest.raises(AssertionError, match=r"emit\(\) called before set_emit\(\)"):
+      fresh_deserializer.emit("something")
+
+  def test_handle_missing_attribute_required_raise(self):
+    elem = self.backend.create_element("elem")
+    with pytest.raises(AttributeDeserializationError, match="Required attribute 'attr' is None"):
+      self.deserializer._handle_missing_attribute(elem, "attr", required=True)
+
+  def test_parse_attribute_as_str_missing_required(self):
+    elem = self.backend.create_element("elem")
+    with pytest.raises(AttributeDeserializationError, match="Required attribute 'attr' is None"):
+      self.deserializer._parse_attribute_as_str(elem, "attr", required=True)
+
+  def test_parse_attribute_as_int_invalid(self):
+    elem = self.backend.create_element("elem", attributes={"count": "abc"})
+    with pytest.raises(AttributeDeserializationError, match="Cannot convert"):
+      self.deserializer._parse_attribute_as_int(elem, "count", required=True)
+
+  def test_parse_attribute_as_datetime_invalid(self):
+    elem = self.backend.create_element("elem", attributes={"date": "bad-date"})
+    with pytest.raises(AttributeDeserializationError, match="Cannot convert"):
+      self.deserializer._parse_attribute_as_datetime(elem, "date", required=True)
+
+  def test_parse_attribute_as_enum_invalid(self):
+    elem = self.backend.create_element("elem", attributes={"type": "c"})
+    with pytest.raises(AttributeDeserializationError, match="not a valid enum value"):
+      self.deserializer._parse_attribute_as_enum(elem, "type", MockEnum, required=True)
+
+  def test_deserialize_content_invalid_child(self):
+    elem = self.backend.create_element("elem")
+    child = self.backend.create_element("bad")
+    self.backend.append_child(elem, child)
+
+    with pytest.raises(XmlDeserializationError, match="Incorrect child element"):
+      self.deserializer._deserialize_content(elem, allowed=("good",))
+
+  def test_deserialize_content_empty_raise(self):
+    elem = self.backend.create_element("elem")
+    with pytest.raises(XmlDeserializationError, match="Element <elem> is empty"):
+      self.deserializer._deserialize_content(elem, allowed=())

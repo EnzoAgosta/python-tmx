@@ -5,14 +5,14 @@ from datetime import datetime
 from logging import Logger
 
 from hypomnema.base.errors import AttributeSerializationError, XmlSerializationError
-from hypomnema.base.types import BaseElement, BaseInlineElement, Tuv
+from hypomnema.base.types import InlineElement, Tuv, BaseElement, Sub
 from hypomnema.xml.backends.base import XmlBackend
 from hypomnema.xml.policy import SerializationPolicy
 
-__all__ = ["BaseElementSerializer", "InlineContentSerializerMixin", "ChildrenSerializerMixin"]
+__all__ = ["BaseElementSerializer"]
 
 
-class BaseElementSerializer[BackendElementType, TmxElementType: BaseElement](ABC):
+class BaseElementSerializer[TypeOfBackendElement, TypeOfTmxElement: BaseElement](ABC):
   """
   Abstract base class for converting TMX objects into XML elements.
 
@@ -36,14 +36,14 @@ class BaseElementSerializer[BackendElementType, TmxElementType: BaseElement](ABC
   """
 
   def __init__(
-    self, backend: XmlBackend[BackendElementType], policy: SerializationPolicy, logger: Logger
+    self, backend: XmlBackend[TypeOfBackendElement], policy: SerializationPolicy, logger: Logger
   ):
-    self.backend: XmlBackend[BackendElementType] = backend
-    self.policy = policy
-    self.logger = logger
-    self._emit: Callable[[BaseElement], BackendElementType | None] | None = None
+    self.backend: XmlBackend[TypeOfBackendElement] = backend
+    self.policy: SerializationPolicy = policy
+    self.logger: Logger = logger
+    self._emit: Callable[[BaseElement], TypeOfBackendElement | None] | None = None
 
-  def _set_emit(self, emit: Callable[[BaseElement], BackendElementType | None]) -> None:
+  def _set_emit(self, emit: Callable[[BaseElement], TypeOfBackendElement | None]) -> None:
     """
     Set the dispatch function for recursive serialization.
     Must be called before `emit()` is called.
@@ -55,7 +55,7 @@ class BaseElementSerializer[BackendElementType, TmxElementType: BaseElement](ABC
     """
     self._emit = emit
 
-  def emit(self, obj: BaseElement) -> BackendElementType | None:
+  def emit(self, obj: BaseElement) -> TypeOfBackendElement | None:
     """
     Invoke the dispatcher to serialize a BaseElement object.
 
@@ -78,7 +78,7 @@ class BaseElementSerializer[BackendElementType, TmxElementType: BaseElement](ABC
     return self._emit(obj)
 
   @abstractmethod
-  def _serialize(self, obj: TmxElementType) -> BackendElementType | None:
+  def _serialize(self, obj: TypeOfTmxElement) -> TypeOfBackendElement | None:
     """
     Perform the actual serialization of the specific TMX object type.
 
@@ -95,7 +95,7 @@ class BaseElementSerializer[BackendElementType, TmxElementType: BaseElement](ABC
     ...
 
   def _handle_missing_attribute(
-    self, target: BackendElementType, attribute: str, required: bool
+    self, target: TypeOfBackendElement, attribute: str, required: bool
   ) -> None:
     """
     Handle cases where an attribute value is None according to policy.
@@ -128,7 +128,7 @@ class BaseElementSerializer[BackendElementType, TmxElementType: BaseElement](ABC
     return
 
   def _set_datetime_attribute(
-    self, target: BackendElementType, value: datetime | None, attribute: str, required: bool
+    self, target: TypeOfBackendElement, value: datetime | None, attribute: str, required: bool
   ) -> None:
     """
     Serialize and set a datetime attribute in ISO 8601 format.
@@ -156,10 +156,10 @@ class BaseElementSerializer[BackendElementType, TmxElementType: BaseElement](ABC
       if self.policy.invalid_attribute_type.behavior == "raise":
         raise AttributeSerializationError(f"Attribute {attribute!r} is not a datetime object")
       return
-    self.backend.set_attr(target, attribute, value.isoformat())
+    self.backend.set_attribute(target, attribute, value.isoformat(), unsafe=True)
 
   def _set_int_attribute(
-    self, target: BackendElementType, value: int | None, attribute: str, required: bool
+    self, target: TypeOfBackendElement, value: int | None, attribute: str, required: bool
   ) -> None:
     """
     Serialize and set an integer attribute.
@@ -185,11 +185,11 @@ class BaseElementSerializer[BackendElementType, TmxElementType: BaseElement](ABC
       if self.policy.invalid_attribute_type.behavior == "raise":
         raise AttributeSerializationError(f"Attribute {attribute!r} is not an int")
       return
-    self.backend.set_attr(target, attribute, str(value))
+    self.backend.set_attribute(target, attribute, str(value))
 
   def _set_enum_attribute[EnumType: StrEnum](
     self,
-    target: BackendElementType,
+    target: TypeOfBackendElement,
     value: EnumType | None,
     attribute: str,
     enum_type: type[EnumType],
@@ -226,10 +226,10 @@ class BaseElementSerializer[BackendElementType, TmxElementType: BaseElement](ABC
           f"Attribute {attribute!r} is not a member of {enum_type!r}"
         )
       return
-    self.backend.set_attr(target, attribute, value.value)
+    self.backend.set_attribute(target, attribute, value.value)
 
   def _set_str_attribute(
-    self, target: BackendElementType, value: str | None, attribute: str, required: bool
+    self, target: TypeOfBackendElement, value: str | None, attribute: str, required: bool
   ) -> None:
     """
     Serialize and set a string attribute.
@@ -255,47 +255,24 @@ class BaseElementSerializer[BackendElementType, TmxElementType: BaseElement](ABC
       if self.policy.invalid_attribute_type.behavior == "raise":
         raise AttributeSerializationError(f"Attribute {attribute!r} is not a string")
       return
-    self.backend.set_attr(target, attribute, value)
-
-
-class InlineContentSerializerMixin[BackendElementType]:
-  """
-  Mixin for serializing mixed content (text and inline elements).
-
-  Attributes
-  ----------
-  backend : XMLBackend[BackendElementType]
-      The XML library wrapper.
-  policy : SerializationPolicy
-      The serialization configuration.
-  logger : Logger
-      The logging instance.
-  emit : Callable[[BaseElement], BackendElementType | None]
-      Dispatcher for serializing inline child elements.
-  """
-
-  backend: XmlBackend[BackendElementType]
-  policy: SerializationPolicy
-  logger: Logger
-  emit: Callable[[BaseElement], BackendElementType | None]
-  __slots__ = tuple()
+    self.backend.set_attribute(target, attribute, value)
 
   def _serialize_content_into(
     self,
-    source: BaseInlineElement | Tuv,
-    target: BackendElementType,
-    allowed: tuple[type[BaseInlineElement], ...],
+    source: InlineElement | Tuv,
+    target: TypeOfBackendElement,
+    allowed: tuple[type[BaseElement | Sub], ...],
   ) -> None:
     """
     Iteratively serialize mixed text and XML elements into a target element.
 
     Parameters
     ----------
-    source : BaseInlineElement | Tuv
+    source : InlineElement | Tuv
         The object containing the mixed content list.
     target : BackendElementType
         The XML element to populate.
-    allowed : tuple[type[BaseInlineElement], ...]
+    allowed : tuple[type[InlineElement], ...]
         The permitted types for inline child elements.
 
     Raises
@@ -303,7 +280,7 @@ class InlineContentSerializerMixin[BackendElementType]:
     XmlSerializationError
         If a child object type is not a string or in the allowed tuple,        and policy behavior is "raise".
     """
-    last_child: BackendElementType | None = None
+    last_child: TypeOfBackendElement | None = None
     for item in source.content:
       if isinstance(item, str):
         if last_child is None:
@@ -316,7 +293,7 @@ class InlineContentSerializerMixin[BackendElementType]:
       elif isinstance(item, allowed):
         child_elem = self.emit(item)
         if child_elem is not None:
-          self.backend.append(target, child_elem)
+          self.backend.append_child(target, child_elem)
           last_child = child_elem
 
       else:
@@ -336,30 +313,11 @@ class InlineContentSerializerMixin[BackendElementType]:
           )
         continue
 
-
-class ChildrenSerializerMixin[BackendElementType]:
-  """
-  Mixin for serializing homogeneous lists of child elements.
-
-  Attributes
-  ----------
-  backend : XMLBackend[BackendElementType]
-      The XML library wrapper.
-  policy : SerializationPolicy
-      The serialization configuration.
-  logger : Logger
-      The logging instance.
-  emit : Callable[[BaseElement], BackendElementType | None]
-      Dispatcher for serializing child elements.
-  """
-
-  emit: Callable[[BaseElement], BackendElementType | None]
-  policy: SerializationPolicy
-  backend: XmlBackend[BackendElementType]
-  logger: Logger
-
-  def _serialize_children[ChildType: BaseElement](
-    self, children: list[ChildType], target: BackendElementType, expected_type: type[ChildType]
+  def _serialize_children[TypeofChildItem: BaseElement](
+    self,
+    children: list[TypeofChildItem],
+    target: TypeOfBackendElement,
+    expected_type: type[TypeofChildItem],
   ) -> None:
     """
     Serialize a list of child objects and append them to a target element.
@@ -383,7 +341,7 @@ class ChildrenSerializerMixin[BackendElementType]:
       if isinstance(child, expected_type):
         child_element = self.emit(child)
         if child_element is not None:
-          self.backend.append(target, child_element)
+          self.backend.append_child(target, child_element)
       else:
         self.logger.log(
           self.policy.invalid_child_element.log_level,
