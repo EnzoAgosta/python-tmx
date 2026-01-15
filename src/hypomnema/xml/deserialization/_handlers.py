@@ -344,7 +344,7 @@ class SubDeserializer[BackendElementType](BaseElementDeserializer[BackendElement
     datatype = self._parse_attribute_as_str(element, "datatype", False)
     type = self._parse_attribute_as_str(element, "type", False)
     content = self._deserialize_content(element, ("bpt", "ept", "ph", "it", "hi"))
-    return Sub(datatype=datatype, type=type, content=content)  # type: ignore[arg-type]
+    return Sub(datatype=datatype, type=type, content=content)
 
 
 class HiDeserializer[BackendElementType](BaseElementDeserializer[BackendElementType, Hi]):
@@ -368,7 +368,7 @@ class HiDeserializer[BackendElementType](BaseElementDeserializer[BackendElementT
     x = self._parse_attribute_as_int(element, "x", False)
     type = self._parse_attribute_as_str(element, "type", False)
     content = self._deserialize_content(element, ("bpt", "ept", "ph", "it", "hi"))
-    return Hi(x=x, type=type, content=content)  # type: ignore[arg-type]
+    return Hi(x=x, type=type, content=content)
 
 
 class TuvDeserializer[BackendElementType](BaseElementDeserializer[BackendElementType, Tuv]):
